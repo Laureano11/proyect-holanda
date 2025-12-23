@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Basanta Club</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b', // Fondo Sidebar
+                            900: '#0f172a', // Fondo Main
+                            950: '#020617', // Fondo Oscuro
+                        },
+                        primary: '#3b82f6', // Azul Acción
+                        success: '#10b981', // Verde Pagado
+                        warning: '#f59e0b', // Amarillo Pendiente
+                        danger: '#ef4444', // Rojo Error/Bloqueo
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        /* Scrollbar fina para la tabla */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-900 text-gray-300 h-screen overflow-hidden flex">
+
+    <aside class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between hidden md:flex">
+        <div>
+            <div class="p-6 flex items-center gap-3">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">B</div>
+                <span class="text-white font-bold tracking-wide">BASANTA ADMIN</span>
+            </div>
+
+            <nav class="mt-4 px-4 space-y-1">
+                <a href="#" class="flex items-center gap-3 px-4 py-3 bg-slate-800 text-white rounded-xl transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span class="font-medium">Agenda / Turnos</span>
+                </a>
+                
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-slate-900 rounded-xl transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span class="font-medium">Caja / Movimientos</span>
+                </a>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-slate-900 rounded-xl transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <span class="font-medium">Clientes</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="p-4">
+            <button class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-red-400 transition w-full">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                <span class="font-medium">Cerrar Sesión</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        
+        <header class="bg-slate-900 border-b border-slate-800 p-6 flex justify-between items-center">
+            <div>
+                <h2 class="text-2xl font-bold text-white">Sábado, 13 de Dic</h2>
+                <p class="text-sm text-gray-500">Vista general de ocupación</p>
+            </div>
+            
+            <div class="flex gap-4">
+                <div class="px-4 py-2 bg-slate-800 rounded-lg border border-slate-700">
+                    <span class="text-xs text-gray-400 uppercase font-bold">Caja Hoy</span>
+                    <p class="text-xl font-bold text-success">$142.000</p>
+                </div>
+                <div class="px-4 py-2 bg-slate-800 rounded-lg border border-slate-700">
+                    <span class="text-xs text-gray-400 uppercase font-bold">Ocupación</span>
+                    <p class="text-xl font-bold text-white">85%</p>
+                </div>
+                <button onclick="openModal('Nuevo Turno Manual')" class="bg-primary hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition shadow-lg shadow-blue-900/20">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Nuevo Turno
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-auto p-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 min-w-[800px]">
+                
+                <div class="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+                    <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center sticky top-0 z-10">
+                        <span class="font-bold text-white">Cancha 1 (Cristal)</span>
+                        <span class="text-xs bg-slate-900 px-2 py-1 rounded text-gray-400">Indoor</span>
+                    </div>
+                    
+                    <div class="flex-1 divide-y divide-slate-800/50">
+                        <div class="p-3 flex gap-3 hover:bg-slate-900 transition group cursor-pointer relative border-l-4 border-success bg-slate-900/50">
+                            <div class="text-sm font-mono text-gray-500 w-12 pt-1">17:00</div>
+                            <div class="flex-1">
+                                <p class="text-white font-bold text-sm">Juan Pérez</p>
+                                <p class="text-xs text-success flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Pagado MP
+                                </p>
+                            </div>
+                            <button class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white p-1">⋮</button>
+                        </div>
+
+                         <div class="p-3 flex gap-3 hover:bg-slate-800 transition cursor-pointer group border-l-4 border-transparent" onclick="openModal('18:30 - Cancha 1')">
+                            <div class="text-sm font-mono text-gray-500 w-12 pt-1">18:30</div>
+                            <div class="flex-1 py-1 border-2 border-dashed border-slate-800 rounded-lg flex items-center justify-center group-hover:border-primary group-hover:bg-primary/5">
+                                <span class="text-xs text-gray-600 font-bold group-hover:text-primary">+ Agregar Reserva</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 flex gap-3 hover:bg-slate-900 transition group cursor-pointer border-l-4 border-warning bg-slate-900/50">
+                            <div class="text-sm font-mono text-gray-500 w-12 pt-1">20:00</div>
+                            <div class="flex-1">
+                                <p class="text-white font-bold text-sm">Grupo Los Pibes</p>
+                                <p class="text-xs text-warning flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Debe $10.000
+                                </p>
+                            </div>
+                            <button class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white p-1">⋮</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+                    <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center sticky top-0 z-10">
+                        <span class="font-bold text-white">Cancha 2 (Azul)</span>
+                        <span class="text-xs bg-slate-900 px-2 py-1 rounded text-gray-400">Outdoor</span>
+                    </div>
+                    
+                    <div class="flex-1 divide-y divide-slate-800/50">
+                        <div class="p-3 flex gap-3 bg-slate-900/80 border-l-4 border-gray-600 opacity-70">
+                            <div class="text-sm font-mono text-gray-500 w-12 pt-1">17:00</div>
+                            <div class="flex-1">
+                                <p class="text-gray-400 font-bold text-sm">Mantenimiento</p>
+                                <p class="text-xs text-gray-500">Cambio de red</p>
+                            </div>
+                        </div>
+
+                        <div class="p-3 flex gap-3 hover:bg-slate-800 transition cursor-pointer group border-l-4 border-transparent" onclick="openModal('18:30 - Cancha 2')">
+                            <div class="text-sm font-mono text-gray-500 w-12 pt-1">18:30</div>
+                            <div class="flex-1 py-1 border-2 border-dashed border-slate-800 rounded-lg flex items-center justify-center group-hover:border-primary group-hover:bg-primary/5">
+                                <span class="text-xs text-gray-600 font-bold group-hover:text-primary">+ Agregar Reserva</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+                    <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center sticky top-0 z-10">
+                        <span class="font-bold text-white">Cancha 3 (Single)</span>
+                        <span class="text-xs bg-slate-900 px-2 py-1 rounded text-gray-400">Outdoor</span>
+                    </div>
+                    <div class="flex-1 flex items-center justify-center p-10 text-center">
+                        <p class="text-gray-600 text-sm">Sin turnos asignados hoy</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <div id="adminModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center">
+        <div class="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-700 shadow-2xl p-6">
+            
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white" id="modalTitle">Nueva Reserva Manual</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-white">✕</button>
+            </div>
+
+            <form class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del Cliente</label>
+                    <input type="text" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary" placeholder="Ej: Roberto Gomez">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Teléfono (Opcional)</label>
+                        <input type="tel" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary" placeholder="Ej: 11...">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Monto a Cobrar</label>
+                        <input type="number" value="20000" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Estado del Pago</label>
+                    <div class="flex gap-2">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="pago" class="peer sr-only" checked>
+                            <div class="text-center py-2 rounded-lg border border-slate-700 bg-slate-800 text-gray-400 peer-checked:bg-success/20 peer-checked:text-success peer-checked:border-success transition">
+                                Pagado Total
+                            </div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="pago" class="peer sr-only">
+                            <div class="text-center py-2 rounded-lg border border-slate-700 bg-slate-800 text-gray-400 peer-checked:bg-warning/20 peer-checked:text-warning peer-checked:border-warning transition">
+                                Seña / Pendiente
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-800">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-primary focus:ring-0">
+                        <span class="text-sm text-gray-400">Bloquear cancha (Mantenimiento/Clases)</span>
+                    </label>
+                </div>
+
+                <button type="button" onclick="closeModal()" class="w-full bg-primary hover:bg-blue-600 text-white font-bold py-3 rounded-xl mt-4">Guardar Turno</button>
+            </form>
+        </div>
+    </div>
+    <button onclick="openFixedModal()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-purple-900/20">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    Cargar Turno Fijo
+</button>
+
+<div id="fixedModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 w-full max-w-2xl rounded-2xl border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]">
+        
+        <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+            <div>
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span class="bg-purple-600 text-white text-xs px-2 py-1 rounded">ADMIN</span>
+                    Nuevo Turno Fijo
+                </h3>
+                <p class="text-gray-400 text-sm mt-1">Generación masiva de reservas sin pago previo.</p>
+            </div>
+            <button onclick="closeFixedModal()" class="text-gray-500 hover:text-white transition">✕</button>
+        </div>
+
+        <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Cliente Fijo</label>
+                    <input type="text" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" placeholder="Ej: Grupo de los Jueves">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Teléfono</label>
+                    <input type="text" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" placeholder="Opcional">
+                </div>
+            </div>
+
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Cancha</label>
+                    <select class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none">
+                        <option>Cancha 1 (Cristal)</option>
+                        <option>Cancha 2 (Azul)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Hora Inicio</label>
+                    <select class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none font-mono">
+                        <option>19:00</option>
+                        <option>20:00</option>
+                        <option>21:00</option>
+                    </select>
+                </div>
+                 <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Duración</label>
+                    <select class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none">
+                        <option>60 min</option>
+                        <option selected>90 min</option>
+                        <option>120 min</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-purple-400 uppercase mb-3">¿Qué días juegan?</label>
+                
+                <div class="flex gap-2 mb-4">
+                    <button class="flex-1 py-3 rounded-lg border border-slate-700 bg-slate-800 text-gray-400 hover:bg-slate-700 hover:text-white transition font-bold" onclick="toggleBtn(this)">Lun</button>
+                    <button class="flex-1 py-3 rounded-lg border-2 border-purple-500 bg-purple-500/20 text-white font-bold shadow-lg shadow-purple-900/20" onclick="toggleBtn(this)">Mar</button> <button class="flex-1 py-3 rounded-lg border border-slate-700 bg-slate-800 text-gray-400 hover:bg-slate-700 hover:text-white transition font-bold" onclick="toggleBtn(this)">Mié</button>
+                    <button class="flex-1 py-3 rounded-lg border-2 border-purple-500 bg-purple-500/20 text-white font-bold shadow-lg shadow-purple-900/20" onclick="toggleBtn(this)">Jue</button> <button class="flex-1 py-3 rounded-lg border border-slate-700 bg-slate-800 text-gray-400 hover:bg-slate-700 hover:text-white transition font-bold" onclick="toggleBtn(this)">Vie</button>
+                    <button class="flex-1 py-3 rounded-lg border border-slate-700 bg-slate-800 text-gray-400 hover:bg-slate-700 hover:text-white transition font-bold" onclick="toggleBtn(this)">Sáb</button>
+                    <button class="flex-1 py-3 rounded-lg border border-slate-700 bg-slate-800 text-gray-400 hover:bg-slate-700 hover:text-white transition font-bold" onclick="toggleBtn(this)">Dom</button>
+                </div>
+
+                <div class="flex items-center gap-3 text-sm">
+                    <span class="text-gray-400">Repetir desde hoy hasta:</span>
+                    <input type="date" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-white" value="2025-12-31">
+                </div>
+            </div>
+
+            <div class="bg-blue-900/20 border border-blue-800 p-4 rounded-xl flex gap-4 items-start">
+                <svg class="w-6 h-6 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div>
+                    <p class="text-blue-200 text-sm font-bold">Resumen de la operación:</p>
+                    <p class="text-blue-300/80 text-xs mt-1">
+                        Se van a generar <strong class="text-white">18 Reservas</strong> automáticamente para "Grupo de los Jueves".<br>
+                        Estado: <span class="text-yellow-400">Pendiente de Pago (En mostrador)</span>.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="p-6 border-t border-slate-800 flex justify-end gap-3">
+            <button onclick="closeFixedModal()" class="px-6 py-3 rounded-xl text-gray-400 hover:text-white font-medium">Cancelar</button>
+            <button class="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-900/40 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Confirmar y Generar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openFixedModal() { document.getElementById('fixedModal').classList.remove('hidden'); }
+    function closeFixedModal() { document.getElementById('fixedModal').classList.add('hidden'); }
+    
+    // Función visual para simular click en los días
+    function toggleBtn(btn) {
+        if (btn.classList.contains('border-purple-500')) {
+            // Desactivar
+            btn.classList.remove('border-2', 'border-purple-500', 'bg-purple-500/20', 'text-white', 'shadow-lg');
+            btn.classList.add('border', 'border-slate-700', 'bg-slate-800', 'text-gray-400');
+        } else {
+            // Activar
+            btn.classList.remove('border', 'border-slate-700', 'bg-slate-800', 'text-gray-400');
+            btn.classList.add('border-2', 'border-purple-500', 'bg-purple-500/20', 'text-white', 'shadow-lg');
+        }
+    }
+</script>
+
+
+    <script>
+        function openModal(title) {
+            if(title) document.getElementById('modalTitle').innerText = title;
+            document.getElementById('adminModal').classList.remove('hidden');
+        }
+        function closeModal() {
+            document.getElementById('adminModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
