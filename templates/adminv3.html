@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Basanta Club</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#0f172a',
+                        surface: '#1e293b',
+                        surface_hover: '#334155',
+                        border: '#334155',
+                        primary: '#38bdf8',
+                        secondary: '#94a3b8',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .sidebar-transition { transition: transform 0.3s ease-in-out; }
+        @media (max-width: 768px) {
+            .sidebar-mobile-hidden { transform: translateX(-100%); }
+            #sidebar { transform: translateX(-100%); }
+            #sidebar:not(.sidebar-mobile-hidden) { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="bg-bg text-gray-200 min-h-screen">
+    <div class="flex min-h-screen">
+    
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-50 w-64 bg-surface border-r border-border sidebar-transition sidebar-mobile-hidden md:translate-x-0">
+        <div class="h-full flex flex-col">
+            <!-- Logo/Header del Sidebar -->
+            <div class="p-6 border-b border-border">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-primary font-bold">Administración</p>
+                        <h2 class="text-white font-bold text-lg">BASANTA</h2>
+                    </div>
+                    <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Navegación -->
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
+                <a href="#" onclick="setActiveSection(this, 'turnos'); return false;" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/10 border border-primary/20 text-primary font-medium transition hover:bg-primary/20 active">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Turnos</span>
+                </a>
+
+                <a href="#" onclick="setActiveSection(this, 'usuarios'); return false;" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-surface_hover hover:text-white transition font-medium">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <span>Usuarios</span>
+                </a>
+
+                <a href="#" onclick="setActiveSection(this, 'finanzas'); return false;" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-surface_hover hover:text-white transition font-medium">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Finanzas</span>
+                </a>
+
+                <a href="#" onclick="setActiveSection(this, 'canchas'); return false;" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-surface_hover hover:text-white transition font-medium">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    <span>Canchas</span>
+                </a>
+
+                <a href="#" onclick="setActiveSection(this, 'reportes'); return false;" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-surface_hover hover:text-white transition font-medium">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span>Reportes</span>
+                </a>
+
+                <a href="#" onclick="setActiveSection(this, 'configuracion'); return false;" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-surface_hover hover:text-white transition font-medium">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    <span>Configuración</span>
+                </a>
+
+                <a href="#" onclick="setActiveSection(this, 'notificaciones'); return false;" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-surface_hover hover:text-white transition font-medium">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>Notificaciones</span>
+                </a>
+            </nav>
+
+            <!-- Footer del Sidebar -->
+            <div class="p-4 border-t border-border">
+                <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-bg/50 border border-border">
+                    <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-white font-medium text-sm truncate">Admin</p>
+                        <p class="text-gray-400 text-xs truncate">admin@basanta.club</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Overlay para móvil -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 md:hidden hidden"></div>
+
+    <!-- Contenido Principal -->
+    <div class="flex-1">
+    <!-- Header -->
+    <nav class="sticky top-0 z-40 bg-bg/95 backdrop-blur-md border-b border-border px-5 py-4 flex justify-between items-center shadow-lg shadow-black/20">
+        <div class="flex items-center gap-4">
+            <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <div>
+                <p class="text-[10px] uppercase tracking-widest text-primary font-bold">Panel de Administración</p>
+                <h1 class="text-white font-bold text-lg tracking-tight">BASANTA CLUB</h1>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="openQuickModal()" class="bg-primary hover:bg-sky-500 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition shadow-lg shadow-primary/20">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Turno Rápido
+            </button>
+            <button onclick="openFixedModal()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition shadow-lg shadow-purple-900/20">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Turno Fijo
+            </button>
+        </div>
+    </nav>
+
+    <!-- Filtros y Fecha -->
+    <div class="bg-bg border-b border-border pt-4 sticky top-[68px] z-30">
+        <div class="flex overflow-x-auto hide-scroll px-4 gap-4 pb-4">
+            <input type="date" id="dateFilter" class="bg-surface border border-border rounded-lg px-4 py-2 text-white text-sm focus:border-primary outline-none" value="">
+            <select id="courtFilter" class="bg-surface border border-border rounded-lg px-4 py-2 text-white text-sm focus:border-primary outline-none">
+                <option value="">Todas las canchas</option>
+                <option>Cancha 1 (Cristal)</option>
+                <option>Cancha 2 (Azul)</option>
+                <option>Cancha 3 (Indoor)</option>
+            </select>
+            <select id="statusFilter" class="bg-surface border border-border rounded-lg px-4 py-2 text-white text-sm focus:border-primary outline-none">
+                <option value="">Todos los estados</option>
+                <option value="pending">Pendiente</option>
+                <option value="paid">Pagado</option>
+                <option value="cancelled">Cancelado</option>
+            </select>
+        </div>
+    </div>
+
+        <!-- Lista de Turnos -->
+        <main class="max-w-4xl mx-auto px-4 py-6 space-y-3">
+        
+        <!-- Turno Ejemplo 1 -->
+        <div class="bg-surface rounded-xl border border-border p-4 hover:bg-surface_hover transition group">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="text-center min-w-[60px]">
+                        <span class="font-mono text-white text-lg font-bold block">18:00</span>
+                        <span class="text-xs text-secondary">60 min</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="text-white font-bold">Juan Pablo</h3>
+                            <span class="text-[10px] bg-surface_hover border border-border text-gray-400 px-2 py-0.5 rounded-full">Cancha 1</span>
+                        </div>
+                        <p class="text-xs text-secondary">Tel: 351-2345678</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-yellow-400 bg-yellow-400/10 px-3 py-1 rounded-full border border-yellow-400/20">Pendiente</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 ml-4">
+                    <button onclick="markAsPaid(this)" class="bg-green-600 hover:bg-green-500 text-white p-2 rounded-lg transition opacity-0 group-hover:opacity-100" title="Marcar como pagado">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    </button>
+                    <button onclick="moveTurn(this)" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg transition opacity-0 group-hover:opacity-100" title="Mover turno">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    </button>
+                    <button onclick="cancelTurn(this)" class="bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg transition opacity-0 group-hover:opacity-100" title="Cancelar turno">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Turno Ejemplo 2 - Pagado -->
+        <div class="bg-surface rounded-xl border border-green-500/30 p-4 hover:bg-surface_hover transition group">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="text-center min-w-[60px]">
+                        <span class="font-mono text-white text-lg font-bold block">19:30</span>
+                        <span class="text-xs text-secondary">90 min</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="text-white font-bold">Matías Rossi</h3>
+                            <span class="text-[10px] bg-surface_hover border border-border text-gray-400 px-2 py-0.5 rounded-full">Cancha 2</span>
+                        </div>
+                        <p class="text-xs text-secondary">Tel: 351-9876543</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-green-400 bg-green-400/10 px-3 py-1 rounded-full border border-green-400/20 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Pagado
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 ml-4">
+                    <button onclick="moveTurn(this)" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg transition opacity-0 group-hover:opacity-100" title="Mover turno">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    </button>
+                    <button onclick="cancelTurn(this)" class="bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg transition opacity-0 group-hover:opacity-100" title="Cancelar turno">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Turno Ejemplo 3 - Fijo -->
+        <div class="bg-surface rounded-xl border border-purple-500/30 p-4 hover:bg-surface_hover transition group">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="text-center min-w-[60px]">
+                        <span class="font-mono text-white text-lg font-bold block">20:00</span>
+                        <span class="text-xs text-secondary">90 min</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="text-white font-bold">Grupo de los Jueves</h3>
+                            <span class="text-[10px] bg-purple-500/20 border border-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full">Fijo</span>
+                            <span class="text-[10px] bg-surface_hover border border-border text-gray-400 px-2 py-0.5 rounded-full">Cancha 1</span>
+                        </div>
+                        <p class="text-xs text-secondary">Recurrente - Jueves</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-green-400 bg-green-400/10 px-3 py-1 rounded-full border border-green-400/20 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Pagado
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 ml-4">
+                    <button onclick="moveTurn(this)" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg transition opacity-0 group-hover:opacity-100" title="Mover turno">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    </button>
+                    <button onclick="cancelTurn(this)" class="bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg transition opacity-0 group-hover:opacity-100" title="Cancelar turno">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Turno Ejemplo 4 - Cancelado -->
+        <div class="bg-surface rounded-xl border border-red-500/30 p-4 opacity-60 grayscale group">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="text-center min-w-[60px]">
+                        <span class="font-mono text-gray-500 text-lg font-bold block">21:00</span>
+                        <span class="text-xs text-secondary">60 min</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="text-gray-500 font-bold line-through">Carlos Mendoza</h3>
+                            <span class="text-[10px] bg-surface_hover border border-border text-gray-500 px-2 py-0.5 rounded-full">Cancha 2</span>
+                        </div>
+                        <p class="text-xs text-gray-600">Tel: 351-1112233</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-red-400 bg-red-400/10 px-3 py-1 rounded-full border border-red-400/20">Cancelado</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Turno Rápido -->
+    <div id="quickModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-surface w-full max-w-md rounded-2xl border border-border shadow-2xl">
+            <div class="p-6 border-b border-border flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span class="bg-primary text-white text-xs px-2 py-1 rounded">ADMIN</span>
+                        Nuevo Turno Rápido
+                    </h3>
+                    <p class="text-gray-400 text-sm mt-1">Reserva individual para hoy.</p>
+                </div>
+                <button onclick="closeQuickModal()" class="text-gray-500 hover:text-white transition text-2xl leading-none">×</button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Nombre del Cliente</label>
+                    <input type="text" id="quickName" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-primary outline-none" placeholder="Ej: Juan Pablo">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Teléfono</label>
+                    <input type="text" id="quickPhone" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-primary outline-none" placeholder="351-2345678">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Cancha</label>
+                        <select id="quickCourt" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-primary outline-none">
+                            <option>Cancha 1 (Cristal)</option>
+                            <option>Cancha 2 (Azul)</option>
+                            <option>Cancha 3 (Indoor)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Fecha</label>
+                        <input type="date" id="quickDate" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-primary outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Hora</label>
+                        <select id="quickTime" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-primary outline-none font-mono">
+                            <option>18:00</option>
+                            <option>19:00</option>
+                            <option>19:30</option>
+                            <option>20:00</option>
+                            <option>21:00</option>
+                            <option>22:00</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Duración</label>
+                        <select id="quickDuration" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-primary outline-none">
+                            <option>60 min</option>
+                            <option selected>90 min</option>
+                            <option>120 min</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" id="quickPaid" class="w-4 h-4 rounded border-border bg-bg text-primary focus:ring-primary">
+                    <label for="quickPaid" class="text-sm text-gray-300">Marcar como pagado</label>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-border flex justify-end gap-3">
+                <button onclick="closeQuickModal()" class="px-6 py-3 rounded-xl text-gray-400 hover:text-white font-medium transition">Cancelar</button>
+                <button onclick="saveQuickTurn()" class="px-6 py-3 rounded-xl bg-primary hover:bg-sky-500 text-white font-bold shadow-lg shadow-primary/40 flex items-center gap-2 transition">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    Crear Turno
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Turno Fijo -->
+    <div id="fixedModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-surface w-full max-w-2xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-border flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span class="bg-purple-600 text-white text-xs px-2 py-1 rounded">ADMIN</span>
+                        Nuevo Turno Fijo
+                    </h3>
+                    <p class="text-gray-400 text-sm mt-1">Generación masiva de reservas sin pago previo.</p>
+                </div>
+                <button onclick="closeFixedModal()" class="text-gray-500 hover:text-white transition text-2xl leading-none">×</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Cliente Fijo</label>
+                        <input type="text" id="fixedName" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" placeholder="Ej: Grupo de los Jueves">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Teléfono</label>
+                        <input type="text" id="fixedPhone" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" placeholder="Opcional">
+                    </div>
+                </div>
+
+                <div class="bg-bg p-4 rounded-xl border border-border grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Cancha</label>
+                        <select id="fixedCourt" class="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white outline-none">
+                            <option>Cancha 1 (Cristal)</option>
+                            <option>Cancha 2 (Azul)</option>
+                            <option>Cancha 3 (Indoor)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Hora Inicio</label>
+                        <select id="fixedTime" class="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white outline-none font-mono">
+                            <option>18:00</option>
+                            <option>19:00</option>
+                            <option>20:00</option>
+                            <option>21:00</option>
+                            <option>22:00</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Duración</label>
+                        <select id="fixedDuration" class="w-full bg-surface border border-border rounded-lg px-3 py-2 text-white outline-none">
+                            <option>60 min</option>
+                            <option selected>90 min</option>
+                            <option>120 min</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-purple-400 uppercase mb-3">¿Qué días juegan?</label>
+                    <div class="flex gap-2 mb-4">
+                        <button class="day-btn flex-1 py-3 rounded-lg border border-border bg-bg text-gray-400 hover:bg-surface_hover hover:text-white transition font-bold" data-day="lun" onclick="toggleDay(this)">Lun</button>
+                        <button class="day-btn flex-1 py-3 rounded-lg border border-border bg-bg text-gray-400 hover:bg-surface_hover hover:text-white transition font-bold" data-day="mar" onclick="toggleDay(this)">Mar</button>
+                        <button class="day-btn flex-1 py-3 rounded-lg border border-border bg-bg text-gray-400 hover:bg-surface_hover hover:text-white transition font-bold" data-day="mie" onclick="toggleDay(this)">Mié</button>
+                        <button class="day-btn flex-1 py-3 rounded-lg border border-border bg-bg text-gray-400 hover:bg-surface_hover hover:text-white transition font-bold" data-day="jue" onclick="toggleDay(this)">Jue</button>
+                        <button class="day-btn flex-1 py-3 rounded-lg border border-border bg-bg text-gray-400 hover:bg-surface_hover hover:text-white transition font-bold" data-day="vie" onclick="toggleDay(this)">Vie</button>
+                        <button class="day-btn flex-1 py-3 rounded-lg border border-border bg-bg text-gray-400 hover:bg-surface_hover hover:text-white transition font-bold" data-day="sab" onclick="toggleDay(this)">Sáb</button>
+                        <button class="day-btn flex-1 py-3 rounded-lg border border-border bg-bg text-gray-400 hover:bg-surface_hover hover:text-white transition font-bold" data-day="dom" onclick="toggleDay(this)">Dom</button>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <span class="text-gray-400">Repetir desde hoy hasta:</span>
+                        <input type="date" id="fixedEndDate" class="bg-bg border border-border rounded px-2 py-1 text-white" value="">
+                    </div>
+                </div>
+
+                <div class="bg-blue-900/20 border border-blue-800 p-4 rounded-xl flex gap-4 items-start">
+                    <svg class="w-6 h-6 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div>
+                        <p class="text-blue-200 text-sm font-bold">Resumen de la operación:</p>
+                        <p class="text-blue-300/80 text-xs mt-1" id="fixedSummary">
+                            Selecciona los días para ver el resumen.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-border flex justify-end gap-3">
+                <button onclick="closeFixedModal()" class="px-6 py-3 rounded-xl text-gray-400 hover:text-white font-medium transition">Cancelar</button>
+                <button onclick="saveFixedTurn()" class="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-900/40 flex items-center gap-2 transition">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    Confirmar y Generar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Mover Turno -->
+    <div id="moveModal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-surface w-full max-w-md rounded-2xl border border-border shadow-2xl">
+            <div class="p-6 border-b border-border flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded">ADMIN</span>
+                        Mover Turno
+                    </h3>
+                    <p class="text-gray-400 text-sm mt-1">Cambiar fecha, hora o cancha del turno.</p>
+                </div>
+                <button onclick="closeMoveModal()" class="text-gray-500 hover:text-white transition text-2xl leading-none">×</button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div class="bg-bg p-4 rounded-xl border border-border">
+                    <p class="text-xs text-gray-500 uppercase mb-1">Turno Actual</p>
+                    <p class="text-white font-bold" id="moveCurrentInfo">-</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Nueva Cancha</label>
+                        <select id="moveCourt" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-blue-500 outline-none">
+                            <option>Cancha 1 (Cristal)</option>
+                            <option>Cancha 2 (Azul)</option>
+                            <option>Cancha 3 (Indoor)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Nueva Fecha</label>
+                        <input type="date" id="moveDate" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-blue-500 outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Nueva Hora</label>
+                        <select id="moveTime" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-blue-500 outline-none font-mono">
+                            <option>18:00</option>
+                            <option>19:00</option>
+                            <option>19:30</option>
+                            <option>20:00</option>
+                            <option>21:00</option>
+                            <option>22:00</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Duración</label>
+                        <select id="moveDuration" class="w-full bg-bg border border-border rounded-lg px-4 py-3 text-white focus:border-blue-500 outline-none">
+                            <option>60 min</option>
+                            <option selected>90 min</option>
+                            <option>120 min</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-border flex justify-end gap-3">
+                <button onclick="closeMoveModal()" class="px-6 py-3 rounded-xl text-gray-400 hover:text-white font-medium transition">Cancelar</button>
+                <button onclick="confirmMove()" class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/40 flex items-center gap-2 transition">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    Confirmar Cambio
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inicializar fecha de hoy
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('dateFilter').value = today;
+            document.getElementById('quickDate').value = today;
+            document.getElementById('fixedEndDate').value = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
+        });
+
+        // Modales Turno Rápido
+        function openQuickModal() {
+            document.getElementById('quickModal').classList.remove('hidden');
+        }
+        function closeQuickModal() {
+            document.getElementById('quickModal').classList.add('hidden');
+        }
+        function saveQuickTurn() {
+            const name = document.getElementById('quickName').value;
+            const phone = document.getElementById('quickPhone').value;
+            const court = document.getElementById('quickCourt').value;
+            const date = document.getElementById('quickDate').value;
+            const time = document.getElementById('quickTime').value;
+            const duration = document.getElementById('quickDuration').value;
+            const paid = document.getElementById('quickPaid').checked;
+            
+            if (!name || !time) {
+                alert('Por favor completa los campos obligatorios');
+                return;
+            }
+            
+            // Aquí iría la lógica para guardar el turno
+            console.log('Guardar turno rápido:', { name, phone, court, date, time, duration, paid });
+            alert('Turno creado exitosamente');
+            closeQuickModal();
+        }
+
+        // Modales Turno Fijo
+        function openFixedModal() {
+            document.getElementById('fixedModal').classList.remove('hidden');
+        }
+        function closeFixedModal() {
+            document.getElementById('fixedModal').classList.add('hidden');
+        }
+        function toggleDay(btn) {
+            if (btn.classList.contains('border-purple-500')) {
+                btn.classList.remove('border-2', 'border-purple-500', 'bg-purple-500/20', 'text-white', 'shadow-lg');
+                btn.classList.add('border', 'border-border', 'bg-bg', 'text-gray-400');
+            } else {
+                btn.classList.remove('border', 'border-border', 'bg-bg', 'text-gray-400');
+                btn.classList.add('border-2', 'border-purple-500', 'bg-purple-500/20', 'text-white', 'shadow-lg');
+            }
+            updateFixedSummary();
+        }
+        function updateFixedSummary() {
+            const selectedDays = document.querySelectorAll('.day-btn.border-purple-500').length;
+            const name = document.getElementById('fixedName').value || 'Cliente';
+            if (selectedDays > 0) {
+                document.getElementById('fixedSummary').innerHTML = 
+                    `Se van a generar <strong class="text-white">${selectedDays} Reservas</strong> automáticamente para "${name}".<br>
+                    Estado: <span class="text-yellow-400">Pendiente de Pago (En mostrador)</span>.`;
+            } else {
+                document.getElementById('fixedSummary').innerHTML = 'Selecciona los días para ver el resumen.';
+            }
+        }
+        function saveFixedTurn() {
+            const name = document.getElementById('fixedName').value;
+            const phone = document.getElementById('fixedPhone').value;
+            const court = document.getElementById('fixedCourt').value;
+            const time = document.getElementById('fixedTime').value;
+            const duration = document.getElementById('fixedDuration').value;
+            const endDate = document.getElementById('fixedEndDate').value;
+            const selectedDays = Array.from(document.querySelectorAll('.day-btn.border-purple-500')).map(btn => btn.dataset.day);
+            
+            if (!name || selectedDays.length === 0) {
+                alert('Por favor completa los campos obligatorios y selecciona al menos un día');
+                return;
+            }
+            
+            // Aquí iría la lógica para guardar el turno fijo
+            console.log('Guardar turno fijo:', { name, phone, court, time, duration, endDate, selectedDays });
+            alert('Turnos fijos creados exitosamente');
+            closeFixedModal();
+        }
+
+        // Funciones de acciones
+        function markAsPaid(btn) {
+            const turn = btn.closest('.bg-surface');
+            const statusBadge = turn.querySelector('.text-yellow-400, .text-green-400, .text-red-400');
+            if (statusBadge) {
+                statusBadge.className = 'text-xs font-bold text-green-400 bg-green-400/10 px-3 py-1 rounded-full border border-green-400/20 flex items-center gap-1';
+                statusBadge.innerHTML = '<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Pagado';
+                turn.classList.add('border-green-500/30');
+                turn.classList.remove('border-yellow-500/30', 'border-red-500/30');
+            }
+            // Aquí iría la lógica para marcar como pagado
+            console.log('Marcar como pagado');
+        }
+
+        let currentMoveTurn = null;
+        function moveTurn(btn) {
+            currentMoveTurn = btn.closest('.bg-surface');
+            const time = currentMoveTurn.querySelector('.font-mono').textContent.trim();
+            const name = currentMoveTurn.querySelector('h3').textContent.trim();
+            const court = currentMoveTurn.querySelector('.text-gray-400').textContent.trim();
+            
+            document.getElementById('moveCurrentInfo').textContent = `${name} - ${time} - ${court}`;
+            document.getElementById('moveModal').classList.remove('hidden');
+        }
+        function closeMoveModal() {
+            document.getElementById('moveModal').classList.add('hidden');
+            currentMoveTurn = null;
+        }
+        function confirmMove() {
+            const newCourt = document.getElementById('moveCourt').value;
+            const newDate = document.getElementById('moveDate').value;
+            const newTime = document.getElementById('moveTime').value;
+            const duration = document.getElementById('moveDuration').value;
+            
+            if (currentMoveTurn) {
+                // Actualizar visualmente
+                currentMoveTurn.querySelector('.font-mono').textContent = newTime;
+                currentMoveTurn.querySelector('.text-gray-400').textContent = newCourt;
+            }
+            
+            // Aquí iría la lógica para mover el turno
+            console.log('Mover turno:', { newCourt, newDate, newTime, duration });
+            alert('Turno movido exitosamente');
+            closeMoveModal();
+        }
+
+        function cancelTurn(btn) {
+            if (!confirm('¿Estás seguro de cancelar este turno?')) return;
+            
+            const turn = btn.closest('.bg-surface');
+            const statusBadge = turn.querySelector('.text-yellow-400, .text-green-400, .text-red-400');
+            if (statusBadge) {
+                statusBadge.className = 'text-xs font-bold text-red-400 bg-red-400/10 px-3 py-1 rounded-full border border-red-400/20';
+                statusBadge.textContent = 'Cancelado';
+            }
+            turn.classList.add('opacity-60', 'grayscale', 'border-red-500/30');
+            turn.classList.remove('border-green-500/30', 'border-yellow-500/30');
+            turn.querySelector('h3').classList.add('line-through', 'text-gray-500');
+            turn.querySelectorAll('button').forEach(b => b.remove());
+            
+            // Aquí iría la lógica para cancelar el turno
+            console.log('Cancelar turno');
+        }
+
+        // Filtros
+        document.getElementById('dateFilter').addEventListener('change', applyFilters);
+        document.getElementById('courtFilter').addEventListener('change', applyFilters);
+        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+        function applyFilters() {
+            const date = document.getElementById('dateFilter').value;
+            const court = document.getElementById('courtFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            
+            // Aquí iría la lógica para filtrar los turnos
+            console.log('Aplicar filtros:', { date, court, status });
+        }
+
+        // Funciones del Sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const isHidden = sidebar.classList.contains('sidebar-mobile-hidden');
+            
+            if (isHidden) {
+                sidebar.classList.remove('sidebar-mobile-hidden');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('sidebar-mobile-hidden');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function setActiveSection(element, section) {
+            // Remover active de todos los items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('bg-primary/10', 'border-primary/20', 'text-primary', 'active');
+                item.classList.add('text-gray-400');
+            });
+            
+            // Agregar active al item seleccionado
+            element.classList.add('bg-primary/10', 'border-primary/20', 'text-primary', 'active');
+            element.classList.remove('text-gray-400');
+            
+            // Cerrar sidebar en móvil después de seleccionar
+            if (window.innerWidth < 768) {
+                toggleSidebar();
+            }
+            
+            // Aquí iría la lógica para cambiar de sección
+            console.log('Cambiar a sección:', section);
+        }
+    </script>
+    </div>
+    </div>
+</body>
+</html>

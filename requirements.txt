@@ -1,0 +1,21 @@
+
+
+# Base de datos PostgreSQL
+psycopg2-binary>=2.9.9
+
+# HTMX integration
+django-htmx>=1.17.0
+
+# Variables de entorno
+python-dotenv>=1.0.0
+
+# Para desarrollo
+django-debug-toolbar>=4.2.0
+
+# Tailwind CSS (opcional - se puede usar CDN también)
+# Nota: django-tailwind 3.7+ requiere Python 3.10+
+django-tailwind>=3.5.0,<3.7.0
+
+# Utilidades
+django-extensions>=3.2.3
+
