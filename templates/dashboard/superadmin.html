@@ -1,0 +1,108 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block title %}Super Admin{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-white">Super Admin</h1>
+            <p class="text-slate-400 mt-1">Control total del sistema</p>
+        </div>
+        <a href="/admin/" target="_blank" class="px-4 py-2 bg-red-500 text-white rounded-xl font-medium hover:bg-red-400 transition flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+            </svg>
+            Django Admin
+        </a>
+    </div>
+    
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-red-500 to-pink-600 rounded-2xl p-5 text-white">
+            <p class="text-red-100 text-sm">Complejos activos</p>
+            <p class="text-3xl font-bold mt-1">0</p>
+        </div>
+        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
+            <p class="text-slate-400 text-sm">Total usuarios</p>
+            <p class="text-3xl font-bold text-white mt-1">0</p>
+        </div>
+        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
+            <p class="text-slate-400 text-sm">Turnos hoy (global)</p>
+            <p class="text-3xl font-bold text-cyan-400 mt-1">0</p>
+        </div>
+        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
+            <p class="text-slate-400 text-sm">Ingresos totales</p>
+            <p class="text-3xl font-bold text-emerald-400 mt-1">$0</p>
+        </div>
+    </div>
+    
+    <!-- Admin sections -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Complejos -->
+        <a href="/admin/core/complejo/" class="bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700/50 hover:border-red-500/50 transition group">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-red-500/20 rounded-xl flex items-center justify-center group-hover:bg-red-500/30 transition">
+                    <svg class="w-7 h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-white text-lg">Complejos</h3>
+                    <p class="text-slate-400 text-sm">Crear y gestionar complejos</p>
+                </div>
+            </div>
+        </a>
+        
+        <!-- Usuarios -->
+        <a href="/admin/core/usuario/" class="bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700/50 hover:border-purple-500/50 transition group">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-purple-500/20 rounded-xl flex items-center justify-center group-hover:bg-purple-500/30 transition">
+                    <svg class="w-7 h-7 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-white text-lg">Usuarios</h3>
+                    <p class="text-slate-400 text-sm">Administrar todos los usuarios</p>
+                </div>
+            </div>
+        </a>
+        
+        <!-- Características de Cancha -->
+        <a href="/admin/core/caracteristicacancha/" class="bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700/50 hover:border-cyan-500/50 transition group">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-cyan-500/20 rounded-xl flex items-center justify-center group-hover:bg-cyan-500/30 transition">
+                    <svg class="w-7 h-7 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-white text-lg">Características</h3>
+                    <p class="text-slate-400 text-sm">Tags para canchas</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    
+    <!-- Info box -->
+    <div class="bg-red-500/10 border border-red-500/30 rounded-2xl p-6">
+        <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h4 class="font-semibold text-red-400">Acceso de Super Administrador</h4>
+                <p class="text-slate-400 text-sm mt-1">
+                    Tenés acceso total al sistema. Para gestión avanzada usá el panel de Django Admin.
+                    Desde ahí podés crear complejos, asignar administradores y configurar todo el sistema.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

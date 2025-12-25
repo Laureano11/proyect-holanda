@@ -1,23 +1,121 @@
 {% extends 'base.html' %}
 
-{% block title %}Inicio - Sistema de Turnos{% endblock %}
+{% block title %}Sistema de Gestión de Turnos{% endblock %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center">
-    <div class="text-center">
-        <h1 class="text-4xl font-bold text-gray-800 mb-4">
-            🎾 Sistema de Gestión de Turnos
-        </h1>
-        <p class="text-gray-600 mb-8">
-            Reservá tu cancha de pádel de forma fácil y rápida
-        </p>
-        <div class="space-x-4">
-            <a href="{% url 'admin:index' %}" 
-               class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
-                Panel de Admin
-            </a>
+<div class="min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <nav class="p-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <span class="text-white font-semibold text-lg">TurnosPádel</span>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                {% if user.is_authenticated %}
+                <a href="{% url 'dashboard' %}" class="px-4 py-2 text-slate-300 hover:text-white transition">
+                    Dashboard
+                </a>
+                <a href="{% url 'logout' %}" class="px-4 py-2 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition">
+                    Cerrar sesión
+                </a>
+                {% else %}
+                <a href="{% url 'login' %}" class="px-4 py-2 text-slate-300 hover:text-white transition">
+                    Iniciar sesión
+                </a>
+                <a href="{% url 'register' %}" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl hover:from-cyan-400 hover:to-blue-400 transition">
+                    Registrarse
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero -->
+    <main class="flex-1 flex items-center justify-center p-4">
+        <div class="text-center max-w-3xl mx-auto">
+            <!-- Badge -->
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm mb-8">
+                <span class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
+                Sistema de reservas online
+            </div>
+            
+            <!-- Title -->
+            <h1 class="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+                Reservá tu cancha
+                <span class="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                    fácil y rápido
+                </span>
+            </h1>
+            
+            <!-- Subtitle -->
+            <p class="text-xl text-slate-400 mb-10 max-w-xl mx-auto">
+                Sistema de gestión de turnos para canchas de pádel. 
+                Reservá, pagá y jugá sin complicaciones.
+            </p>
+            
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                {% if user.is_authenticated %}
+                <a href="{% url 'dashboard' %}" class="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-2xl hover:from-cyan-400 hover:to-blue-400 transition transform hover:scale-105 flex items-center gap-2">
+                    Ir al Dashboard
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                </a>
+                {% else %}
+                <a href="{% url 'register' %}" class="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-2xl hover:from-cyan-400 hover:to-blue-400 transition transform hover:scale-105 flex items-center gap-2">
+                    Empezar ahora
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                </a>
+                <a href="{% url 'login' %}" class="px-8 py-4 bg-slate-800 text-white font-semibold rounded-2xl hover:bg-slate-700 transition border border-slate-700">
+                    Ya tengo cuenta
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+    
+    <!-- Features preview -->
+    <div class="max-w-5xl mx-auto px-4 pb-16">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-800/30 backdrop-blur rounded-2xl p-6 border border-slate-700/50">
+                <div class="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-white mb-2">Reserva instantánea</h3>
+                <p class="text-slate-400 text-sm">Elegí cancha, día y horario en segundos. Sin llamadas ni esperas.</p>
+            </div>
+            
+            <div class="bg-slate-800/30 backdrop-blur rounded-2xl p-6 border border-slate-700/50">
+                <div class="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-white mb-2">Pago seguro</h3>
+                <p class="text-slate-400 text-sm">Pagá la seña con Mercado Pago y asegurá tu lugar.</p>
+            </div>
+            
+            <div class="bg-slate-800/30 backdrop-blur rounded-2xl p-6 border border-slate-700/50">
+                <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-white mb-2">Turnos fijos</h3>
+                <p class="text-slate-400 text-sm">Reservá tu horario favorito todas las semanas automáticamente.</p>
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
-
