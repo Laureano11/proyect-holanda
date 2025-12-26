@@ -3,92 +3,111 @@
 {% block title %}Panel Staff{% endblock %}
 
 {% block dashboard_content %}
-<div class="space-y-8">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-3xl font-bold text-white">Panel de Staff</h1>
-            <p class="text-slate-400 mt-1">Gestión de turnos y reservas</p>
+<div class="space-y-6">
+    <!-- Header compacto -->
+    <div>
+        <h1 class="text-2xl font-semibold text-white">Panel Staff</h1>
+        <p class="text-slate-400 text-sm mt-0.5">
+            {% if complejo %}{{ complejo.nombre }} • {{ hoy|date:"d/m/Y" }}{% else %}Sin complejo asignado{% endif %}
+        </p>
+    </div>
+    
+    <!-- Stats compactos -->
+    <div class="grid grid-cols-4 gap-3">
+        <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+            <p class="text-slate-400 text-xs mb-1">Hoy</p>
+            <p class="text-xl font-semibold text-white">{{ turnos_hoy|default:0 }}</p>
         </div>
-        <div class="flex gap-3">
-            <button class="px-4 py-2 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-400 transition flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                </svg>
-                Nuevo Turno
-            </button>
+        <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+            <p class="text-slate-400 text-xs mb-1">Pendientes</p>
+            <p class="text-xl font-semibold text-amber-400">{{ pendientes_pago|default:0 }}</p>
+        </div>
+        <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+            <p class="text-slate-400 text-xs mb-1">Confirmados</p>
+            <p class="text-xl font-semibold text-emerald-400">{{ confirmados|default:0 }}</p>
+        </div>
+        <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+            <p class="text-slate-400 text-xs mb-1">Cancelados</p>
+            <p class="text-xl font-semibold text-red-400">{{ cancelados|default:0 }}</p>
         </div>
     </div>
     
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
-            <p class="text-slate-400 text-sm">Turnos hoy</p>
-            <p class="text-3xl font-bold text-white mt-1">0</p>
-        </div>
-        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
-            <p class="text-slate-400 text-sm">Pendientes de pago</p>
-            <p class="text-3xl font-bold text-amber-400 mt-1">0</p>
-        </div>
-        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
-            <p class="text-slate-400 text-sm">Confirmados</p>
-            <p class="text-3xl font-bold text-emerald-400 mt-1">0</p>
-        </div>
-        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
-            <p class="text-slate-400 text-sm">Cancelados</p>
-            <p class="text-3xl font-bold text-red-400 mt-1">0</p>
-        </div>
-    </div>
-    
-    <!-- Quick actions grid -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700/50 hover:border-amber-500/50 transition cursor-pointer group text-center">
-            <div class="w-12 h-12 mx-auto bg-amber-500/20 rounded-xl flex items-center justify-center mb-3 group-hover:bg-amber-500/30 transition">
-                <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-            </div>
-            <h3 class="font-semibold text-white">Agenda del día</h3>
-        </div>
-        
-        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700/50 hover:border-cyan-500/50 transition cursor-pointer group text-center">
-            <div class="w-12 h-12 mx-auto bg-cyan-500/20 rounded-xl flex items-center justify-center mb-3 group-hover:bg-cyan-500/30 transition">
-                <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                </svg>
-            </div>
-            <h3 class="font-semibold text-white">Crear turno</h3>
-        </div>
-        
-        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700/50 hover:border-red-500/50 transition cursor-pointer group text-center">
-            <div class="w-12 h-12 mx-auto bg-red-500/20 rounded-xl flex items-center justify-center mb-3 group-hover:bg-red-500/30 transition">
-                <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-                </svg>
-            </div>
-            <h3 class="font-semibold text-white">Bloquear horario</h3>
-        </div>
-        
-        <div class="bg-slate-800/50 backdrop-blur rounded-2xl p-6 border border-slate-700/50 hover:border-emerald-500/50 transition cursor-pointer group text-center">
-            <div class="w-12 h-12 mx-auto bg-emerald-500/20 rounded-xl flex items-center justify-center mb-3 group-hover:bg-emerald-500/30 transition">
-                <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-            </div>
-            <h3 class="font-semibold text-white">Clientes</h3>
-        </div>
-    </div>
-    
-    <!-- Empty state for schedule -->
-    <div class="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-8 text-center">
-        <div class="w-16 h-16 mx-auto bg-slate-700 rounded-2xl flex items-center justify-center mb-4">
-            <svg class="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+    <!-- Botón Nuevo Turno Rápido -->
+    {% if complejo %}
+    <div class="flex justify-end">
+        <a href="{% url 'nuevo_turno_rapido' %}" class="px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
             </svg>
-        </div>
-        <h3 class="text-lg font-semibold text-white">No hay turnos para hoy</h3>
-        <p class="text-slate-400 mt-1">Los turnos aparecerán aquí cuando se reserven</p>
+            Nuevo Turno Rápido
+        </a>
     </div>
+    {% endif %}
+    
+    <!-- Turnos del complejo -->
+    {% if complejo %}
+    <div>
+        <h2 class="text-lg font-semibold text-white mb-3">Turnos Reservados</h2>
+        
+        {% if turnos_complejo %}
+        <div class="space-y-2">
+            {% for turno in turnos_complejo %}
+            <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div>
+                                <p class="text-sm font-medium text-white">{{ turno.cancha.nombre }}</p>
+                                <p class="text-xs text-slate-400">
+                                    {{ turno.fecha|date:"d/m/Y" }} • {{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400">Cliente:</span>
+                                <span class="text-sm text-white">{{ turno.cliente.first_name|default:turno.cliente.username }}</span>
+                            </div>
+                            <span class="px-2 py-1 rounded text-xs font-medium
+                                {% if turno.estado == 'confirmado' %}bg-emerald-500/20 text-emerald-400
+                                {% elif turno.estado == 'pendiente_pago' %}bg-amber-500/20 text-amber-400
+                                {% else %}bg-slate-600/50 text-slate-400{% endif %}">
+                                {{ turno.get_estado_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right">
+                            <p class="text-xs text-slate-400">Precio</p>
+                            <p class="text-sm font-semibold text-white">${{ turno.precio_total|floatformat:0 }}</p>
+                        </div>
+                        {% if turno.estado != 'cancelado_usuario' and turno.estado != 'cancelado_admin' and turno.estado != 'expirado' %}
+                        <form method="post" action="{% url 'cancelar_turno_staff' turno.id %}" class="inline">
+                            {% csrf_token %}
+                            <button 
+                                type="submit"
+                                onclick="return confirm('¿Cancelar turno de {{ turno.cliente.first_name|default:turno.cliente.username }}?')"
+                                class="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition"
+                            >
+                                Cancelar
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty state -->
+        <div class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-8 text-center">
+            <p class="text-slate-400 text-sm">No hay turnos reservados</p>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <!-- Sin complejo asignado -->
+    <div class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-8 text-center">
+        <p class="text-slate-400 text-sm">No tenés un complejo asignado</p>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
-

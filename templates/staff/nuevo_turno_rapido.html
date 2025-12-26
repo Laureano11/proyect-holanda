@@ -1,0 +1,81 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block title %}Nuevo Turno Rápido{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-white">Nuevo Turno Rápido</h1>
+            <p class="text-slate-400 text-sm mt-0.5">{{ complejo.nombre }} • {{ hoy|date:"d/m/Y" }}</p>
+        </div>
+        <a href="{% url 'dashboard' %}" class="px-3 py-1.5 bg-slate-700 text-white text-sm font-medium rounded hover:bg-slate-600 transition">
+            ← Volver
+        </a>
+    </div>
+    
+    <!-- Turnos disponibles -->
+    {% if slots_ordenados %}
+    <div class="space-y-4">
+        {% for hora, slot_data in slots_ordenados %}
+        <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+            <!-- Header de la hora -->
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-medium text-slate-300">
+                    {{ slot_data.hora_inicio|time:"H:i" }} - {{ slot_data.hora_fin|time:"H:i" }}
+                </span>
+                <span class="text-xs text-slate-500">
+                    {{ slot_data.canchas|length }} disponible{{ slot_data.canchas|length|pluralize }}
+                </span>
+            </div>
+            
+            <!-- Grid de canchas -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                {% for cancha_data in slot_data.canchas %}
+                <div class="bg-slate-800/50 rounded-lg p-3 border border-emerald-500/30">
+                    <div class="mb-2">
+                        <h4 class="text-sm font-medium text-white">{{ cancha_data.cancha.nombre }}</h4>
+                        <div class="flex items-center justify-between text-xs mt-1">
+                            <span class="text-slate-400">Precio</span>
+                            <span class="text-white font-medium">${{ cancha_data.precio|floatformat:0 }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulario para crear turno -->
+                    <form method="post" action="{% url 'crear_turno_rapido' %}" class="space-y-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="cancha_id" value="{{ cancha_data.cancha.id }}">
+                        <input type="hidden" name="fecha" value="{{ hoy|date:'Y-m-d' }}">
+                        <input type="hidden" name="hora" value="{{ cancha_data.hora|time:'H:i:s' }}">
+                        
+                        <input 
+                            type="text" 
+                            name="nombre_cliente" 
+                            placeholder="Nombre del cliente"
+                            required
+                            class="w-full px-2 py-1.5 text-xs rounded bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        >
+                        
+                        <button 
+                            type="submit"
+                            class="w-full py-1.5 px-2 bg-cyan-500 text-white text-xs font-medium rounded hover:bg-cyan-600 transition"
+                        >
+                            Reservar
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty state -->
+    <div class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-8 text-center">
+        <p class="text-slate-400 text-sm">No hay turnos disponibles hoy</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

@@ -19,4 +19,12 @@ urlpatterns = [
     # Reservas
     path('reservar/modal/<int:cancha_id>/', views.modal_reservar, name='modal_reservar'),
     path('reservar/', views.reservar_turno, name='reservar_turno'),
+    
+    # Cancelar turno
+    path('cancelar/<int:turno_id>/', views.cancelar_turno, name='cancelar_turno'),
+    path('cancelar-staff/<int:turno_id>/', views.cancelar_turno_staff, name='cancelar_turno_staff'),
+    
+    # Turno rápido (Staff)
+    path('nuevo-turno-rapido/', views.nuevo_turno_rapido, name='nuevo_turno_rapido'),
+    path('crear-turno-rapido/', views.crear_turno_rapido, name='crear_turno_rapido'),
 ]

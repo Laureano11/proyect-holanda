@@ -20,7 +20,7 @@
         </div>
         <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
             <p class="text-slate-400 text-xs mb-1">Este mes</p>
-            <p class="text-xl font-semibold text-white">0</p>
+            <p class="text-xl font-semibold text-white">{{ turnos_mes|default:0 }}</p>
         </div>
         <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
             <p class="text-slate-400 text-xs mb-1">Créditos</p>
@@ -28,9 +28,54 @@
         </div>
     </div>
     
+    <!-- Mis Turnos -->
+    {% if turnos_cliente %}
+    <div class="mb-6">
+        <h2 class="text-lg font-semibold text-white mb-3">Mis Turnos</h2>
+        <div class="space-y-2">
+            {% for turno in turnos_cliente %}
+            <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 flex items-center justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-3">
+                        <div>
+                            <p class="text-sm font-medium text-white">{{ turno.cancha.nombre }}</p>
+                            <p class="text-xs text-slate-400">
+                                {{ turno.fecha|date:"d/m/Y" }} • {{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}
+                            </p>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs font-medium
+                            {% if turno.estado == 'confirmado' %}bg-emerald-500/20 text-emerald-400
+                            {% elif turno.estado == 'pendiente_pago' %}bg-amber-500/20 text-amber-400
+                            {% else %}bg-slate-600/50 text-slate-400{% endif %}">
+                            {{ turno.get_estado_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-slate-300">${{ turno.precio_total|floatformat:0 }}</span>
+                    {% if turno.estado != 'cancelado_usuario' and turno.estado != 'cancelado_admin' and turno.estado != 'expirado' %}
+                    <form method="post" action="{% url 'cancelar_turno' turno.id %}" class="inline">
+                        {% csrf_token %}
+                        <button 
+                            type="submit"
+                            onclick="return confirm('¿Estás seguro de cancelar este turno?')"
+                            class="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition"
+                        >
+                            Cancelar
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Turnos disponibles -->
     {% if complejo %}
     <div>
+        <h2 class="text-lg font-semibold text-white mb-3">Turnos Disponibles - {{ hoy|date:"d/m/Y" }}</h2>
         {% if slots_ordenados %}
         <!-- Lista de horas con grid de canchas -->
         <div class="space-y-4">
