@@ -1,0 +1,71 @@
+<!-- Modal de confirmación de reserva -->
+<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="modal-overlay" onclick="if(event.target === this) this.remove()">
+    <div class="bg-slate-800 rounded-lg p-5 max-w-sm w-full border border-slate-700/50">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-white">Confirmar Reserva</h3>
+            <button onclick="document.getElementById('modal-overlay').remove()" class="text-slate-400 hover:text-white transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Detalles compactos -->
+        <div class="space-y-2.5 mb-4">
+            <div class="flex items-center justify-between py-2 border-b border-slate-700/50">
+                <span class="text-slate-400 text-sm">Cancha</span>
+                <span class="text-white font-medium text-sm">{{ cancha.nombre }}</span>
+            </div>
+            
+            <div class="flex items-center justify-between py-2 border-b border-slate-700/50">
+                <span class="text-slate-400 text-sm">Fecha y Hora</span>
+                <span class="text-white font-medium text-sm">{{ fecha|date:"d/m/Y" }} {{ hora|time:"H:i" }}</span>
+            </div>
+            
+            <div class="flex items-center justify-between py-2 border-b border-slate-700/50">
+                <span class="text-slate-400 text-sm">Precio Total</span>
+                <span class="text-white font-semibold">${{ precio|floatformat:0 }}</span>
+            </div>
+            
+            <div class="flex items-center justify-between py-2 border-b border-slate-700/50">
+                <span class="text-slate-400 text-sm">Seña</span>
+                <span class="text-cyan-400 font-semibold">${{ senia|floatformat:0 }}</span>
+            </div>
+            
+            <div class="flex items-center justify-between py-2">
+                <span class="text-slate-400 text-sm">Créditos</span>
+                <span class="{% if creditos_disponibles >= senia %}text-emerald-400{% else %}text-amber-400{% endif %} font-semibold text-sm">
+                    ${{ creditos_disponibles|floatformat:0 }}
+                </span>
+            </div>
+            
+            {% if creditos_disponibles < senia %}
+            <p class="text-red-400 text-xs mt-1">⚠️ Créditos insuficientes</p>
+            {% endif %}
+        </div>
+        
+        <!-- Botones -->
+        <div class="flex gap-2">
+            <button 
+                onclick="document.getElementById('modal-overlay').remove()" 
+                class="flex-1 py-2 px-3 bg-slate-700 text-white text-sm font-medium rounded hover:bg-slate-600 transition"
+            >
+                Cancelar
+            </button>
+            <form method="post" action="{% url 'reservar_turno' %}" class="flex-1">
+                {% csrf_token %}
+                <input type="hidden" name="cancha_id" value="{{ cancha.id }}">
+                <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+                <input type="hidden" name="hora" value="{{ hora|time:'H:i:s' }}">
+                <button 
+                    type="submit"
+                    class="w-full py-2 px-3 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition {% if creditos_disponibles < senia %}opacity-50 cursor-not-allowed{% endif %}"
+                    {% if creditos_disponibles < senia %}disabled{% endif %}
+                >
+                    Confirmar
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

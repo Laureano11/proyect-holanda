@@ -39,9 +39,9 @@
 <body class="bg-slate-900 min-h-screen text-white">
     <!-- Messages (auto-hide after 3 seconds) -->
     {% if messages %}
-    <div id="messages-container" class="fixed top-4 right-4 z-50 space-y-2">
+    <div id="messages-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 space-y-2">
         {% for message in messages %}
-        <div class="message-toast px-4 py-3 rounded-lg shadow-lg {% if message.tags == 'error' %}bg-red-500{% elif message.tags == 'success' %}bg-emerald-500{% else %}bg-cyan-500{% endif %} text-white transition-all duration-300">
+        <div class="message-toast px-6 py-3 rounded-xl shadow-2xl {% if message.tags == 'error' %}bg-red-500{% elif message.tags == 'success' %}bg-emerald-500{% else %}bg-cyan-500{% endif %} text-white transition-all duration-300 text-center min-w-[300px]">
             {{ message }}
         </div>
         {% endfor %}
@@ -51,7 +51,7 @@
             const container = document.getElementById('messages-container');
             if (container) {
                 container.style.opacity = '0';
-                container.style.transform = 'translateX(100px)';
+                container.style.transform = 'translate(-50%, -20px)';
                 setTimeout(() => container.remove(), 300);
             }
         }, 3000);

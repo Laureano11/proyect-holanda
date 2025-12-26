@@ -18,8 +18,9 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-producti
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-
+# ALLOWED_HOSTS - Permitir todos para desarrollo con ngrok
+# IMPORTANTE: Solo para desarrollo. En producción especificar dominios exactos.
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [

@@ -15,4 +15,8 @@ urlpatterns = [
     
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
+    
+    # Reservas
+    path('reservar/modal/<int:cancha_id>/', views.modal_reservar, name='modal_reservar'),
+    path('reservar/', views.reservar_turno, name='reservar_turno'),
 ]
