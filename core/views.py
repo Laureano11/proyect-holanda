@@ -48,8 +48,15 @@ def register_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     
-    # Obtener complejos disponibles para el selector
-    complejos = Complejo.objects.filter(activo=True)
+    # Intentamos resolver el complejo por slug 'basanta' para asignarlo por defecto.
+    complejo_por_defecto = None
+    try:
+        complejo_por_defecto = Complejo.objects.get(slug__iexact='basanta')
+    except Complejo.DoesNotExist:
+        try:
+            complejo_por_defecto = Complejo.objects.get(nombre__iexact='Basanta')
+        except Complejo.DoesNotExist:
+            complejo_por_defecto = Complejo.objects.filter(activo=True).first()
     
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -58,13 +65,23 @@ def register_view(request):
         first_name = request.POST.get('first_name', '')
         last_name = request.POST.get('last_name', '')
         celular = request.POST.get('celular', '')
-        rol = request.POST.get('rol', Usuario.Rol.CLIENTE)
+        dni = request.POST.get('dni', '')
+        
+        # Construir dirección completa
+        calle = request.POST.get('calle', '')
+        altura = request.POST.get('altura', '')
+        ciudad = request.POST.get('ciudad', '')
+        direccion_parts = [p for p in [calle, altura, ciudad] if p.strip()]
+        direccion = ', '.join(direccion_parts) if direccion_parts else ''
+        
+        # Forzar siempre rol de cliente en el registro público
+        rol = Usuario.Rol.CLIENTE
         complejo_id = request.POST.get('complejo')
         
         # Validación mínima
         if Usuario.objects.filter(username=username).exists():
             messages.error(request, 'Ese nombre de usuario ya existe')
-            return render(request, 'auth/register.html', {'complejos': complejos})
+            return render(request, 'auth/register.html')
         
         # Crear usuario
         user = Usuario.objects.create_user(
@@ -74,33 +91,30 @@ def register_view(request):
             first_name=first_name,
             last_name=last_name,
             celular=celular,
+            dni=dni,
+            direccion=direccion,
             rol=rol,
         )
         
-        # Asignar complejo si se seleccionó uno
-        if complejo_id:
-            try:
-                complejo = Complejo.objects.get(id=complejo_id)
-                user.complejo = complejo
-                user.save()
-                
-                # TEMPORAL: Asignar crédito inicial de 150.000 para tests
-                CreditoCliente.objects.create(
-                    usuario=user,
-                    complejo=complejo,
-                    monto=Decimal('150000.00'),
-                    motivo='Crédito inicial de bienvenida (temporal para tests)',
-                    activo=True
-                )
-            except Complejo.DoesNotExist:
-                pass
+        # Asignar complejo por defecto (basanta) si existe
+        if complejo_por_defecto:
+            user.complejo = complejo_por_defecto
+            user.save()
+            # TEMPORAL: Asignar crédito inicial de 150.000 para tests
+            CreditoCliente.objects.create(
+                usuario=user,
+                complejo=complejo_por_defecto,
+                monto=Decimal('150000.00'),
+                motivo='Crédito inicial de bienvenida (temporal para tests)',
+                activo=True
+            )
         
         # Login automático
         login(request, user)
         messages.success(request, f'¡Cuenta creada exitosamente! Bienvenido, {user.first_name or user.username}')
         return redirect('dashboard')
     
-    return render(request, 'auth/register.html', {'complejos': complejos})
+    return render(request, 'auth/register.html')
 
 
 @login_required
