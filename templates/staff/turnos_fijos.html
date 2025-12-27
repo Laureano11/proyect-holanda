@@ -1,0 +1,220 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block title %}Turnos Fijos{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-white">Turnos Fijos</h1>
+            <p class="text-slate-400 text-sm mt-0.5">{{ complejo.nombre }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'dashboard' %}" class="px-3 py-1.5 bg-slate-700 text-white text-sm font-medium rounded hover:bg-slate-600 transition">
+                ← Volver
+            </a>
+            <button 
+                onclick="document.getElementById('modal-nuevo-turno-fijo').classList.remove('hidden')"
+                class="px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition flex items-center gap-2"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Nuevo Turno Fijo
+            </button>
+        </div>
+    </div>
+    
+    <!-- Lista de turnos fijos -->
+    {% if turnos_fijos %}
+    <div class="space-y-4">
+        {% for dia, turnos in turnos_por_dia.items %}
+        <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+            <h3 class="text-lg font-semibold text-white mb-3">{{ dia }}</h3>
+            <div class="space-y-2">
+                {% for turno in turnos %}
+                <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-4 flex-wrap">
+                                <div>
+                                    <p class="text-sm font-medium text-white">{{ turno.cancha.nombre }}</p>
+                                    <p class="text-xs text-slate-400">
+                                        {{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-slate-400">Cliente:</span>
+                                    <span class="text-sm text-white">{{ turno.cliente.first_name|default:turno.cliente.username }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-slate-400">Desde:</span>
+                                    <span class="text-sm text-white">{{ turno.fecha_inicio|date:"d/m/Y" }}</span>
+                                </div>
+                                {% if turno.fecha_fin %}
+                                <div>
+                                    <span class="text-xs text-slate-400">Hasta:</span>
+                                    <span class="text-sm text-white">{{ turno.fecha_fin|date:"d/m/Y" }}</span>
+                                </div>
+                                {% else %}
+                                <div>
+                                    <span class="text-xs text-slate-400">Hasta:</span>
+                                    <span class="text-sm text-emerald-400">Indefinido</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% if turno.notas %}
+                            <p class="text-xs text-slate-500 mt-2">{{ turno.notas }}</p>
+                            {% endif %}
+                        </div>
+                        <form method="post" action="{% url 'eliminar_turno_fijo' turno.id %}" class="inline">
+                            {% csrf_token %}
+                            <button 
+                                type="submit"
+                                onclick="return confirm('¿Eliminar turno fijo de {{ turno.cliente.first_name|default:turno.cliente.username }}?')"
+                                class="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition"
+                            >
+                                Eliminar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty state -->
+    <div class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-8 text-center">
+        <p class="text-slate-400 text-sm">No hay turnos fijos configurados</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal para nuevo turno fijo -->
+<div id="modal-nuevo-turno-fijo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-slate-800 rounded-lg p-6 w-full max-w-md border border-slate-700">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-white">Nuevo Turno Fijo</h2>
+            <button 
+                onclick="document.getElementById('modal-nuevo-turno-fijo').classList.add('hidden')"
+                class="text-slate-400 hover:text-white"
+            >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        
+        <form method="post" action="{% url 'crear_turno_fijo' %}" class="space-y-4">
+            {% csrf_token %}
+            
+            <!-- Cancha -->
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Cancha *</label>
+                <select name="cancha_id" required class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                    <option value="">Seleccionar cancha</option>
+                    {% for cancha in canchas %}
+                    <option value="{{ cancha.id }}">{{ cancha.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Nombre del cliente -->
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Nombre del cliente *</label>
+                <input 
+                    type="text" 
+                    name="nombre_cliente" 
+                    required
+                    placeholder="Ej: Juan Pérez"
+                    class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                >
+            </div>
+            
+            <!-- Hora de inicio -->
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Hora de inicio *</label>
+                <input 
+                    type="time" 
+                    name="hora_inicio" 
+                    required
+                    class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                >
+            </div>
+            
+            <!-- Días de la semana -->
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Días de la semana *</label>
+                <div class="grid grid-cols-2 gap-2">
+                    {% for value, label in dias_semana %}
+                    <label class="flex items-center gap-2 p-2 rounded bg-slate-900/50 border border-slate-600 cursor-pointer hover:bg-slate-900/70 transition">
+                        <input 
+                            type="checkbox" 
+                            name="dias_semana" 
+                            value="{{ value }}"
+                            class="w-4 h-4 text-cyan-500 rounded focus:ring-cyan-500"
+                        >
+                        <span class="text-sm text-white">{{ label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Fecha de inicio -->
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Fecha de inicio *</label>
+                <input 
+                    type="date" 
+                    name="fecha_inicio" 
+                    required
+                    min="{{ 'now'|date:'Y-m-d' }}"
+                    class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                >
+            </div>
+            
+            <!-- Fecha de fin (opcional) -->
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Fecha de fin (opcional)</label>
+                <input 
+                    type="date" 
+                    name="fecha_fin"
+                    class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                >
+                <p class="text-xs text-slate-500 mt-1">Dejar vacío para turno indefinido</p>
+            </div>
+            
+            <!-- Notas (opcional) -->
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Notas (opcional)</label>
+                <textarea 
+                    name="notas" 
+                    rows="2"
+                    placeholder="Notas adicionales..."
+                    class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                ></textarea>
+            </div>
+            
+            <!-- Botones -->
+            <div class="flex items-center gap-3 pt-2">
+                <button 
+                    type="submit"
+                    class="flex-1 px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition"
+                >
+                    Crear Turno(s) Fijo(s)
+                </button>
+                <button 
+                    type="button"
+                    onclick="document.getElementById('modal-nuevo-turno-fijo').classList.add('hidden')"
+                    class="px-4 py-2 bg-slate-700 text-white text-sm font-medium rounded hover:bg-slate-600 transition"
+                >
+                    Cancelar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

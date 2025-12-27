@@ -27,4 +27,14 @@ urlpatterns = [
     # Turno rápido (Staff)
     path('nuevo-turno-rapido/', views.nuevo_turno_rapido, name='nuevo_turno_rapido'),
     path('crear-turno-rapido/', views.crear_turno_rapido, name='crear_turno_rapido'),
+    
+    # Turnos fijos (Staff)
+    path('turnos-fijos/', views.turnos_fijos, name='turnos_fijos'),
+    path('crear-turno-fijo/', views.crear_turno_fijo, name='crear_turno_fijo'),
+    path('eliminar-turno-fijo/<int:turno_fijo_id>/', views.eliminar_turno_fijo, name='eliminar_turno_fijo'),
+    
+    # Gestión de turnos (Staff)
+    path('marcar-pagado/<int:turno_id>/', views.marcar_turno_pagado, name='marcar_turno_pagado'),
+    path('editar-turno/<int:turno_id>/', views.editar_turno, name='editar_turno'),
+    path('actualizar-turno/<int:turno_id>/', views.actualizar_turno, name='actualizar_turno'),
 ]

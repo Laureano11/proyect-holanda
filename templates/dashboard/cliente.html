@@ -72,10 +72,77 @@
     </div>
     {% endif %}
     
+    <!-- Selector de fecha -->
+    {% if complejo and fecha_seleccionada and fecha_minima and fecha_maxima %}
+    <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-white">Turnos Disponibles</h2>
+            <div class="flex items-center gap-2">
+                <!-- Botón anterior -->
+                {% if fecha_seleccionada and fecha_minima and fecha_seleccionada > fecha_minima %}
+                <button 
+                    onclick="cambiarFecha(-1)"
+                    class="p-2 bg-slate-700/50 text-white rounded hover:bg-slate-700 transition"
+                    title="Día anterior"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                {% endif %}
+                
+                <!-- Selector de fecha -->
+                <input 
+                    type="date" 
+                    id="fecha-selector"
+                    value="{{ fecha_seleccionada|date:'Y-m-d' }}"
+                    min="{{ fecha_minima|date:'Y-m-d' }}"
+                    max="{{ fecha_maxima|date:'Y-m-d' }}"
+                    class="px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    onchange="window.location.href='?fecha=' + this.value"
+                >
+                
+                <!-- Botón siguiente -->
+                {% if fecha_seleccionada < fecha_maxima %}
+                <button 
+                    onclick="cambiarFecha(1)"
+                    class="p-2 bg-slate-700/50 text-white rounded hover:bg-slate-700 transition"
+                    title="Día siguiente"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </button>
+                {% endif %}
+                
+                <!-- Botón hoy -->
+                {% if fecha_seleccionada != hoy %}
+                <a 
+                    href="?fecha={{ hoy|date:'Y-m-d' }}"
+                    class="px-3 py-2 bg-cyan-500 text-white text-xs font-medium rounded hover:bg-cyan-600 transition"
+                >
+                    Hoy
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Información de la fecha seleccionada -->
+        <div class="flex items-center gap-2 text-sm">
+            <span class="text-slate-400">Viendo:</span>
+            <span class="text-white font-medium">{{ fecha_seleccionada|date:"d/m/Y" }}</span>
+            {% if fecha_seleccionada == hoy %}
+            <span class="px-2 py-0.5 bg-cyan-500/20 text-cyan-400 rounded text-xs">Hoy</span>
+            {% elif fecha_seleccionada < hoy %}
+            <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs">Pasado</span>
+            {% else %}
+            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded text-xs">Futuro</span>
+            {% endif %}
+        </div>
+    </div>
+    
     <!-- Turnos disponibles -->
-    {% if complejo %}
     <div>
-        <h2 class="text-lg font-semibold text-white mb-3">Turnos Disponibles - {{ hoy|date:"d/m/Y" }}</h2>
         {% if slots_ordenados %}
         <!-- Lista de horas con grid de canchas -->
         <div class="space-y-4">
@@ -123,7 +190,7 @@
                         </div>
                         
                         <button 
-                            hx-get="{% url 'modal_reservar' cancha_data.cancha.id %}?fecha={{ hoy|date:'Y-m-d' }}&hora={{ cancha_data.hora|time:'H:i:s' }}"
+                            hx-get="{% url 'modal_reservar' cancha_data.cancha.id %}?fecha={{ fecha_seleccionada|date:'Y-m-d' }}&hora={{ cancha_data.hora|time:'H:i:s' }}"
                             hx-target="body"
                             hx-swap="beforeend"
                             class="w-full py-1.5 px-2 bg-cyan-500 text-white text-xs font-medium rounded hover:bg-cyan-600 transition"
@@ -155,4 +222,20 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+function cambiarFecha(dias) {
+    const fechaInput = document.getElementById('fecha-selector');
+    const fechaActual = new Date(fechaInput.value);
+    fechaActual.setDate(fechaActual.getDate() + dias);
+    
+    // Formatear fecha como YYYY-MM-DD
+    const año = fechaActual.getFullYear();
+    const mes = String(fechaActual.getMonth() + 1).padStart(2, '0');
+    const dia = String(fechaActual.getDate()).padStart(2, '0');
+    const nuevaFecha = `${año}-${mes}-${dia}`;
+    
+    window.location.href = '?fecha=' + nuevaFecha;
+}
+</script>
 {% endblock %}

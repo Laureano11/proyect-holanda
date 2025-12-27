@@ -576,6 +576,31 @@ class Turno(models.Model):
     def fue_cancelado(self):
         return self.estado in [self.Estado.CANCELADO_USUARIO, self.Estado.CANCELADO_ADMIN, self.Estado.EXPIRADO]
     
+    @property
+    def estado_visual(self):
+        """
+        Retorna el estado visual del turno:
+        - Reservado: Pendiente de pago sin seña
+        - Reservado con seña: Pendiente de pago con seña pagada
+        - Abonado completo: Confirmado (pagado completamente)
+        - Cancelado: Cualquier estado de cancelación
+        """
+        if self.fue_cancelado:
+            return 'Cancelado'
+        elif self.estado == self.Estado.CONFIRMADO:
+            return 'Abonado completo'
+        elif self.estado == self.Estado.PENDIENTE_PAGO:
+            if self.senia_pagada > 0:
+                return 'Reservado con seña'
+            else:
+                return 'Reservado'
+        return 'Desconocido'
+    
+    @property
+    def esta_pagado_completo(self):
+        """Verifica si el turno está pagado completamente."""
+        return self.estado == self.Estado.CONFIRMADO
+    
     def save(self, *args, **kwargs):
         # Establecer precios si no están definidos
         if not self.precio_total:
@@ -654,6 +679,13 @@ class TurnoFijo(models.Model):
         ordering = ['dia_semana', 'hora_inicio']
         # Evitar turnos fijos duplicados
         unique_together = ['cancha', 'dia_semana', 'hora_inicio']
+    
+    @property
+    def hora_fin(self):
+        """Calcula la hora de fin del turno (1 hora después del inicio)."""
+        from datetime import datetime, timedelta
+        hora_fin = (datetime.combine(datetime.today(), self.hora_inicio) + timedelta(hours=1)).time()
+        return hora_fin
     
     def __str__(self):
         return f"{self.cancha} - {self.get_dia_semana_display()} {self.hora_inicio}"
