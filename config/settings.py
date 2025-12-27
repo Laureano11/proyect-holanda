@@ -6,6 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 import dj_database_url
+from urllib.parse import urlparse
 
 # Cargar variables de entorno
 load_dotenv()
@@ -47,6 +48,32 @@ if DEBUG:
 # Deduplicar manteniendo orden
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
+
+# Render: autoconfigurar host/CSRF si no se setean explícitamente
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
+if not DEBUG:
+    hostname = None
+    if RENDER_EXTERNAL_HOSTNAME:
+        hostname = RENDER_EXTERNAL_HOSTNAME.strip()
+    elif RENDER_EXTERNAL_URL:
+        try:
+            hostname = urlparse(RENDER_EXTERNAL_URL).hostname
+        except Exception:
+            hostname = None
+
+    if hostname:
+        if hostname not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(hostname)
+        origin = f"https://{hostname}"
+        if origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(origin)
+
+    # Ajustes típicos detrás de proxy (Render termina TLS)
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
+    SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True").lower() == "true"
+    CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True").lower() == "true"
 
 # Application definition
 INSTALLED_APPS = [
