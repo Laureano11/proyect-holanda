@@ -1,7 +1,8 @@
-
+Django>=4.2,<5.0
 
 # Base de datos PostgreSQL
 psycopg2-binary>=2.9.9
+dj-database-url>=2.1.0
 
 # HTMX integration
 django-htmx>=1.17.0
@@ -19,3 +20,11 @@ django-tailwind>=3.5.0,<3.7.0
 # Utilidades
 django-extensions>=3.2.3
 
+# Producción - Servir archivos estáticos
+whitenoise>=6.6.0
+
+# Producción - Servidor WSGI
+gunicorn>=21.2.0
+
+# Imágenes (Pillow para ImageField)
+Pillow>=10.0.0
