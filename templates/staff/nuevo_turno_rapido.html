@@ -8,11 +8,24 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-white">Nuevo Turno Rápido</h1>
-            <p class="text-slate-400 text-sm mt-0.5">{{ complejo.nombre }} • {{ hoy|date:"d/m/Y" }}</p>
+            <p class="text-slate-400 text-sm mt-0.5">{{ complejo.nombre }} • {{ fecha_seleccionada|date:"d/m/Y" }}</p>
         </div>
-        <a href="{% url 'dashboard' %}" class="px-3 py-1.5 bg-slate-700 text-white text-sm font-medium rounded hover:bg-slate-600 transition">
-            ← Volver
-        </a>
+        <div class="flex items-center gap-2">
+            <form method="get" class="flex items-center gap-2">
+                <input 
+                    type="date" 
+                    name="fecha" 
+                    value="{{ fecha_seleccionada|date:'Y-m-d' }}" 
+                    class="px-3 py-1.5 rounded bg-slate-900/60 border border-slate-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                >
+                <button type="submit" class="px-3 py-1.5 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition">
+                    Cambiar
+                </button>
+            </form>
+            <a href="{% url 'dashboard' %}" class="px-3 py-1.5 bg-slate-700 text-white text-sm font-medium rounded hover:bg-slate-600 transition">
+                ← Volver
+            </a>
+        </div>
     </div>
     
     <!-- Turnos disponibles -->
@@ -46,13 +59,20 @@
                     <form method="post" action="{% url 'crear_turno_rapido' %}" class="space-y-2">
                         {% csrf_token %}
                         <input type="hidden" name="cancha_id" value="{{ cancha_data.cancha.id }}">
-                        <input type="hidden" name="fecha" value="{{ hoy|date:'Y-m-d' }}">
+                        <input type="hidden" name="fecha" value="{{ fecha_seleccionada|date:'Y-m-d' }}">
                         <input type="hidden" name="hora" value="{{ cancha_data.hora|time:'H:i:s' }}">
                         
                         <input 
                             type="text" 
                             name="nombre_cliente" 
                             placeholder="Nombre del cliente"
+                            required
+                            class="w-full px-2 py-1.5 text-xs rounded bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        >
+                        <input 
+                            type="tel" 
+                            name="celular_cliente" 
+                            placeholder="Celular del cliente"
                             required
                             class="w-full px-2 py-1.5 text-xs rounded bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         >

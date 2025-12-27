@@ -1,0 +1,131 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block title %}Bloqueos{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-white">Bloquear turnos/canchas</h1>
+            <p class="text-slate-400 text-sm mt-0.5">
+                {% if complejo %}{{ complejo.nombre }}{% else %}Sin complejo asignado{% endif %}
+            </p>
+        </div>
+        <a href="{% url 'dashboard' %}" class="px-3 py-1.5 bg-slate-700 text-white text-sm font-medium rounded hover:bg-slate-600 transition">
+            ← Volver
+        </a>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Formulario -->
+        <div class="lg:col-span-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-4">
+            <div>
+                <h2 class="text-lg font-semibold text-white">Nuevo bloqueo</h2>
+                <p class="text-slate-400 text-sm">Elegí fecha, cancha (opcional) y rango horario.</p>
+            </div>
+            <form method="post" action="{% url 'crear_bloqueo' %}" class="space-y-3">
+                {% csrf_token %}
+                <div class="space-y-1">
+                    <label class="text-xs text-slate-400">Fecha</label>
+                    <input type="date" name="fecha" required class="w-full px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                </div>
+                
+                <div class="space-y-1">
+                    <label class="text-xs text-slate-400">Cancha (opcional)</label>
+                    <select name="cancha_id" class="w-full px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                        <option value="">Todas las canchas</option>
+                        {% for cancha in canchas %}
+                        <option value="{{ cancha.id }}">{{ cancha.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="dia_completo" name="dia_completo" class="w-4 h-4 text-cyan-500 border-slate-600 rounded bg-slate-900/60">
+                    <label for="dia_completo" class="text-sm text-slate-200">Día completo</label>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 rango-horario">
+                    <div class="space-y-1">
+                        <label class="text-xs text-slate-400">Hora inicio</label>
+                        <input type="time" name="hora_inicio" class="w-full px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs text-slate-400">Hora fin (opcional)</label>
+                        <input type="time" name="hora_fin" class="w-full px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                    </div>
+                </div>
+                
+                <div class="space-y-1">
+                    <label class="text-xs text-slate-400">Motivo</label>
+                    <input type="text" name="motivo" placeholder="Ej: Lluvia / Mantenimiento" class="w-full px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                </div>
+                
+                <button type="submit" class="w-full py-2 bg-red-500 text-white text-sm font-medium rounded hover:bg-red-600 transition">
+                    Bloquear
+                </button>
+            </form>
+        </div>
+        
+        <!-- Lista de bloqueos -->
+        <div class="lg:col-span-2 bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-semibold text-white">Bloqueos creados</h2>
+                <span class="text-xs text-slate-400">{{ bloqueos|length }} registro{{ bloqueos|length|pluralize }}</span>
+            </div>
+            
+            {% if bloqueos %}
+            <div class="space-y-2">
+                {% for bloqueo in bloqueos %}
+                <div class="bg-slate-900/40 border border-slate-700/60 rounded-lg p-3 flex items-center justify-between">
+                    <div class="text-sm text-slate-200 space-y-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-medium text-white">{{ bloqueo.fecha|date:"d/m/Y" }}</span>
+                            {% if bloqueo.hora_inicio %}
+                            <span class="px-2 py-0.5 text-xs bg-slate-700 rounded"> {{ bloqueo.hora_inicio|time:"H:i" }} {% if bloqueo.hora_fin %}- {{ bloqueo.hora_fin|time:"H:i" }}{% endif %}</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 text-xs bg-slate-700 rounded">Día completo</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-xs text-slate-400">
+                            Cancha: {{ bloqueo.cancha.nombre|default:"Todas" }}
+                        </div>
+                        <div class="text-xs text-slate-400">
+                            Motivo: {{ bloqueo.motivo|default:"-" }}
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-500">
+                        Creado: {{ bloqueo.created_at|date:"d/m/Y H:i" }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-6 text-center text-slate-400 border border-slate-700/50 rounded-lg bg-slate-900/30">
+                No hay bloqueos aún.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+(() => {
+    const checkbox = document.getElementById('dia_completo');
+    const rango = document.querySelector('.rango-horario');
+    const toggle = () => {
+        if (!rango) return;
+        const disabled = checkbox.checked;
+        rango.querySelectorAll('input').forEach(inp => inp.disabled = disabled);
+        rango.classList.toggle('opacity-50', disabled);
+    };
+    if (checkbox) {
+        checkbox.addEventListener('change', toggle);
+        toggle();
+    }
+})();
+</script>
+{% endblock %}
+{% endblock %}
+

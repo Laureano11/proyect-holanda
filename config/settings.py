@@ -18,9 +18,34 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-producti
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-# ALLOWED_HOSTS - Permitir todos para desarrollo con ngrok
-# IMPORTANTE: Solo para desarrollo. En producción especificar dominios exactos.
-ALLOWED_HOSTS = ['*']
+def _csv_env(name: str, default: str = "") -> list[str]:
+    raw = os.getenv(name, default)
+    return [v.strip() for v in raw.split(",") if v.strip()]
+
+# ALLOWED_HOSTS - Configurar desde variable de entorno
+# En desarrollo: ALLOWED_HOSTS=localhost,127.0.0.1
+# En producción: ALLOWED_HOSTS=midominio.com,www.midominio.com
+ALLOWED_HOSTS = _csv_env("ALLOWED_HOSTS", "localhost,127.0.0.1")
+
+# CSRF_TRUSTED_ORIGINS - importante para ngrok / dominios externos
+# Podés setearlo en .env, por ejemplo:
+# CSRF_TRUSTED_ORIGINS=https://*.ngrok-free.dev,https://*.ngrok-free.app
+CSRF_TRUSTED_ORIGINS = _csv_env("CSRF_TRUSTED_ORIGINS", "")
+# Si DEBUG está activo, permitir más hosts para desarrollo
+if DEBUG:
+    ALLOWED_HOSTS.extend(['*'])
+    # Para que no se rompa al reiniciar ngrok (el subdominio cambia)
+    CSRF_TRUSTED_ORIGINS.extend([
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "https://*.ngrok-free.dev",
+        "https://*.ngrok-free.app",
+        "https://*.ngrok.io",
+    ])
+
+# Deduplicar manteniendo orden
+ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 
 # Application definition
 INSTALLED_APPS = [
@@ -144,4 +169,27 @@ AUTH_USER_MODEL = 'core.Usuario'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
+
+
+# Caché configuration
+# En desarrollo usa caché en memoria local
+# En producción se recomienda Redis o Memcached
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'TIMEOUT': 300,  # 5 minutos por defecto
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+        }
+    }
+}
+
+# Para producción con Redis (descomentar y configurar):
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+#         'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+#     }
+# }
 

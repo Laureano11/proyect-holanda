@@ -6,6 +6,7 @@
     <nav class="bg-slate-800/80 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-6">
                 <!-- Logo -->
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
@@ -21,8 +22,60 @@
                     </div>
                 </div>
                 
-                <!-- User menu -->
-                <div class="flex items-center gap-4">
+                    <!-- Navegación desktop -->
+                    <div class="hidden md:flex items-center gap-1">
+                        {% if user.es_cliente %}
+                        <a href="{% url 'dashboard' %}" data-dashboard-nav class="px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                            Reservar
+                        </a>
+                        <a href="{% url 'turnos_actuales' %}" data-dashboard-nav class="px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                            Mis turnos
+                        </a>
+                        <a href="{% url 'historial_turnos' %}" data-dashboard-nav class="px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                            Historial
+                        </a>
+                        <a href="{% url 'mi_perfil' %}" data-dashboard-nav class="px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                            Mi perfil
+                        </a>
+                        {% elif user.es_staff_complejo or user.es_admin %}
+                        <a href="{% url 'dashboard' %}" data-dashboard-nav class="px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                            Turnos
+                        </a>
+                        <a href="{% url 'nuevo_turno_rapido' %}" data-dashboard-nav class="px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                            Turno rápido
+                        </a>
+                        <a href="{% url 'turnos_fijos' %}" data-dashboard-nav class="px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                            Turnos fijos
+                        </a>
+                        {% elif user.es_superadmin %}
+                        <a href="{% url 'dashboard' %}" data-dashboard-nav class="px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                            Dashboard
+                        </a>
+                        <a href="/admin/" target="_blank" rel="noopener" class="px-3 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+                            Django Admin
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Menú de usuario y acciones -->
+                <div class="flex items-center gap-3">
+                    <!-- Botón menú móvil -->
+                    <button 
+                        id="dashboard-menu-toggle" 
+                        class="md:hidden p-2 rounded-lg bg-slate-700/60 text-white hover:bg-slate-700 transition"
+                        aria-expanded="false"
+                        aria-controls="dashboard-mobile-menu"
+                    >
+                        <span class="sr-only">Abrir menú de navegación</span>
+                        <svg id="dashboard-icon-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                        <svg id="dashboard-icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+
                     <!-- Rol badge -->
                     <span class="px-3 py-1 rounded-full text-xs font-medium
                         {% if user.es_superadmin %}bg-red-500/20 text-red-400
@@ -48,8 +101,81 @@
                     </a>
                 </div>
             </div>
+
+            <!-- Menú móvil -->
+            <div id="dashboard-mobile-menu" class="md:hidden hidden border-t border-slate-700/60 pb-3">
+                <div class="pt-3 flex flex-col gap-1">
+                    {% if user.es_cliente %}
+                    <a href="{% url 'dashboard' %}" data-dashboard-nav class="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/60 transition">
+                        Reservar
+                    </a>
+                    <a href="{% url 'turnos_actuales' %}" data-dashboard-nav class="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/60 transition">
+                        Mis turnos
+                    </a>
+                    <a href="{% url 'historial_turnos' %}" data-dashboard-nav class="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/60 transition">
+                        Historial
+                    </a>
+                    <a href="{% url 'mi_perfil' %}" data-dashboard-nav class="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/60 transition">
+                        Mi perfil
+                    </a>
+                    {% elif user.es_staff_complejo or user.es_admin %}
+                    <a href="{% url 'dashboard' %}" data-dashboard-nav class="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/60 transition">
+                        Turnos
+                    </a>
+                    <a href="{% url 'nuevo_turno_rapido' %}" data-dashboard-nav class="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/60 transition">
+                        Turno rápido
+                    </a>
+                    <a href="{% url 'turnos_fijos' %}" data-dashboard-nav class="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/60 transition">
+                        Turnos fijos
+                    </a>
+                    {% elif user.es_superadmin %}
+                    <a href="{% url 'dashboard' %}" data-dashboard-nav class="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/60 transition">
+                        Dashboard
+                    </a>
+                    <a href="/admin/" target="_blank" rel="noopener" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/60 transition">
+                        Django Admin
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </nav>
+
+    <script>
+    (() => {
+        const toggle = document.getElementById('dashboard-menu-toggle');
+        const mobileMenu = document.getElementById('dashboard-mobile-menu');
+        const iconOpen = document.getElementById('dashboard-icon-open');
+        const iconClose = document.getElementById('dashboard-icon-close');
+        const navLinks = document.querySelectorAll('[data-dashboard-nav]');
+
+        const closeMenu = () => {
+            if (!mobileMenu) return;
+            mobileMenu.classList.add('hidden');
+            if (toggle) {
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+            if (iconOpen) iconOpen.classList.remove('hidden');
+            if (iconClose) iconClose.classList.add('hidden');
+        };
+
+        if (toggle && mobileMenu) {
+            toggle.addEventListener('click', () => {
+                const willOpen = mobileMenu.classList.contains('hidden');
+                mobileMenu.classList.toggle('hidden');
+                toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                if (iconOpen && iconClose) {
+                    iconOpen.classList.toggle('hidden');
+                    iconClose.classList.toggle('hidden');
+                }
+            });
+        }
+
+        navLinks.forEach((link) => {
+            link.addEventListener('click', closeMenu);
+        });
+    })();
+    </script>
     
     <!-- Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

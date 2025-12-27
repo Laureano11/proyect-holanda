@@ -34,6 +34,10 @@ urlpatterns = [
     path('crear-turno-fijo/', views.crear_turno_fijo, name='crear_turno_fijo'),
     path('eliminar-turno-fijo/<int:turno_fijo_id>/', views.eliminar_turno_fijo, name='eliminar_turno_fijo'),
     
+    # Bloqueos (Staff/Admin)
+    path('bloqueos/', views.bloqueos, name='bloqueos'),
+    path('crear-bloqueo/', views.crear_bloqueo, name='crear_bloqueo'),
+    
     # Gestión de turnos (Staff)
     path('marcar-pagado/<int:turno_id>/', views.marcar_turno_pagado, name='marcar_turno_pagado'),
     path('editar-turno/<int:turno_id>/', views.editar_turno, name='editar_turno'),

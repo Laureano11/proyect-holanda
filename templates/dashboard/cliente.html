@@ -35,49 +35,38 @@
             <h2 class="text-lg font-semibold text-white">Seleccionar Fecha</h2>
             <div class="flex items-center gap-2">
                 <!-- Botón anterior -->
-                {% if fecha_seleccionada and fecha_minima and fecha_seleccionada > fecha_minima %}
                 <button 
                     onclick="cambiarFecha(-1)"
-                    class="p-2 bg-slate-700/50 text-white rounded hover:bg-slate-700 transition"
+                    {% if fecha_minima and fecha_seleccionada <= fecha_minima %}disabled{% endif %}
+                    class="p-2 rounded bg-slate-700/60 text-white hover:bg-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
                     title="Día anterior"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                     </svg>
                 </button>
-                {% endif %}
                 
-                <!-- Selector de fecha -->
+                <!-- Selector simple -->
                 <input 
-                    type="text" 
+                    type="date"
                     id="fecha-selector"
-                    value="{{ fecha_seleccionada|date:'d/m/Y' }}"
-                    placeholder="DD/MM/YYYY"
-                    class="px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    value="{{ fecha_seleccionada|date:'Y-m-d' }}"
+                    min="{{ fecha_minima|date:'Y-m-d' }}"
+                    max="{{ fecha_maxima|date:'Y-m-d' }}"
+                    class="px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 >
                 
                 <!-- Botón siguiente -->
-                {% if fecha_seleccionada < fecha_maxima %}
                 <button 
                     onclick="cambiarFecha(1)"
-                    class="p-2 bg-slate-700/50 text-white rounded hover:bg-slate-700 transition"
+                    {% if fecha_maxima and fecha_seleccionada >= fecha_maxima %}disabled{% endif %}
+                    class="p-2 rounded bg-slate-700/60 text-white hover:bg-slate-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
                     title="Día siguiente"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                     </svg>
                 </button>
-                {% endif %}
-                
-                <!-- Botón hoy -->
-                {% if fecha_seleccionada != hoy %}
-                <a 
-                    href="?fecha={{ hoy|date:'Y-m-d' }}"
-                    class="px-3 py-2 bg-cyan-500 text-white text-xs font-medium rounded hover:bg-cyan-600 transition"
-                >
-                    Hoy
-                </a>
-                {% endif %}
             </div>
         </div>
         
@@ -183,36 +172,39 @@
 
 {% block extra_scripts %}
 <script>
-// Inicializar Flatpickr con formato DD/MM/YYYY
-const minDate = '{{ fecha_minima|date:"Y-m-d" }}';
-const maxDate = '{{ fecha_maxima|date:"Y-m-d" }}';
+(function() {
+    const input = document.getElementById('fecha-selector');
 
-function goToDate(dateObj) {
-    const año = dateObj.getFullYear();
-    const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const dia = String(dateObj.getDate()).padStart(2, '0');
-    window.location.href = '?fecha=' + `${año}-${mes}-${dia}`;
-}
+    const formatDate = (date) => {
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(date.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
 
-const picker = flatpickr("#fecha-selector", {
-    dateFormat: "d/m/Y",
-    locale: "es",
-    allowInput: true,
-    minDate: minDate,
-    maxDate: maxDate,
-    defaultDate: "{{ fecha_seleccionada|date:'d/m/Y' }}",
-    onChange: function(selectedDates) {
-        if (selectedDates.length > 0) {
-            goToDate(selectedDates[0]);
-        }
+    const parseDate = (value) => {
+        if (!value) return null;
+        const parts = value.split('-').map(Number);
+        if (parts.length !== 3) return null;
+        return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    };
+
+    const goTo = (value) => {
+        if (!value) return;
+        window.location.href = '?fecha=' + value;
+    };
+
+    window.cambiarFecha = (dias) => {
+        if (!input) return;
+        const current = parseDate(input.value) || new Date();
+        const newDate = new Date(current);
+        newDate.setUTCDate(current.getUTCDate() + dias);
+        goTo(formatDate(newDate));
+    };
+
+    if (input) {
+        input.addEventListener('change', (e) => goTo(e.target.value));
     }
-});
-
-function cambiarFecha(dias) {
-    const baseDate = picker.selectedDates[0] || new Date();
-    const newDate = new Date(baseDate);
-    newDate.setDate(newDate.getDate() + dias);
-    goToDate(newDate);
-}
+})();
 </script>
 {% endblock %}

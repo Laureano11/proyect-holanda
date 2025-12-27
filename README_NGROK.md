@@ -70,7 +70,7 @@ Este script levanta Django y ngrok automáticamente.
 
 ## ⚙️ Configuración de Django
 
-Para que funcione con ngrok, necesitás permitir el dominio de ngrok en `ALLOWED_HOSTS`.
+Para que funcione con ngrok, necesitás permitir el dominio de ngrok en `ALLOWED_HOSTS` **y** agregar el origen a `CSRF_TRUSTED_ORIGINS` (si no, vas a ver **403 CSRF** al registrarte/loguearte).
 
 **Opción A: Permitir todos los hosts (solo desarrollo)**
 En `config/settings.py`, cambiá:
@@ -80,6 +80,17 @@ ALLOWED_HOSTS = ['*']  # Solo para desarrollo con ngrok
 
 **Opción B: Agregar el dominio específico**
 Cada vez que ngrok genere un link nuevo, agregalo a `ALLOWED_HOSTS` o usá `'*'` para desarrollo.
+
+### ✅ Evitar "CSRF verification failed (403)" con ngrok
+Cuando accedés por un dominio externo (ngrok), Django valida el header `Origin`. Si no está en `CSRF_TRUSTED_ORIGINS`, falla el POST (registro/login/forms).
+
+**Recomendado (comodines, solo desarrollo):** agregá en tu `.env`:
+
+```bash
+CSRF_TRUSTED_ORIGINS=https://*.ngrok-free.dev,https://*.ngrok-free.app
+```
+
+Si querés ser más estricto, podés poner el link exacto que te da ngrok (y lo cambiás cada vez que reiniciás ngrok).
 
 ---
 

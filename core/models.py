@@ -105,6 +105,28 @@ class Usuario(AbstractUser):
     def puede_gestionar_turnos(self):
         """Admin y Staff pueden gestionar turnos."""
         return self.es_superadmin or self.es_admin or self.es_staff_complejo
+    
+    def get_creditos_disponibles(self, complejo):
+        """
+        Calcula los créditos disponibles del usuario en un complejo específico.
+        Optimizado para evitar queries duplicadas.
+        """
+        from django.db.models import Sum
+        from decimal import Decimal
+        
+        # Query única con agregación
+        resultado = self.creditos.filter(
+            complejo=complejo,
+            activo=True
+        ).aggregate(
+            total=Sum('monto'),
+            usado=Sum('monto_usado')
+        )
+        
+        total = resultado['total'] or Decimal('0.00')
+        usado = resultado['usado'] or Decimal('0.00')
+        
+        return total - usado
 
 
 class Complejo(models.Model):
@@ -443,6 +465,11 @@ class Bloqueo(models.Model):
         verbose_name = 'Bloqueo'
         verbose_name_plural = 'Bloqueos'
         ordering = ['-fecha', 'hora_inicio']
+        # Índices para optimizar queries frecuentes
+        indexes = [
+            models.Index(fields=['complejo', 'fecha'], name='bloqueo_complejo_fecha_idx'),
+            models.Index(fields=['fecha', 'cancha'], name='bloqueo_fecha_cancha_idx'),
+        ]
     
     def __str__(self):
         if self.cancha:
@@ -553,6 +580,14 @@ class Turno(models.Model):
         ordering = ['fecha', 'hora_inicio']
         # Evitar turnos duplicados en la misma cancha/fecha/hora
         unique_together = ['cancha', 'fecha', 'hora_inicio']
+        # Índices para optimizar queries frecuentes
+        indexes = [
+            models.Index(fields=['fecha', 'estado'], name='turno_fecha_estado_idx'),
+            models.Index(fields=['cliente', 'estado'], name='turno_cliente_estado_idx'),
+            models.Index(fields=['fecha', 'hora_inicio'], name='turno_fecha_hora_idx'),
+            models.Index(fields=['estado', 'created_at'], name='turno_estado_created_idx'),
+            models.Index(fields=['cancha', 'fecha'], name='turno_cancha_fecha_idx'),
+        ]
     
     def __str__(self):
         return f"{self.cancha} - {self.fecha} {self.hora_inicio}"
@@ -694,6 +729,11 @@ class TurnoFijo(models.Model):
         ordering = ['dia_semana', 'hora_inicio']
         # Evitar turnos fijos duplicados
         unique_together = ['cancha', 'dia_semana', 'hora_inicio']
+        # Índices para optimizar queries frecuentes
+        indexes = [
+            models.Index(fields=['activo', 'dia_semana'], name='turnofijo_activo_dia_idx'),
+            models.Index(fields=['cancha', 'activo'], name='turnofijo_cancha_activo_idx'),
+        ]
     
     @property
     def hora_fin(self):
@@ -765,6 +805,11 @@ class CreditoCliente(models.Model):
         verbose_name = 'Crédito de Cliente'
         verbose_name_plural = 'Créditos de Clientes'
         ordering = ['-created_at']
+        # Índices para optimizar queries frecuentes
+        indexes = [
+            models.Index(fields=['usuario', 'complejo', 'activo'], name='credito_usuario_complejo_idx'),
+            models.Index(fields=['activo', 'created_at'], name='credito_activo_created_idx'),
+        ]
     
     def __str__(self):
         return f"{self.usuario} - ${self.saldo_disponible} ({self.complejo})"
