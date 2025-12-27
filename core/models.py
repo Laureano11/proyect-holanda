@@ -462,6 +462,7 @@ class Turno(models.Model):
     class Estado(models.TextChoices):
         PENDIENTE_PAGO = 'pendiente_pago', 'Pendiente de Pago'
         CONFIRMADO = 'confirmado', 'Confirmado'
+        BLOQUEADO = 'bloqueado', 'Bloqueado'
         CANCELADO_USUARIO = 'cancelado_usuario', 'Cancelado por Usuario'
         CANCELADO_ADMIN = 'cancelado_admin', 'Cancelado por Admin'
         EXPIRADO = 'expirado', 'Expirado'
@@ -579,16 +580,30 @@ class Turno(models.Model):
     @property
     def estado_visual(self):
         """
-        Retorna el estado visual del turno:
-        - Reservado: Pendiente de pago sin seña
-        - Reservado con seña: Pendiente de pago con seña pagada
-        - Abonado completo: Confirmado (pagado completamente)
-        - Cancelado: Cualquier estado de cancelación
+        Retorna el estado visual normalizado del turno:
+        1. Pagado completo: Cuando se abona completamente
+        2. Reservado con seña: Cliente lo reserva y abona seña
+        3. Reservado: Staff lo crea sin seña
+        4. Bloqueado: Staff bloquea el turno
+        5. No disponible: Turnos del pasado (fecha/hora ya pasó)
         """
-        if self.fue_cancelado:
+        from django.utils import timezone
+        
+        # Verificar si el turno ya pasó
+        ahora = timezone.now()
+        fecha_hora_turno = timezone.make_aware(
+            timezone.datetime.combine(self.fecha, self.hora_inicio)
+        )
+        if fecha_hora_turno < ahora:
+            return 'No disponible'
+        
+        # Estados normalizados
+        if self.estado == self.Estado.BLOQUEADO:
+            return 'Bloqueado'
+        elif self.fue_cancelado:
             return 'Cancelado'
         elif self.estado == self.Estado.CONFIRMADO:
-            return 'Abonado completo'
+            return 'Pagado completo'
         elif self.estado == self.Estado.PENDIENTE_PAGO:
             if self.senia_pagada > 0:
                 return 'Reservado con seña'

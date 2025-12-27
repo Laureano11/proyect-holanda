@@ -12,6 +12,7 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('registro/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
+    path('perfil/actualizar/', views.actualizar_perfil, name='actualizar_perfil'),
     
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
@@ -37,4 +38,9 @@ urlpatterns = [
     path('marcar-pagado/<int:turno_id>/', views.marcar_turno_pagado, name='marcar_turno_pagado'),
     path('editar-turno/<int:turno_id>/', views.editar_turno, name='editar_turno'),
     path('actualizar-turno/<int:turno_id>/', views.actualizar_turno, name='actualizar_turno'),
+    
+    # Cliente - Secciones
+    path('turnos-actuales/', views.turnos_actuales, name='turnos_actuales'),
+    path('historial/', views.historial_turnos, name='historial_turnos'),
+    path('mi-perfil/', views.mi_perfil, name='mi_perfil'),
 ]

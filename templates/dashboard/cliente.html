@@ -1,12 +1,12 @@
 {% extends 'dashboard/base_dashboard.html' %}
 
-{% block title %}Mis Turnos - Cliente{% endblock %}
+{% block title %}Turnos Disponibles - Cliente{% endblock %}
 
 {% block dashboard_content %}
 <div class="space-y-6">
     <!-- Header compacto -->
     <div>
-        <h1 class="text-2xl font-semibold text-white">{{ user.first_name|default:user.username }}</h1>
+        <h1 class="text-2xl font-semibold text-white">Turnos Disponibles</h1>
         <p class="text-slate-400 text-sm mt-0.5">
             {% if complejo %}{{ complejo.nombre }} • {{ hoy|date:"d/m/Y" }}{% else %}Sin complejo asignado{% endif %}
         </p>
@@ -28,55 +28,11 @@
         </div>
     </div>
     
-    <!-- Mis Turnos -->
-    {% if turnos_cliente %}
-    <div class="mb-6">
-        <h2 class="text-lg font-semibold text-white mb-3">Mis Turnos</h2>
-        <div class="space-y-2">
-            {% for turno in turnos_cliente %}
-            <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 flex items-center justify-between">
-                <div class="flex-1">
-                    <div class="flex items-center gap-3">
-                        <div>
-                            <p class="text-sm font-medium text-white">{{ turno.cancha.nombre }}</p>
-                            <p class="text-xs text-slate-400">
-                                {{ turno.fecha|date:"d/m/Y" }} • {{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}
-                            </p>
-                        </div>
-                        <span class="px-2 py-1 rounded text-xs font-medium
-                            {% if turno.estado == 'confirmado' %}bg-emerald-500/20 text-emerald-400
-                            {% elif turno.estado == 'pendiente_pago' %}bg-amber-500/20 text-amber-400
-                            {% else %}bg-slate-600/50 text-slate-400{% endif %}">
-                            {{ turno.get_estado_display }}
-                        </span>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span class="text-sm text-slate-300">${{ turno.precio_total|floatformat:0 }}</span>
-                    {% if turno.estado != 'cancelado_usuario' and turno.estado != 'cancelado_admin' and turno.estado != 'expirado' %}
-                    <form method="post" action="{% url 'cancelar_turno' turno.id %}" class="inline">
-                        {% csrf_token %}
-                        <button 
-                            type="submit"
-                            onclick="return confirm('¿Estás seguro de cancelar este turno?')"
-                            class="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition"
-                        >
-                            Cancelar
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    
     <!-- Selector de fecha -->
     {% if complejo and fecha_seleccionada and fecha_minima and fecha_maxima %}
     <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
         <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-semibold text-white">Turnos Disponibles</h2>
+            <h2 class="text-lg font-semibold text-white">Seleccionar Fecha</h2>
             <div class="flex items-center gap-2">
                 <!-- Botón anterior -->
                 {% if fecha_seleccionada and fecha_minima and fecha_seleccionada > fecha_minima %}
@@ -93,13 +49,11 @@
                 
                 <!-- Selector de fecha -->
                 <input 
-                    type="date" 
+                    type="text" 
                     id="fecha-selector"
-                    value="{{ fecha_seleccionada|date:'Y-m-d' }}"
-                    min="{{ fecha_minima|date:'Y-m-d' }}"
-                    max="{{ fecha_maxima|date:'Y-m-d' }}"
+                    value="{{ fecha_seleccionada|date:'d/m/Y' }}"
+                    placeholder="DD/MM/YYYY"
                     class="px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                    onchange="window.location.href='?fecha=' + this.value"
                 >
                 
                 <!-- Botón siguiente -->
@@ -167,17 +121,17 @@
                         <!-- Estado y nombre -->
                         <div class="flex items-center justify-between mb-2">
                             <h4 class="text-sm font-medium text-white">{{ cancha_data.cancha.nombre }}</h4>
-                            <span class="px-1.5 py-0.5 rounded text-xs font-medium
-                                {% if cancha_data.estado == 'disponible' %}bg-emerald-500/20 text-emerald-400
-                                {% elif cancha_data.estado == 'reservado' %}bg-amber-500/20 text-amber-400
-                                {% else %}bg-slate-600/50 text-slate-400{% endif %}">
-                                {% if cancha_data.estado == 'disponible' %}Disp.
-                                {% elif cancha_data.estado == 'reservado' %}Ocup.
-                                {% else %}N/A{% endif %}
+                        <span class="px-1.5 py-0.5 rounded text-xs font-medium
+                            {% if cancha_data.estado == 'disponible' %}bg-emerald-500/20 text-emerald-400
+                            {% elif cancha_data.estado == 'reservado' %}bg-amber-500/20 text-amber-400
+                            {% else %}bg-slate-600/50 text-slate-400{% endif %}">
+                            {% if cancha_data.estado == 'disponible' %}Disp.
+                            {% elif cancha_data.estado == 'reservado' %}Ocup.
+                            {% else %}No disp.{% endif %}
                             </span>
                         </div>
                         
-                        {% if cancha_data.estado == 'disponible' %}
+                    {% if cancha_data.estado == 'disponible' and not es_fecha_pasada %}
                         <div class="space-y-1.5 mb-2">
                             <div class="flex items-center justify-between text-xs">
                                 <span class="text-slate-400">Precio</span>
@@ -199,7 +153,9 @@
                         </button>
                         {% else %}
                         <p class="text-slate-500 text-xs text-center mt-2">
-                            {% if cancha_data.estado == 'reservado' %}Ocupado{% else %}No disponible{% endif %}
+                        {% if es_fecha_pasada %}No disponible (pasado)
+                        {% elif cancha_data.estado == 'reservado' %}Ocupado
+                        {% else %}No disponible{% endif %}
                         </p>
                         {% endif %}
                     </div>
@@ -211,7 +167,7 @@
         {% else %}
         <!-- Empty state compacto -->
         <div class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-8 text-center">
-            <p class="text-slate-400 text-sm">No hay turnos disponibles hoy</p>
+            <p class="text-slate-400 text-sm">No hay turnos disponibles para esta fecha</p>
         </div>
         {% endif %}
     </div>
@@ -223,19 +179,40 @@
     {% endif %}
 </div>
 
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
+// Inicializar Flatpickr con formato DD/MM/YYYY
+const minDate = '{{ fecha_minima|date:"Y-m-d" }}';
+const maxDate = '{{ fecha_maxima|date:"Y-m-d" }}';
+
+function goToDate(dateObj) {
+    const año = dateObj.getFullYear();
+    const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const dia = String(dateObj.getDate()).padStart(2, '0');
+    window.location.href = '?fecha=' + `${año}-${mes}-${dia}`;
+}
+
+const picker = flatpickr("#fecha-selector", {
+    dateFormat: "d/m/Y",
+    locale: "es",
+    allowInput: true,
+    minDate: minDate,
+    maxDate: maxDate,
+    defaultDate: "{{ fecha_seleccionada|date:'d/m/Y' }}",
+    onChange: function(selectedDates) {
+        if (selectedDates.length > 0) {
+            goToDate(selectedDates[0]);
+        }
+    }
+});
+
 function cambiarFecha(dias) {
-    const fechaInput = document.getElementById('fecha-selector');
-    const fechaActual = new Date(fechaInput.value);
-    fechaActual.setDate(fechaActual.getDate() + dias);
-    
-    // Formatear fecha como YYYY-MM-DD
-    const año = fechaActual.getFullYear();
-    const mes = String(fechaActual.getMonth() + 1).padStart(2, '0');
-    const dia = String(fechaActual.getDate()).padStart(2, '0');
-    const nuevaFecha = `${año}-${mes}-${dia}`;
-    
-    window.location.href = '?fecha=' + nuevaFecha;
+    const baseDate = picker.selectedDates[0] || new Date();
+    const newDate = new Date(baseDate);
+    newDate.setDate(newDate.getDate() + dias);
+    goToDate(newDate);
 }
 </script>
 {% endblock %}

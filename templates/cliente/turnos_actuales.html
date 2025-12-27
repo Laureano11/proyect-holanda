@@ -1,0 +1,80 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block title %}Mis Turnos Actuales{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-2xl font-semibold text-white">Mis Turnos Actuales</h1>
+        <p class="text-slate-400 text-sm mt-0.5">
+            {% if complejo %}{{ complejo.nombre }}{% else %}Sin complejo asignado{% endif %}
+        </p>
+    </div>
+    
+    <!-- Turnos activos -->
+    {% if turnos_activos %}
+    <div class="space-y-3">
+        {% for turno in turnos_activos %}
+        <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <div>
+                            <p class="text-base font-medium text-white">{{ turno.cancha.nombre }}</p>
+                            <p class="text-sm text-slate-400">
+                                {{ turno.fecha|date:"d/m/Y" }} • {{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}
+                            </p>
+                        </div>
+                        <span class="px-2.5 py-1 rounded text-xs font-medium
+                            {% if turno.estado_visual == 'Pagado completo' %}bg-emerald-500/20 text-emerald-400
+                            {% elif turno.estado_visual == 'Reservado con seña' %}bg-amber-500/20 text-amber-400
+                            {% elif turno.estado_visual == 'Reservado' %}bg-blue-500/20 text-blue-400
+                            {% elif turno.estado_visual == 'Bloqueado' %}bg-purple-500/20 text-purple-400
+                            {% elif turno.estado_visual == 'No disponible' %}bg-slate-600/50 text-slate-400
+                            {% else %}bg-slate-600/50 text-slate-400{% endif %}">
+                            {{ turno.estado_visual }}
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-right">
+                        <p class="text-xs text-slate-400">Precio</p>
+                        <p class="text-sm font-semibold text-white">${{ turno.precio_total|floatformat:0 }}</p>
+                        {% if turno.senia_pagada > 0 %}
+                        <p class="text-xs text-amber-400">Seña: ${{ turno.senia_pagada|floatformat:0 }}</p>
+                        {% endif %}
+                    </div>
+                    <!-- Botones de acción -->
+                    <div class="flex items-center gap-2">
+                        <form method="post" action="{% url 'cancelar_turno' turno.id %}" class="inline">
+                            {% csrf_token %}
+                            <button 
+                                type="submit"
+                                onclick="return confirm('¿Estás seguro de cancelar este turno?')"
+                                class="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition"
+                            >
+                                Cancelar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty state -->
+    <div class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-12 text-center">
+        <svg class="w-16 h-16 text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <p class="text-slate-400 text-sm">No tenés turnos reservados</p>
+        <a href="{% url 'dashboard' %}" class="inline-block mt-4 px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition">
+            Reservar Turno
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

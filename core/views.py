@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from datetime import datetime, timedelta, time as dt_time
 from decimal import Decimal
 from .models import Usuario, Complejo, Cancha, Turno, Bloqueo, CreditoCliente, TurnoFijo
@@ -92,6 +92,32 @@ def register_view(request):
     return render(request, 'auth/register.html', {'complejos': complejos})
 
 
+@login_required
+def actualizar_perfil(request):
+    """Actualizar datos personales (solo campos seguros)."""
+    if not request.user.es_cliente:
+        messages.error(request, 'No tenés permisos para editar este perfil')
+        return redirect('dashboard')
+
+    if request.method != 'POST':
+        return redirect('dashboard')
+
+    first_name = request.POST.get('first_name', '').strip()
+    last_name = request.POST.get('last_name', '').strip()
+    direccion = request.POST.get('direccion', '').strip()
+
+    user = request.user
+    if first_name:
+        user.first_name = first_name
+    if last_name:
+        user.last_name = last_name
+    user.direccion = direccion
+    user.save()
+
+    messages.success(request, 'Perfil actualizado correctamente')
+    return redirect('dashboard')
+
+
 def logout_view(request):
     """Cerrar sesión."""
     logout(request)
@@ -106,13 +132,17 @@ def dashboard(request):
     
     # Inicializar variables por defecto para evitar errores en templates
     hoy = timezone.now().date()
+    rango_selector_dias = 365
+    fecha_minima_default = hoy - timedelta(days=rango_selector_dias)
+    fecha_maxima_default = hoy + timedelta(days=rango_selector_dias)
     
     context = {
         'user': user,
         'hoy': hoy,
         'fecha_seleccionada': hoy,
-        'fecha_minima': hoy - timedelta(days=7),
-        'fecha_maxima': hoy + timedelta(days=14),
+        'fecha_minima': fecha_minima_default,
+        'fecha_maxima': fecha_maxima_default,
+        'es_fecha_pasada': False,
     }
     
     # Si es cliente, calcular turnos disponibles del día
@@ -176,6 +206,7 @@ def dashboard(request):
         # Obtener fecha/hora actual del sistema (en timezone de Argentina)
         ahora = timezone.now()
         hoy_actual = ahora.date()
+        es_fecha_pasada = fecha_seleccionada < hoy_actual
         
         # Generar horas desde apertura hasta cierre (cada hora)
         hora_actual = hora_apertura
@@ -217,7 +248,9 @@ def dashboard(request):
                 esta_ocupada = (cancha.id, hora_actual) in ocupados_set
                 
                 # Determinar estado
-                if esta_bloqueada:
+                if es_fecha_pasada:
+                    estado = 'no_disponible'
+                elif esta_bloqueada:
                     estado = 'no_disponible'
                 elif esta_ocupada:
                     estado = 'reservado'
@@ -234,7 +267,7 @@ def dashboard(request):
                 })
             
             # Contar canchas disponibles en esta hora
-            canchas_disponibles_count = len([c for c in canchas_disponibles if c['estado'] == 'disponible'])
+            canchas_disponibles_count = 0 if es_fecha_pasada else len([c for c in canchas_disponibles if c['estado'] == 'disponible'])
             
             # Agregar todas las horas (incluso si no hay disponibles)
             slots_por_hora[hora_actual] = {
@@ -248,7 +281,7 @@ def dashboard(request):
             hora_actual = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
         
         # Calcular total de slots disponibles
-        total_disponibles = sum(len([c for c in slot['canchas'] if c['estado'] == 'disponible']) for slot in slots_por_hora.values())
+        total_disponibles = 0 if es_fecha_pasada else sum(len([c for c in slot['canchas'] if c['estado'] == 'disponible']) for slot in slots_por_hora.values())
         
         # Calcular créditos disponibles del cliente
         creditos_totales = CreditoCliente.objects.filter(
@@ -269,9 +302,14 @@ def dashboard(request):
         turnos_cliente = Turno.objects.filter(
             cliente=user,
             cancha__complejo=complejo
-        ).exclude(
-            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
         ).order_by('fecha', 'hora_inicio')
+
+        turnos_activos = turnos_cliente.filter(
+            estado__in=[Turno.Estado.CONFIRMADO, Turno.Estado.PENDIENTE_PAGO]
+        )
+        turnos_historial = turnos_cliente.exclude(
+            id__in=turnos_activos.values_list('id', flat=True)
+        )
         
         # Turnos del mes actual
         mes_actual = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -280,9 +318,9 @@ def dashboard(request):
         # Convertir a lista ordenada por hora para el template
         slots_ordenados = sorted(slots_por_hora.items(), key=lambda x: x[0])
         
-        # Calcular fechas para el selector (7 días atrás, 14 días adelante)
-        fecha_minima = hoy - timedelta(days=7)
-        fecha_maxima = hoy + timedelta(days=14)
+        # Calcular fechas para el selector (ventana amplia centrada en la fecha seleccionada)
+        fecha_minima = fecha_seleccionada - timedelta(days=rango_selector_dias)
+        fecha_maxima = fecha_seleccionada + timedelta(days=rango_selector_dias)
         
         context.update({
             'complejo': complejo,
@@ -295,20 +333,31 @@ def dashboard(request):
             'total_disponibles': total_disponibles,
             'creditos_disponibles': creditos_disponibles,
             'turnos_cliente': turnos_cliente,
+            'turnos_activos': turnos_activos,
+            'turnos_historial': turnos_historial,
             'turnos_mes': turnos_mes,
+            'es_fecha_pasada': es_fecha_pasada,
         })
     
     # Si es staff, obtener turnos del complejo y calcular disponibles
     if user.es_staff_complejo and user.complejo:
         hoy = timezone.now().date()
         complejo = user.complejo
+        orden_turnos = request.GET.get('orden', 'juego')
+        if orden_turnos not in ['juego', 'creacion']:
+            orden_turnos = 'juego'
         
         # Obtener todos los turnos del complejo (excepto cancelados/expirados)
         turnos_complejo = Turno.objects.filter(
             cancha__complejo=complejo
         ).exclude(
             estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
-        ).order_by('fecha', 'hora_inicio')
+        )
+        
+        if orden_turnos == 'creacion':
+            turnos_complejo = turnos_complejo.order_by('-created_at')
+        else:
+            turnos_complejo = turnos_complejo.order_by('fecha', 'hora_inicio')
         
         # Estadísticas
         turnos_hoy = turnos_complejo.filter(fecha=hoy).count()
@@ -391,6 +440,7 @@ def dashboard(request):
         context.update({
             'complejo': complejo,
             'hoy': hoy,
+            'orden_turnos': orden_turnos,
             'turnos_complejo': turnos_complejo,
             'turnos_hoy': turnos_hoy,
             'pendientes_pago': pendientes_pago,
@@ -583,7 +633,8 @@ def reservar_turno(request):
         cliente=request.user,
         fecha=fecha_obj,
         hora_inicio=hora_obj,
-        estado=Turno.Estado.CONFIRMADO,
+        # Se crea como pendiente de pago pero con seña abonada
+        estado=Turno.Estado.PENDIENTE_PAGO,
         precio_total=cancha.precio_hora,
         senia_requerida=senia_requerida,
         senia_pagada=creditos_a_usar,
@@ -751,9 +802,20 @@ def actualizar_turno(request, turno_id):
     cancha_id = request.POST.get('cancha_id')
     fecha = request.POST.get('fecha')
     hora_inicio = request.POST.get('hora_inicio')
+    nuevo_estado = request.POST.get('estado')
     
-    if not all([cancha_id, fecha, hora_inicio]):
+    if not all([cancha_id, fecha, hora_inicio, nuevo_estado]):
         messages.error(request, 'Faltan datos requeridos')
+        return redirect('editar_turno', turno_id=turno.id)
+    
+    estados_permitidos = [
+        Turno.Estado.PENDIENTE_PAGO,
+        Turno.Estado.CONFIRMADO,
+        Turno.Estado.BLOQUEADO,
+        Turno.Estado.CANCELADO_ADMIN,
+    ]
+    if nuevo_estado not in estados_permitidos:
+        messages.error(request, 'Estado inválido')
         return redirect('editar_turno', turno_id=turno.id)
     
     try:
@@ -783,6 +845,7 @@ def actualizar_turno(request, turno_id):
     turno.cancha = cancha
     turno.fecha = fecha_obj
     turno.hora_inicio = hora_obj
+    turno.estado = nuevo_estado
     turno.save()
     
     messages.success(request, f'Turno actualizado: {cancha.nombre} - {fecha_obj.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
@@ -1153,3 +1216,102 @@ def eliminar_turno_fijo(request, turno_fijo_id):
     
     messages.success(request, f'Turno fijo eliminado: {turno_fijo.get_dia_semana_display()} {turno_fijo.hora_inicio.strftime("%H:%M")} - {turno_fijo.cancha.nombre}')
     return redirect('turnos_fijos')
+
+
+@login_required
+@transaction.atomic
+def actualizar_perfil(request):
+    """Actualizar perfil del cliente."""
+    if not request.user.es_cliente:
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    if request.method != 'POST':
+        messages.error(request, 'Método no permitido')
+        return redirect('mi_perfil')
+    
+    user = request.user
+    
+    # Obtener datos del formulario (solo campos editables)
+    first_name = request.POST.get('first_name', '').strip()
+    last_name = request.POST.get('last_name', '').strip()
+    direccion = request.POST.get('direccion', '').strip()
+    
+    # Actualizar solo campos permitidos
+    user.first_name = first_name
+    user.last_name = last_name
+    user.direccion = direccion
+    user.save()
+    
+    messages.success(request, f'Perfil actualizado correctamente')
+    return redirect('mi_perfil')
+
+
+@login_required
+def turnos_actuales(request):
+    """Vista de turnos actuales del cliente."""
+    if not request.user.es_cliente:
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    if not request.user.complejo:
+        messages.error(request, 'No tenés un complejo asignado')
+        return redirect('dashboard')
+    
+    complejo = request.user.complejo
+    
+    # Obtener turnos activos (no cancelados, no expirados)
+    turnos_activos = Turno.objects.filter(
+        cliente=request.user,
+        cancha__complejo=complejo
+    ).exclude(
+        estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+    ).order_by('fecha', 'hora_inicio')
+    
+    context = {
+        'complejo': complejo,
+        'turnos_activos': turnos_activos,
+    }
+    
+    return render(request, 'cliente/turnos_actuales.html', context)
+
+
+@login_required
+def historial_turnos(request):
+    """Vista de historial de turnos del cliente."""
+    if not request.user.es_cliente:
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    if not request.user.complejo:
+        messages.error(request, 'No tenés un complejo asignado')
+        return redirect('dashboard')
+    
+    complejo = request.user.complejo
+    
+    # Obtener todos los turnos del cliente (incluyendo cancelados y expirados)
+    turnos_historial = Turno.objects.filter(
+        cliente=request.user,
+        cancha__complejo=complejo
+    ).order_by('-fecha', '-hora_inicio')
+    
+    context = {
+        'complejo': complejo,
+        'turnos_historial': turnos_historial,
+    }
+    
+    return render(request, 'cliente/historial.html', context)
+
+
+@login_required
+def mi_perfil(request):
+    """Vista del perfil del cliente."""
+    if not request.user.es_cliente:
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    context = {
+        'complejo': request.user.complejo,
+    }
+    
+    return render(request, 'cliente/perfil.html', context)

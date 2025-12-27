@@ -7,6 +7,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
+            <p class="text-xs uppercase tracking-wide text-slate-500 mb-1">Gestión de turnos</p>
             <h1 class="text-2xl font-semibold text-white">Editar Turno</h1>
             <p class="text-slate-400 text-sm mt-0.5">{{ complejo.nombre }}</p>
         </div>
@@ -16,39 +17,58 @@
     </div>
     
     <!-- Información del turno actual -->
-    <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
-        <h3 class="text-sm font-medium text-slate-300 mb-3">Turno Actual</h3>
-        <div class="grid grid-cols-2 gap-4 text-sm">
+    <div class="bg-slate-800/40 rounded-xl p-5 border border-slate-700/60 shadow-lg shadow-slate-900/40">
+        <div class="flex items-start justify-between">
             <div>
-                <span class="text-slate-400">Cliente:</span>
-                <span class="text-white ml-2">{{ turno.cliente.first_name|default:turno.cliente.username }}</span>
+                <h3 class="text-sm font-semibold text-white mb-2">Resumen del turno</h3>
+                <div class="grid sm:grid-cols-2 gap-3 text-sm">
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400">Cliente</span>
+                        <span class="text-white font-medium">{{ turno.cliente.first_name|default:turno.cliente.username }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400">Cancha</span>
+                        <span class="text-white font-medium">{{ turno.cancha.nombre }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400">Fecha juego</span>
+                        <span class="text-white font-medium">{{ turno.fecha|date:"d/m/Y" }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400">Horario</span>
+                        <span class="text-white font-medium">{{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400">Precio</span>
+                        <span class="text-white font-medium">${{ turno.precio_total|floatformat:0 }}</span>
+                    </div>
+                </div>
             </div>
-            <div>
-                <span class="text-slate-400">Cancha:</span>
-                <span class="text-white ml-2">{{ turno.cancha.nombre }}</span>
-            </div>
-            <div>
-                <span class="text-slate-400">Fecha:</span>
-                <span class="text-white ml-2">{{ turno.fecha|date:"d/m/Y" }}</span>
-            </div>
-            <div>
-                <span class="text-slate-400">Hora:</span>
-                <span class="text-white ml-2">{{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}</span>
-            </div>
-            <div>
-                <span class="text-slate-400">Estado:</span>
-                <span class="text-white ml-2">{{ turno.estado_visual }}</span>
-            </div>
-            <div>
-                <span class="text-slate-400">Precio:</span>
-                <span class="text-white ml-2">${{ turno.precio_total|floatformat:0 }}</span>
+            <div class="flex flex-col items-end gap-2">
+                <span class="px-3 py-1 rounded-full text-xs font-semibold
+                    {% if turno.estado_visual == 'Pagado completo' %}bg-emerald-500/20 text-emerald-300
+                    {% elif turno.estado_visual == 'Reservado con seña' %}bg-amber-500/20 text-amber-300
+                    {% elif turno.estado_visual == 'Reservado' %}bg-blue-500/20 text-blue-300
+                    {% elif turno.estado_visual == 'Bloqueado' %}bg-purple-500/20 text-purple-300
+                    {% elif turno.estado_visual == 'No disponible' %}bg-slate-600/50 text-slate-400
+                    {% elif turno.estado_visual == 'Cancelado' %}bg-red-500/20 text-red-300
+                    {% else %}bg-slate-700 text-slate-200{% endif %}">
+                    {{ turno.estado_visual }}
+                </span>
+                <p class="text-[11px] text-slate-500">Creado: {{ turno.created_at|date:"d/m/Y H:i" }}</p>
             </div>
         </div>
     </div>
     
     <!-- Formulario de edición -->
-    <div class="bg-slate-800/30 rounded-lg p-6 border border-slate-700/50">
-        <h3 class="text-lg font-semibold text-white mb-4">Modificar Turno</h3>
+    <div class="bg-slate-800/40 rounded-xl p-6 border border-slate-700/60 shadow-lg shadow-slate-900/40">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <p class="text-xs uppercase tracking-wide text-slate-500 mb-1">Edición</p>
+                <h3 class="text-lg font-semibold text-white">Modificar Turno</h3>
+            </div>
+            <span class="text-[11px] text-slate-500">Campos obligatorios *</span>
+        </div>
         
         <form method="post" action="{% url 'actualizar_turno' turno.id %}" class="space-y-4">
             {% csrf_token %}
@@ -67,13 +87,14 @@
             <div>
                 <label class="block text-sm font-medium text-slate-300 mb-1">Fecha *</label>
                 <input 
-                    type="date" 
-                    name="fecha" 
-                    value="{{ turno.fecha|date:'Y-m-d' }}"
+                    type="text" 
+                    id="fecha-editar"
+                    value="{{ turno.fecha|date:'d/m/Y' }}"
+                    placeholder="DD/MM/YYYY"
                     required
-                    min="{{ 'now'|date:'Y-m-d' }}"
                     class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 >
+                <input type="hidden" name="fecha" id="fecha-hidden" value="{{ turno.fecha|date:'Y-m-d' }}">
             </div>
             
             <!-- Hora de inicio -->
@@ -87,12 +108,30 @@
                     class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 >
             </div>
+
+            <!-- Estado -->
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Estado *</label>
+                <select 
+                    name="estado" 
+                    required
+                    class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                >
+                    <option value="pendiente_pago" {% if turno.estado == 'pendiente_pago' %}selected{% endif %}>Reservado (Pendiente de pago)</option>
+                    <option value="confirmado" {% if turno.estado == 'confirmado' %}selected{% endif %}>Pagado completo</option>
+                    <option value="bloqueado" {% if turno.estado == 'bloqueado' %}selected{% endif %}>Bloqueado</option>
+                    <option value="cancelado_admin" {% if turno.estado == 'cancelado_admin' %}selected{% endif %}>Cancelado por staff</option>
+                </select>
+                <p class="text-[11px] text-slate-500 mt-1">
+                    Nota: "Reservado con seña" se refleja automáticamente cuando hay seña pagada.
+                </p>
+            </div>
             
             <!-- Botones -->
-            <div class="flex items-center gap-3 pt-2">
+            <div class="flex items-center gap-3 pt-3">
                 <button 
                     type="submit"
-                    class="flex-1 px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition"
+                    class="flex-1 px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition shadow-md shadow-cyan-500/20"
                 >
                     Guardar Cambios
                 </button>
@@ -106,5 +145,37 @@
         </form>
     </div>
 </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Inicializar Flatpickr para fecha de edición
+flatpickr("#fecha-editar", {
+    dateFormat: "d/m/Y",
+    locale: "es",
+    allowInput: true,
+    minDate: "{{ 'now'|date:'Y-m-d' }}",
+    defaultDate: "{{ turno.fecha|date:'d/m/Y' }}",
+    onReady: function(selectedDates) {
+        if (selectedDates.length > 0) {
+            const fecha = selectedDates[0];
+            const año = fecha.getFullYear();
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            document.getElementById('fecha-hidden').value = `${año}-${mes}-${dia}`;
+        }
+    },
+    onChange: function(selectedDates) {
+        if (selectedDates.length > 0) {
+            const fecha = selectedDates[0];
+            const año = fecha.getFullYear();
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            document.getElementById('fecha-hidden').value = `${año}-${mes}-${dia}`;
+        }
+    }
+});
+</script>
 {% endblock %}
 
