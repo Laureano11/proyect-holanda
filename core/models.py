@@ -133,6 +133,7 @@ class Complejo(models.Model):
     """
     Complejo deportivo que contiene canchas.
     El slug se usa para identificar el complejo en URLs.
+    El subdominio se usa para multi-tenant (ej: basanta.ha.com).
     """
     
     nombre = models.CharField(
@@ -145,6 +146,14 @@ class Complejo(models.Model):
         blank=True,
         verbose_name='Slug',
         help_text='Identificador único en URL (ej: padel-norte). Se genera automáticamente.'
+    )
+    subdominio = models.SlugField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        null=True,
+        verbose_name='Subdominio',
+        help_text='Subdominio para multi-tenant (ej: basanta para basanta.ha.com). Se genera del slug si está vacío.'
     )
     direccion = models.CharField(
         max_length=255,
@@ -204,6 +213,11 @@ class Complejo(models.Model):
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
+        
+        # Generar subdominio automáticamente del slug si no existe
+        if not self.subdominio:
+            self.subdominio = self.slug
+        
         super().save(*args, **kwargs)
 
 

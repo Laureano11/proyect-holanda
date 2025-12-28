@@ -69,6 +69,10 @@ class TurnoService:
         Genera los slots disponibles para un complejo en una fecha.
         Optimizado con caché y preprocesamiento de bloqueos.
         
+        IMPORTANTE: Los turnos se generan respetando los horarios del complejo.
+        El último turno disponible debe TERMINAR a la hora de cierre, no empezar.
+        Ejemplo: Si cierra a las 20:00 y turnos de 1 hora, el último turno es 19:00-20:00.
+        
         Args:
             complejo: Instancia del Complejo
             fecha: date object
@@ -77,7 +81,7 @@ class TurnoService:
         Returns:
             dict con slots_por_hora, total_disponibles, es_fecha_pasada
         """
-        from .models import Cancha, Turno, TurnoFijo, Bloqueo
+        from .models import Cancha, Turno, TurnoFijo, Bloqueo, PreferenciasComplejo
         
         # Intentar obtener de caché
         cache_key = cls.get_cache_key(complejo.id, fecha)
@@ -92,6 +96,12 @@ class TurnoService:
         ahora = timezone.now()
         hoy_actual = ahora.date()
         es_fecha_pasada = fecha < hoy_actual
+        
+        # Obtener duración del turno del complejo (default 60 minutos)
+        try:
+            duracion_turno = complejo.preferencias.duracion_turno_minutos
+        except PreferenciasComplejo.DoesNotExist:
+            duracion_turno = 60
         
         # Obtener canchas activas (single query)
         canchas = list(Cancha.objects.filter(
@@ -146,15 +156,27 @@ class TurnoService:
         hora_actual = hora_apertura
         total_disponibles = 0
         
+        # Convertir hora_cierre a datetime para comparaciones precisas
+        cierre_dt = datetime.combine(datetime.today(), hora_cierre)
+        
         while hora_actual < hora_cierre:
+            # Calcular hora de fin del turno basado en duración configurada
+            inicio_dt = datetime.combine(datetime.today(), hora_actual)
+            fin_dt = inicio_dt + timedelta(minutes=duracion_turno)
+            hora_fin = fin_dt.time()
+            
+            # IMPORTANTE: El turno debe TERMINAR antes o exactamente a la hora de cierre
+            # Si el turno terminaría después del cierre, no lo generamos
+            if fin_dt > cierre_dt:
+                break
+            
             # Si es hoy, verificar que el turno no haya empezado
             if fecha == hoy_actual:
                 inicio_turno = timezone.make_aware(datetime.combine(fecha, hora_actual))
                 if ahora > inicio_turno:
-                    hora_actual = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
+                    hora_actual = (inicio_dt + timedelta(minutes=duracion_turno)).time()
                     continue
             
-            hora_fin = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
             canchas_disponibles = []
             
             for cancha in canchas:
@@ -193,7 +215,8 @@ class TurnoService:
                 'canchas_disponibles_count': canchas_disponibles_count,
             }
             
-            hora_actual = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
+            # Avanzar según la duración del turno configurada
+            hora_actual = (inicio_dt + timedelta(minutes=duracion_turno)).time()
         
         result = {
             'slots_por_hora': slots_por_hora,
@@ -211,11 +234,20 @@ class TurnoService:
     def generar_slots_staff(cls, complejo, fecha):
         """
         Genera slots disponibles para el staff (solo disponibles, sin todos los estados).
+        
+        IMPORTANTE: Los turnos se generan respetando los horarios del complejo.
+        El último turno disponible debe TERMINAR a la hora de cierre, no empezar.
         """
-        from .models import Cancha, Turno, Bloqueo
+        from .models import Cancha, Turno, Bloqueo, PreferenciasComplejo
         
         ahora = timezone.now()
         hoy_actual = ahora.date()
+        
+        # Obtener duración del turno del complejo (default 60 minutos)
+        try:
+            duracion_turno = complejo.preferencias.duracion_turno_minutos
+        except PreferenciasComplejo.DoesNotExist:
+            duracion_turno = 60
         
         # Obtener canchas activas
         canchas = list(Cancha.objects.filter(
@@ -248,15 +280,26 @@ class TurnoService:
         hora_cierre = complejo.hora_cierre
         hora_actual = hora_apertura
         
+        # Convertir hora_cierre a datetime para comparaciones precisas
+        cierre_dt = datetime.combine(datetime.today(), hora_cierre)
+        
         while hora_actual < hora_cierre:
+            # Calcular hora de fin del turno basado en duración configurada
+            inicio_dt = datetime.combine(datetime.today(), hora_actual)
+            fin_dt = inicio_dt + timedelta(minutes=duracion_turno)
+            hora_fin = fin_dt.time()
+            
+            # IMPORTANTE: El turno debe TERMINAR antes o exactamente a la hora de cierre
+            if fin_dt > cierre_dt:
+                break
+            
             # Si es hoy, verificar que el turno no haya empezado
             if fecha == hoy_actual:
                 inicio_turno = timezone.make_aware(datetime.combine(fecha, hora_actual))
                 if ahora > inicio_turno:
-                    hora_actual = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
+                    hora_actual = (inicio_dt + timedelta(minutes=duracion_turno)).time()
                     continue
             
-            hora_fin = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
             canchas_disponibles = []
             
             for cancha in canchas:
@@ -279,7 +322,8 @@ class TurnoService:
                     'canchas': canchas_disponibles,
                 }
             
-            hora_actual = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
+            # Avanzar según la duración del turno configurada
+            hora_actual = (inicio_dt + timedelta(minutes=duracion_turno)).time()
         
         return slots_por_hora
     
