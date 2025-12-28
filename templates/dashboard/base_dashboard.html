@@ -7,20 +7,36 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center gap-6">
-                <!-- Logo -->
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    <!-- Botón menú móvil - MOVIDO A LA IZQUIERDA -->
+                    <button 
+                        id="dashboard-menu-toggle" 
+                        class="md:hidden p-2 rounded-lg bg-slate-700/60 text-white hover:bg-slate-700 transition"
+                        aria-expanded="false"
+                        aria-controls="dashboard-mobile-menu"
+                    >
+                        <span class="sr-only">Abrir menú de navegación</span>
+                        <svg id="dashboard-icon-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                         </svg>
+                        <svg id="dashboard-icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                
+                    <!-- Logo -->
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div class="hidden sm:block">
+                            <span class="text-white font-semibold">Sistema de Turnos</span>
+                            {% if user.complejo %}
+                            <span class="text-slate-400 text-sm ml-2">• {{ user.complejo.nombre }}</span>
+                            {% endif %}
+                        </div>
                     </div>
-                    <div>
-                        <span class="text-white font-semibold">Sistema de Turnos</span>
-                        {% if user.complejo %}
-                        <span class="text-slate-400 text-sm ml-2">• {{ user.complejo.nombre }}</span>
-                        {% endif %}
-                    </div>
-                </div>
                 
                     <!-- Navegación desktop -->
                     <div class="hidden md:flex items-center gap-1">
@@ -60,22 +76,6 @@
                 
                 <!-- Menú de usuario y acciones -->
                 <div class="flex items-center gap-3">
-                    <!-- Botón menú móvil -->
-                    <button 
-                        id="dashboard-menu-toggle" 
-                        class="md:hidden p-2 rounded-lg bg-slate-700/60 text-white hover:bg-slate-700 transition"
-                        aria-expanded="false"
-                        aria-controls="dashboard-mobile-menu"
-                    >
-                        <span class="sr-only">Abrir menú de navegación</span>
-                        <svg id="dashboard-icon-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                        </svg>
-                        <svg id="dashboard-icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-
                     <!-- Rol badge -->
                     <span class="px-3 py-1 rounded-full text-xs font-medium
                         {% if user.es_superadmin %}bg-red-500/20 text-red-400
