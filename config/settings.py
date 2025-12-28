@@ -5,11 +5,16 @@ Django settings for Sistema de Gestión de Turnos.
 from pathlib import Path
 from dotenv import load_dotenv
 import os
-import dj_database_url
 from urllib.parse import urlparse
 
 # Cargar variables de entorno
 load_dotenv()
+
+# dj-database-url es recomendado (Render/producción). En local puede no estar instalado.
+try:
+    import dj_database_url  # type: ignore
+except ImportError:  # pragma: no cover
+    dj_database_url = None
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -131,10 +136,16 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # En producción (Render), usar DATABASE_URL
 # En desarrollo local, usar variables individuales
-if os.getenv('DATABASE_URL'):
+db_url = os.getenv('DATABASE_URL')
+if db_url:
+    if dj_database_url is None:
+        raise RuntimeError(
+            "DATABASE_URL está configurado pero falta instalar 'dj-database-url'. "
+            "Ejecutá: pip install -r requirements.txt"
+        )
     DATABASES = {
         'default': dj_database_url.config(
-            default=os.getenv('DATABASE_URL'),
+            default=db_url,
             conn_max_age=600,
             conn_health_checks=True,
         )

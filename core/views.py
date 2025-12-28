@@ -8,8 +8,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Sum, Q
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.core.paginator import Paginator
 from datetime import datetime, timedelta, time as dt_time
 from decimal import Decimal
@@ -22,6 +23,7 @@ def home(request):
     return render(request, 'home.html')
 
 
+@ensure_csrf_cookie
 def login_view(request):
     """Vista de login simple."""
     if request.user.is_authenticated:
@@ -43,6 +45,7 @@ def login_view(request):
     return render(request, 'auth/login.html')
 
 
+@ensure_csrf_cookie
 def register_view(request):
     """Vista de registro simple con selector de rol."""
     if request.user.is_authenticated:
@@ -59,55 +62,71 @@ def register_view(request):
             complejo_por_defecto = Complejo.objects.filter(activo=True).first()
     
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email', '')
-        password = request.POST.get('password')
-        first_name = request.POST.get('first_name', '')
-        last_name = request.POST.get('last_name', '')
-        celular = request.POST.get('celular', '')
-        dni = request.POST.get('dni', '')
+        username = (request.POST.get('username') or '').strip()
+        email = (request.POST.get('email', '') or '').strip()
+        password = request.POST.get('password') or ''
+        first_name = (request.POST.get('first_name', '') or '').strip()
+        last_name = (request.POST.get('last_name', '') or '').strip()
+        celular = (request.POST.get('celular', '') or '').strip()
+        dni = (request.POST.get('dni', '') or '').strip()
         
         # Construir dirección completa
-        calle = request.POST.get('calle', '')
-        altura = request.POST.get('altura', '')
-        ciudad = request.POST.get('ciudad', '')
+        calle = (request.POST.get('calle', '') or '').strip()
+        altura = (request.POST.get('altura', '') or '').strip()
+        ciudad = (request.POST.get('ciudad', '') or '').strip()
         direccion_parts = [p for p in [calle, altura, ciudad] if p.strip()]
         direccion = ', '.join(direccion_parts) if direccion_parts else ''
         
         # Forzar siempre rol de cliente en el registro público
         rol = Usuario.Rol.CLIENTE
         complejo_id = request.POST.get('complejo')
-        
-        # Validación mínima
-        if Usuario.objects.filter(username=username).exists():
-            messages.error(request, 'Ese nombre de usuario ya existe')
+
+        if not username or not password:
+            messages.error(request, 'Usuario y contraseña son obligatorios')
+            return render(request, 'auth/register.html')
+
+        # Si el usuario ya existe, intentar autenticarlos en vez de mostrar un error genérico.
+        existing_user = Usuario.objects.filter(username=username).first()
+        if existing_user:
+            autenticado = authenticate(request, username=username, password=password)
+            if autenticado:
+                login(request, autenticado)
+                messages.info(request, f'Ya tenías cuenta, te iniciamos sesión como {autenticado.first_name or autenticado.username}')
+                return redirect('dashboard')
+            
+            messages.error(request, 'Ese usuario ya existe. Probá iniciar sesión con tu contraseña.')
             return render(request, 'auth/register.html')
         
-        # Crear usuario
-        user = Usuario.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name,
-            celular=celular,
-            dni=dni,
-            direccion=direccion,
-            rol=rol,
-        )
-        
-        # Asignar complejo por defecto (basanta) si existe
-        if complejo_por_defecto:
-            user.complejo = complejo_por_defecto
-            user.save()
-            # TEMPORAL: Asignar crédito inicial de 150.000 para tests
-            CreditoCliente.objects.create(
-                usuario=user,
-                complejo=complejo_por_defecto,
-                monto=Decimal('150000.00'),
-                motivo='Crédito inicial de bienvenida (temporal para tests)',
-                activo=True
-            )
+        try:
+            with transaction.atomic():
+                # Crear usuario
+                user = Usuario.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    celular=celular,
+                    dni=dni,
+                    direccion=direccion,
+                    rol=rol,
+                )
+                
+                # Asignar complejo por defecto (basanta) si existe
+                if complejo_por_defecto:
+                    user.complejo = complejo_por_defecto
+                    user.save()
+                    # TEMPORAL: Asignar crédito inicial de 150.000 para tests
+                    CreditoCliente.objects.create(
+                        usuario=user,
+                        complejo=complejo_por_defecto,
+                        monto=Decimal('150000.00'),
+                        motivo='Crédito inicial de bienvenida (temporal para tests)',
+                        activo=True
+                    )
+        except IntegrityError:
+            messages.error(request, 'Ese usuario ya existe. Probá iniciar sesión.')
+            return render(request, 'auth/register.html')
         
         # Login automático
         login(request, user)
