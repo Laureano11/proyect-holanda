@@ -169,6 +169,19 @@ def complejo_context_processor(request):
     """
     complejo = getattr(request, 'complejo_actual', None)
     
+    # Fallback: si no hay complejo resuelto por dominio (ej. dominio genérico),
+    # tomar el complejo por defecto para que siempre haya branding y preferencias.
+    if complejo is None:
+        from core.models import Complejo
+        try:
+            complejo = Complejo.objects.get(slug__iexact='basanta', activo=True)
+        except Complejo.DoesNotExist:
+            complejo = Complejo.objects.filter(activo=True).first()
+        
+        # También exponerlo en request para el resto del ciclo de vida
+        if complejo:
+            setattr(request, 'complejo_actual', complejo)
+    
     context = {
         'complejo_actual': complejo,
     }
