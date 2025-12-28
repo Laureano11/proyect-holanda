@@ -612,8 +612,20 @@ class Turno(models.Model):
         verbose_name = 'Turno'
         verbose_name_plural = 'Turnos'
         ordering = ['fecha', 'hora_inicio']
-        # Evitar turnos duplicados en la misma cancha/fecha/hora
-        unique_together = ['cancha', 'fecha', 'hora_inicio']
+        constraints = [
+            # Evitar superposición de turnos activos en la misma cancha/fecha/hora
+            models.UniqueConstraint(
+                fields=['cancha', 'fecha', 'hora_inicio'],
+                name='turno_cancha_fecha_hora_unico_activo',
+                condition=~models.Q(
+                    estado__in=[
+                        'cancelado_usuario',
+                        'cancelado_admin',
+                        'expirado',
+                    ]
+                ),
+            ),
+        ]
         # Índices para optimizar queries frecuentes
         indexes = [
             models.Index(fields=['fecha', 'estado'], name='turno_fecha_estado_idx'),

@@ -534,17 +534,23 @@ def reservar_turno(request):
     )
     
     # Crear el turno
-    turno = Turno.objects.create(
-        cancha=cancha,
-        cliente=request.user,
-        fecha=fecha_obj,
-        hora_inicio=hora_obj,
-        estado=Turno.Estado.PENDIENTE_PAGO,
-        precio_total=cancha.precio_hora,
-        senia_requerida=senia_requerida,
-        senia_pagada=creditos_aplicados,
-        creditos_usados=creditos_aplicados,
-    )
+    try:
+        turno = Turno.objects.create(
+            cancha=cancha,
+            cliente=request.user,
+            fecha=fecha_obj,
+            hora_inicio=hora_obj,
+            estado=Turno.Estado.PENDIENTE_PAGO,
+            precio_total=cancha.precio_hora,
+            senia_requerida=senia_requerida,
+            senia_pagada=creditos_aplicados,
+            creditos_usados=creditos_aplicados,
+        )
+    except IntegrityError:
+        # Otro usuario tomó el turno en paralelo o existe un turno activo igual
+        TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_obj)
+        messages.error(request, 'Ese horario acaba de reservarse. Elegí otro turno disponible.')
+        return redirect('dashboard')
     
     # Invalidar caché de slots para esta fecha
     TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_obj)
