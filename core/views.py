@@ -25,7 +25,12 @@ def home(request):
 
 @ensure_csrf_cookie
 def login_view(request):
-    """Vista de login simple."""
+    """
+    Vista de login con validación multi-tenant.
+    
+    Bloquea el login si el usuario pertenece a un complejo diferente
+    al subdominio actual (excepto superadmin que puede acceder a todos).
+    """
     if request.user.is_authenticated:
         return redirect('dashboard')
     
@@ -36,6 +41,21 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         
         if user is not None:
+            # Validación multi-tenant: verificar que el usuario pertenece al complejo actual
+            complejo_actual = getattr(request, 'complejo_actual', None)
+            
+            # Superadmin puede acceder desde cualquier subdominio
+            if not user.es_superadmin:
+                # Si hay complejo actual y el usuario tiene complejo asignado
+                if complejo_actual and user.complejo:
+                    if user.complejo.id != complejo_actual.id:
+                        messages.error(
+                            request, 
+                            f'Tu cuenta pertenece a {user.complejo.nombre}. '
+                            f'Por favor accedé desde el subdominio correcto.'
+                        )
+                        return render(request, 'auth/login.html')
+            
             login(request, user)
             messages.success(request, f'¡Bienvenido, {user.first_name or user.username}!')
             return redirect('dashboard')
@@ -47,19 +67,24 @@ def login_view(request):
 
 @ensure_csrf_cookie
 def register_view(request):
-    """Vista de registro simple con selector de rol."""
+    """
+    Vista de registro con asignación automática de complejo por subdominio.
+    
+    Multi-tenant: El usuario se registra automáticamente en el complejo
+    del subdominio desde el cual accede.
+    """
     if request.user.is_authenticated:
         return redirect('dashboard')
     
-    # Intentamos resolver el complejo por slug 'basanta' para asignarlo por defecto.
-    complejo_por_defecto = None
-    try:
-        complejo_por_defecto = Complejo.objects.get(slug__iexact='basanta')
-    except Complejo.DoesNotExist:
+    # Multi-tenant: usar el complejo del subdominio actual
+    complejo_actual = getattr(request, 'complejo_actual', None)
+    
+    # Fallback si no hay complejo en el request (desarrollo)
+    if not complejo_actual:
         try:
-            complejo_por_defecto = Complejo.objects.get(nombre__iexact='Basanta')
+            complejo_actual = Complejo.objects.get(slug__iexact='basanta')
         except Complejo.DoesNotExist:
-            complejo_por_defecto = Complejo.objects.filter(activo=True).first()
+            complejo_actual = Complejo.objects.filter(activo=True).first()
     
     if request.method == 'POST':
         username = (request.POST.get('username') or '').strip()
@@ -79,11 +104,34 @@ def register_view(request):
         
         # Forzar siempre rol de cliente en el registro público
         rol = Usuario.Rol.CLIENTE
-        complejo_id = request.POST.get('complejo')
 
         if not username or not password:
             messages.error(request, 'Usuario y contraseña son obligatorios')
             return render(request, 'auth/register.html')
+        
+        # Crear usuario asignado al complejo del subdominio actual
+        user = Usuario.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            celular=celular,
+            dni=dni,
+            direccion=direccion,
+            rol=rol,
+            complejo=complejo_actual,  # Asignar complejo del subdominio
+        )
+        
+        # TEMPORAL: Asignar crédito inicial de 150.000 para tests
+        if complejo_actual:
+            CreditoCliente.objects.create(
+                usuario=user,
+                complejo=complejo_actual,
+                monto=Decimal('150000.00'),
+                motivo='Crédito inicial de bienvenida (temporal para tests)',
+                activo=True
+            )
 
         # Si el usuario ya existe, intentar autenticarlos en vez de mostrar un error genérico.
         existing_user = Usuario.objects.filter(username=username).first()
@@ -763,73 +811,9 @@ def nuevo_turno_rapido(request):
         messages.error(request, 'No se pueden crear turnos en el pasado')
         return redirect(f"{request.path}?fecha={hoy.strftime('%Y-%m-%d')}")
     
-    # Calcular turnos disponibles (misma lógica que en dashboard)
-    canchas = Cancha.objects.filter(complejo=complejo, activa=True)
-    turnos_ocupados = Turno.objects.filter(
-        cancha__complejo=complejo,
-        fecha=fecha_base
-    ).exclude(
-        estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
-    ).values_list('cancha_id', 'hora_inicio')
-    ocupados_set = set(turnos_ocupados)
-    bloqueos = Bloqueo.objects.filter(complejo=complejo, fecha=fecha_base)
-    
-    slots_por_hora = {}
-    hora_apertura = complejo.hora_apertura
-    hora_cierre = complejo.hora_cierre
-    ahora = timezone.now()
-    hoy_actual = ahora.date()
-    hora_actual = hora_apertura
-    
-    while hora_actual < hora_cierre:
-        # Si es hoy, verificar que el turno no haya empezado ya
-        if fecha_base == hoy_actual:
-            # Crear datetime del inicio del turno
-            inicio_turno = timezone.make_aware(datetime.combine(fecha_base, hora_actual))
-            # Si el turno ya empezó (hora actual > hora inicio), saltarlo
-            # Usamos > en lugar de >= para permitir reservar el turno si estamos justo en la hora de inicio
-            if ahora > inicio_turno:
-                hora_actual = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
-                continue
-        
-        hora_fin = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
-        canchas_disponibles = []
-        
-        for cancha in canchas:
-            esta_bloqueada = False
-            for bloqueo in bloqueos:
-                if bloqueo.cancha is None or bloqueo.cancha == cancha:
-                    if bloqueo.es_dia_completo:
-                        esta_bloqueada = True
-                        break
-                    elif bloqueo.hora_inicio and bloqueo.hora_fin:
-                        if bloqueo.hora_inicio <= hora_actual < bloqueo.hora_fin:
-                            esta_bloqueada = True
-                            break
-                    elif bloqueo.hora_inicio and hora_actual >= bloqueo.hora_inicio:
-                        esta_bloqueada = True
-                        break
-            
-            esta_ocupada = (cancha.id, hora_actual) in ocupados_set
-            
-            if not esta_bloqueada and not esta_ocupada:
-                canchas_disponibles.append({
-                    'cancha': cancha,
-                    'precio': cancha.precio_hora,
-                    'senia': cancha.precio_senia,
-                    'hora': hora_actual,
-                })
-        
-        if canchas_disponibles:
-            slots_por_hora[hora_actual] = {
-                'hora_inicio': hora_actual,
-                'hora_fin': hora_fin,
-                'canchas': canchas_disponibles,
-            }
-        
-        hora_actual = (datetime.combine(datetime.today(), hora_actual) + timedelta(hours=1)).time()
-    
-    slots_ordenados = sorted(slots_por_hora.items(), key=lambda x: x[0])
+    # Usar el servicio optimizado para generar slots disponibles
+    slots_por_hora_staff = TurnoService.generar_slots_staff(complejo, fecha_base)
+    slots_ordenados = sorted(slots_por_hora_staff.items(), key=lambda x: x[0])
     
     context = {
         'complejo': complejo,

@@ -1,5 +1,8 @@
 """
 Configuración del panel de administración de Django.
+
+Multi-tenant: Los usuarios admin/staff solo ven datos de su complejo.
+Superadmin puede ver todo.
 """
 
 from django.contrib import admin
@@ -18,9 +21,56 @@ from .models import (
 )
 
 
+class ComplejoFilterMixin:
+    """
+    Mixin para filtrar querysets por complejo del usuario logueado.
+    
+    - Superadmin: ve todo
+    - Admin/Staff: solo ve datos de su complejo
+    """
+    
+    # Nombre del campo FK a Complejo (por defecto 'complejo')
+    complejo_field = 'complejo'
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        
+        # Superadmin ve todo
+        if request.user.is_superuser or request.user.es_superadmin:
+            return qs
+        
+        # Admin/Staff filtra por su complejo
+        if request.user.complejo:
+            filter_kwargs = {self.complejo_field: request.user.complejo}
+            return qs.filter(**filter_kwargs)
+        
+        # Sin complejo asignado no ve nada
+        return qs.none()
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Filtrar opciones de FK por complejo del usuario."""
+        # Superadmin ve todo
+        if request.user.is_superuser or request.user.es_superadmin:
+            return super().formfield_for_foreignkey(db_field, request, **kwargs)
+        
+        # Filtrar opciones de Complejo
+        if db_field.name == 'complejo' and request.user.complejo:
+            kwargs['queryset'] = Complejo.objects.filter(id=request.user.complejo.id)
+        
+        # Filtrar canchas por complejo
+        if db_field.name == 'cancha' and request.user.complejo:
+            kwargs['queryset'] = Cancha.objects.filter(complejo=request.user.complejo)
+        
+        # Filtrar usuarios por complejo
+        if db_field.name in ['cliente', 'usuario', 'created_by'] and request.user.complejo:
+            kwargs['queryset'] = Usuario.objects.filter(complejo=request.user.complejo)
+        
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 @admin.register(Usuario)
-class UsuarioAdmin(UserAdmin):
-    """Admin personalizado para Usuario."""
+class UsuarioAdmin(ComplejoFilterMixin, UserAdmin):
+    """Admin personalizado para Usuario con filtrado por complejo."""
     
     list_display = ['username', 'email', 'first_name', 'last_name', 'rol', 'complejo', 'celular', 'is_active']
     list_filter = ['rol', 'complejo', 'is_active', 'is_staff']
@@ -38,6 +88,19 @@ class UsuarioAdmin(UserAdmin):
             'fields': ('rol', 'complejo', 'dni', 'celular', 'direccion')
         }),
     )
+    
+    def get_queryset(self, request):
+        qs = super(UserAdmin, self).get_queryset(request)
+        
+        # Superadmin ve todo
+        if request.user.is_superuser or request.user.es_superadmin:
+            return qs
+        
+        # Admin/Staff filtra por su complejo
+        if request.user.complejo:
+            return qs.filter(complejo=request.user.complejo)
+        
+        return qs.none()
 
 
 class PreferenciasComplejoInline(admin.StackedInline):
@@ -62,19 +125,32 @@ class CanchaInline(admin.TabularInline):
 
 @admin.register(Complejo)
 class ComplejoAdmin(admin.ModelAdmin):
-    """Admin para Complejo."""
+    """Admin para Complejo con filtrado por usuario."""
     
-    list_display = ['nombre', 'slug', 'direccion', 'telefono', 'hora_apertura', 'hora_cierre', 'activo']
+    list_display = ['nombre', 'slug', 'subdominio', 'direccion', 'telefono', 'hora_apertura', 'hora_cierre', 'activo']
     list_filter = ['activo']
-    search_fields = ['nombre', 'slug', 'direccion']
+    search_fields = ['nombre', 'slug', 'subdominio', 'direccion']
     prepopulated_fields = {'slug': ('nombre',)}
     ordering = ['nombre']
     
     inlines = [PreferenciasComplejoInline, IntegracionMercadoPagoInline, CanchaInline]
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        
+        # Superadmin ve todo
+        if request.user.is_superuser or request.user.es_superadmin:
+            return qs
+        
+        # Admin/Staff solo ve su complejo
+        if request.user.complejo:
+            return qs.filter(id=request.user.complejo.id)
+        
+        return qs.none()
 
 
 @admin.register(PreferenciasComplejo)
-class PreferenciasComplejoAdmin(admin.ModelAdmin):
+class PreferenciasComplejoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
     """Admin para PreferenciasComplejo."""
     
     list_display = ['complejo', 'duracion_turno_minutos', 'sistema_ranking', 'pago_senia', 'turnos_fijos_habilitados']
@@ -101,15 +177,15 @@ class PreferenciasComplejoAdmin(admin.ModelAdmin):
 
 @admin.register(CaracteristicaCancha)
 class CaracteristicaCanchaAdmin(admin.ModelAdmin):
-    """Admin para CaracteristicaCancha."""
+    """Admin para CaracteristicaCancha (global, no filtrado)."""
     
     list_display = ['nombre', 'icono']
     search_fields = ['nombre']
 
 
 @admin.register(Cancha)
-class CanchaAdmin(admin.ModelAdmin):
-    """Admin para Cancha."""
+class CanchaAdmin(ComplejoFilterMixin, admin.ModelAdmin):
+    """Admin para Cancha con filtrado por complejo."""
     
     list_display = ['nombre', 'complejo', 'precio_hora', 'capacidad', 'duracion_turno_minutos', 'activa']
     list_filter = ['complejo', 'activa', 'caracteristicas']
@@ -118,8 +194,8 @@ class CanchaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Bloqueo)
-class BloqueoAdmin(admin.ModelAdmin):
-    """Admin para Bloqueo (feriados, lluvia, mantenimiento)."""
+class BloqueoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
+    """Admin para Bloqueo con filtrado por complejo."""
     
     list_display = ['complejo', 'cancha', 'fecha', 'hora_inicio', 'hora_fin', 'motivo', 'created_by']
     list_filter = ['complejo', 'fecha', 'motivo']
@@ -134,8 +210,11 @@ class BloqueoAdmin(admin.ModelAdmin):
 
 
 @admin.register(Turno)
-class TurnoAdmin(admin.ModelAdmin):
-    """Admin para Turno."""
+class TurnoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
+    """Admin para Turno con filtrado por complejo."""
+    
+    # Campo FK es a través de cancha
+    complejo_field = 'cancha__complejo'
     
     list_display = ['cancha', 'cliente', 'fecha', 'hora_inicio', 'duracion_minutos', 'estado', 'precio_total', 'senia_pagada']
     list_filter = ['estado', 'cancha__complejo', 'fecha']
@@ -167,8 +246,11 @@ class TurnoAdmin(admin.ModelAdmin):
 
 
 @admin.register(TurnoFijo)
-class TurnoFijoAdmin(admin.ModelAdmin):
-    """Admin para TurnoFijo."""
+class TurnoFijoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
+    """Admin para TurnoFijo con filtrado por complejo."""
+    
+    # Campo FK es a través de cancha
+    complejo_field = 'cancha__complejo'
     
     list_display = ['cancha', 'cliente', 'dia_semana', 'hora_inicio', 'fecha_inicio', 'fecha_fin', 'activo']
     list_filter = ['activo', 'dia_semana', 'cancha__complejo']
@@ -177,8 +259,8 @@ class TurnoFijoAdmin(admin.ModelAdmin):
 
 
 @admin.register(CreditoCliente)
-class CreditoClienteAdmin(admin.ModelAdmin):
-    """Admin para CreditoCliente (sistema de reembolsos)."""
+class CreditoClienteAdmin(ComplejoFilterMixin, admin.ModelAdmin):
+    """Admin para CreditoCliente con filtrado por complejo."""
     
     list_display = ['usuario', 'complejo', 'monto', 'monto_usado', 'saldo_disponible', 'activo', 'created_at']
     list_filter = ['complejo', 'activo']
@@ -192,8 +274,8 @@ class CreditoClienteAdmin(admin.ModelAdmin):
 
 
 @admin.register(IntegracionMercadoPago)
-class IntegracionMercadoPagoAdmin(admin.ModelAdmin):
-    """Admin para IntegracionMercadoPago."""
+class IntegracionMercadoPagoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
+    """Admin para IntegracionMercadoPago con filtrado por complejo."""
     
     list_display = ['complejo', 'modo', 'activo', 'updated_at']
     list_filter = ['modo', 'activo']

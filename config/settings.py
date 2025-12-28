@@ -108,6 +108,9 @@ MIDDLEWARE = [
     
     # HTMX middleware
     'django_htmx.middleware.HtmxMiddleware',
+    
+    # Multi-tenant por subdominio
+    'core.middleware.TenantMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -123,6 +126,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                # Multi-tenant: expone complejo_actual en todos los templates
+                'core.middleware.complejo_context_processor',
             ],
         },
     },
