@@ -78,8 +78,8 @@ class TenantMiddleware:
                     activo=True
                 )
             except Complejo.DoesNotExist:
-                # Si no existe el subdominio, 404
-                raise Http404(f"Complejo no encontrado para subdominio: {subdominio}")
+                # Si no existe el subdominio, usar fallback (dominio estándar sin configurar)
+                request.complejo_actual = self._get_complejo_default()
         else:
             # Host sin subdominio (ej: ha.com) → usar default
             request.complejo_actual = self._get_complejo_default()
