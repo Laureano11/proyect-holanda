@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 
-{% block title %}Sistema de Gestión de Turnos{% endblock %}
+{% block title %}{{ complejo_actual.nombre|default:"Sistema de Gestión de Turnos" }} · Reservas{% endblock %}
 
 {% block content %}
+{% with nombre_complejo=complejo_actual.nombre|default:"Tu complejo" %}
 <div class="min-h-screen flex flex-col">
     <!-- Navbar -->
     <nav class="p-4">
@@ -13,7 +14,10 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
                 </div>
-                <span class="text-white font-semibold text-lg">TurnosPádel</span>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-white font-semibold text-lg">{{ nombre_complejo }}</span>
+                    <span class="text-xs text-slate-400">Reservas online del complejo</span>
+                </div>
             </div>
             
             <div class="flex items-center gap-3">
@@ -42,12 +46,15 @@
             <!-- Badge -->
             <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm mb-8">
                 <span class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
-                Sistema de reservas online
+                Reservas online de {{ nombre_complejo }}
             </div>
             
             <!-- Title -->
             <h1 class="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
-                Reservá tu cancha
+                Reservá tu cancha en
+                <span class="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                    {{ nombre_complejo }}
+                </span>
                 <span class="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
                     fácil y rápido
                 </span>
@@ -55,31 +62,60 @@
             
             <!-- Subtitle -->
             <p class="text-xl text-slate-400 mb-10 max-w-xl mx-auto">
-                Sistema de gestión de turnos para canchas de pádel. 
-                Reservá, pagá y jugá sin complicaciones.
+                Pensado para los jugadores de {{ nombre_complejo }}. 
+                Reservá, pagá y jugá en el complejo de confianza de tus partidos.
             </p>
             
             <!-- CTA Buttons -->
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
                 {% if user.is_authenticated %}
                 <a href="{% url 'dashboard' %}" class="px-6 py-3 bg-cyan-500 text-white font-medium rounded-lg hover:bg-cyan-600 transition flex items-center gap-2">
-                    Ir al Dashboard
+                    Ir al Dashboard de {{ nombre_complejo }}
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                     </svg>
                 </a>
                 {% else %}
                 <a href="{% url 'register' %}" class="px-6 py-3 bg-cyan-500 text-white font-medium rounded-lg hover:bg-cyan-600 transition flex items-center gap-2">
-                    Empezar ahora
+                    Registrate en {{ nombre_complejo }}
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                     </svg>
                 </a>
                 <a href="{% url 'login' %}" class="px-6 py-3 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition border border-slate-700">
-                    Ya tengo cuenta
+                    Ya tengo cuenta en {{ nombre_complejo }}
                 </a>
                 {% endif %}
             </div>
+            
+            {% if complejo_actual %}
+            <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl px-5 py-4 flex items-center gap-3 w-full sm:w-auto">
+                    <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 12l4.243-4.243m-11.314 8.486L10.586 12 6.343 7.757"/>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-xs uppercase text-slate-400 tracking-wide">Ubicación</p>
+                        <p class="text-white font-semibold">{{ complejo_actual.direccion }}</p>
+                    </div>
+                </div>
+                {% if complejo_actual.telefono %}
+                <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl px-5 py-4 flex items-center gap-3 w-full sm:w-auto">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h2.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-1.518.759a11.042 11.042 0 005.516 5.516l.759-1.518a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.82 21 3 14.18 3 6V5z"/>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-xs uppercase text-slate-400 tracking-wide">Contacto</p>
+                        <p class="text-white font-semibold">{{ complejo_actual.telefono }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </main>
     
@@ -93,7 +129,7 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-semibold text-white mb-2">Reserva instantánea</h3>
-                <p class="text-slate-400 text-sm">Elegí cancha, día y horario en segundos. Sin llamadas ni esperas.</p>
+                <p class="text-slate-400 text-sm">Elegí cancha, día y horario en segundos dentro de {{ nombre_complejo }}. Sin llamadas ni esperas.</p>
             </div>
             
             <div class="bg-slate-800/30 backdrop-blur rounded-2xl p-6 border border-slate-700/50">
@@ -103,7 +139,7 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-semibold text-white mb-2">Pago seguro</h3>
-                <p class="text-slate-400 text-sm">Pagá la seña con Mercado Pago y asegurá tu lugar.</p>
+                <p class="text-slate-400 text-sm">Pagá la seña con Mercado Pago y asegurá tu lugar en {{ nombre_complejo }}.</p>
             </div>
             
             <div class="bg-slate-800/30 backdrop-blur rounded-2xl p-6 border border-slate-700/50">
@@ -113,7 +149,7 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-semibold text-white mb-2">Turnos fijos</h3>
-                <p class="text-slate-400 text-sm">Reservá tu horario favorito todas las semanas automáticamente.</p>
+                <p class="text-slate-400 text-sm">Reservá tu horario favorito todas las semanas automáticamente en {{ nombre_complejo }}.</p>
             </div>
         </div>
     </div>
@@ -157,4 +193,5 @@
         </div>
     </footer>
 </div>
+{% endwith %}
 {% endblock %}
