@@ -133,6 +133,22 @@ class ComplejoAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ('nombre',)}
     ordering = ['nombre']
     
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('nombre', 'slug', 'subdominio', 'logo', 'activo')
+        }),
+        ('Ubicación y Contacto', {
+            'fields': ('direccion', 'direccion_detallada', 'telefono', 'email')
+        }),
+        ('Redes Sociales', {
+            'fields': ('instagram', 'twitter_x'),
+            'classes': ('collapse',)
+        }),
+        ('Horarios', {
+            'fields': ('hora_apertura', 'hora_cierre')
+        }),
+    )
+    
     inlines = [PreferenciasComplejoInline, IntegracionMercadoPagoInline, CanchaInline]
     
     def get_queryset(self, request):

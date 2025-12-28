@@ -159,6 +159,12 @@ class Complejo(models.Model):
         max_length=255,
         verbose_name='Dirección'
     )
+    direccion_detallada = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Dirección Detallada',
+        help_text='Información adicional de ubicación (referencias, indicaciones, etc.)'
+    )
     telefono = models.CharField(
         max_length=20,
         blank=True,
@@ -169,6 +175,20 @@ class Complejo(models.Model):
         blank=True,
         null=True,
         verbose_name='Email'
+    )
+    instagram = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='Instagram',
+        help_text='Usuario de Instagram (sin @)'
+    )
+    twitter_x = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='X (Twitter)',
+        help_text='Usuario de X/Twitter (sin @)'
     )
     logo = models.ImageField(
         upload_to='complejos/logos/',
