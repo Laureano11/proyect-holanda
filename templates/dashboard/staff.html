@@ -59,13 +59,50 @@
     <!-- Turnos del complejo -->
     {% if complejo %}
     <div>
-        <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-semibold text-white">Turnos Reservados</h2>
+        <!-- Pestañas: Turnos Activos e Historial -->
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex gap-2">
+                <a href="?vista=activos" 
+                   class="px-4 py-2 rounded-lg text-sm font-medium transition
+                          {% if vista_tab == 'activos' %}bg-cyan-500 text-white{% else %}bg-slate-800/50 text-slate-400 hover:text-white border border-slate-700/50{% endif %}">
+                    Turnos Activos
+                </a>
+                <a href="?vista=historial" 
+                   class="px-4 py-2 rounded-lg text-sm font-medium transition
+                          {% if vista_tab == 'historial' %}bg-cyan-500 text-white{% else %}bg-slate-800/50 text-slate-400 hover:text-white border border-slate-700/50{% endif %}">
+                    Historial de Turnos
+                </a>
+            </div>
             <span class="text-xs text-slate-400">Total: {{ turnos_complejo.paginator.count }}</span>
         </div>
         
+        <!-- Selector rápido de días (solo en turnos activos) -->
+        {% if vista_tab == 'activos' %}
+        <div class="mb-4">
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+                <div class="flex items-center gap-2 overflow-x-auto">
+                    <span class="text-xs text-slate-400 whitespace-nowrap mr-2">Filtro rápido:</span>
+                    <a href="?vista={{ vista_tab }}" 
+                       class="px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition
+                              {% if not dia_filtro %}bg-cyan-500 text-white{% else %}bg-slate-700/50 text-slate-300 hover:bg-slate-700{% endif %}">
+                        Todos
+                    </a>
+                    {% for dia in dias_semana_selector %}
+                    <a href="?vista={{ vista_tab }}&dia={{ dia.fecha|date:'Y-m-d' }}" 
+                       class="px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition
+                              {% if dia.activo %}bg-cyan-500 text-white{% else %}bg-slate-700/50 text-slate-300 hover:bg-slate-700{% endif %}">
+                        {{ dia.nombre }} <span class="text-xs opacity-75">{{ dia.fecha|date:'d/m' }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Filtros -->
         <form method="get" class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
+            <input type="hidden" name="vista" value="{{ vista_tab }}">
+            {% if dia_filtro %}<input type="hidden" name="dia" value="{{ dia_filtro }}">{% endif %}
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-slate-400">Estado</label>
                 <select name="estado" class="px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
@@ -123,7 +160,7 @@
             
             <div class="flex items-end gap-2">
                 <button type="submit" class="px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition">Aplicar filtros</button>
-                <a href="{% url 'dashboard' %}" class="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-600 rounded hover:bg-slate-700/60 transition">Limpiar</a>
+                <a href="{% url 'dashboard' %}?vista={{ vista_tab }}" class="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-600 rounded hover:bg-slate-700/60 transition">Limpiar</a>
         </div>
         </form>
         
@@ -186,7 +223,7 @@
                             <p class="text-xs text-amber-400">Seña: ${{ turno.senia_pagada|floatformat:0 }}</p>
                             {% endif %}
                         </div>
-                        {% if not turno.fue_cancelado %}
+                        {% if not turno.fue_cancelado and vista_tab != 'historial' %}
                         <div class="flex items-center gap-2">
                             <!-- Icono Cancelar (Cruz) -->
                             <form method="post" action="{% url 'cancelar_turno_staff' turno.id %}" class="inline">
@@ -246,13 +283,13 @@
             </div>
             <div class="flex items-center gap-2">
                 {% if turnos_complejo.has_previous %}
-                <a href="?page={{ turnos_complejo.previous_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Anterior</a>
+                <a href="?vista={{ vista_tab }}&page={{ turnos_complejo.previous_page_number }}{% if querystring and 'vista=' not in querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Anterior</a>
                 {% else %}
                 <span class="px-3 py-1 rounded border border-slate-800 text-slate-600 cursor-not-allowed">Anterior</span>
                 {% endif %}
                 
                 {% if turnos_complejo.has_next %}
-                <a href="?page={{ turnos_complejo.next_page_number }}{% if querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Siguiente</a>
+                <a href="?vista={{ vista_tab }}&page={{ turnos_complejo.next_page_number }}{% if querystring and 'vista=' not in querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Siguiente</a>
                 {% else %}
                 <span class="px-3 py-1 rounded border border-slate-800 text-slate-600 cursor-not-allowed">Siguiente</span>
                 {% endif %}
@@ -262,7 +299,13 @@
         {% else %}
         <!-- Empty state -->
         <div class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-8 text-center">
-            <p class="text-slate-400 text-sm">No hay turnos reservados</p>
+            <p class="text-slate-400 text-sm">
+                {% if vista_tab == 'historial' %}
+                    No hay turnos en el historial
+                {% else %}
+                    No hay turnos activos
+                {% endif %}
+            </p>
         </div>
         {% endif %}
     </div>

@@ -46,6 +46,7 @@
                         {% endif %}
                     </div>
                     <!-- Botones de acción -->
+                    {% if turno.fecha >= hoy %}
                     <div class="flex items-center gap-2">
                         <form method="post" action="{% url 'cancelar_turno' turno.id %}" class="inline">
                             {% csrf_token %}
@@ -58,6 +59,7 @@
                             </button>
                         </form>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

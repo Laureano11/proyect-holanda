@@ -94,8 +94,8 @@
 </div>
 
 <!-- Modal para nuevo turno fijo -->
-<div id="modal-nuevo-turno-fijo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div class="bg-slate-800 rounded-lg p-6 w-full max-w-md border border-slate-700">
+<div id="modal-nuevo-turno-fijo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div class="bg-slate-800 rounded-lg p-6 w-full max-w-md border border-slate-700 my-8">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-semibold text-white">Nuevo Turno Fijo</h2>
             <button 
@@ -140,6 +140,7 @@
                 <input 
                     type="time" 
                     name="hora_inicio" 
+                    step="3600"
                     required
                     class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 >

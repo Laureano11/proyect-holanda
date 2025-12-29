@@ -454,4 +454,87 @@ class CreditoService:
             motivo=motivo,
             turno_origen=turno_origen,
         )
+    
+    @staticmethod
+    def generar_turnos_desde_fijos(complejo, fecha_desde=None, fecha_hasta=None):
+        """
+        Genera turnos normales a partir de los turnos fijos para un rango de fechas.
+        
+        Args:
+            complejo: Instancia del Complejo
+            fecha_desde: date object (default: hoy)
+            fecha_hasta: date object (default: 30 días desde fecha_desde)
+            
+        Returns:
+            tuple: (turnos_creados, turnos_ya_existentes)
+        """
+        from .models import TurnoFijo, Turno
+        from django.db import IntegrityError
+        
+        hoy = timezone.now().date()
+        if fecha_desde is None:
+            fecha_desde = hoy
+        if fecha_hasta is None:
+            fecha_hasta = fecha_desde + timedelta(days=30)
+        
+        turnos_creados = 0
+        turnos_ya_existentes = 0
+        
+        # Obtener todos los turnos fijos activos del complejo
+        turnos_fijos = TurnoFijo.objects.filter(
+            cancha__complejo=complejo,
+            activo=True
+        ).select_related('cancha', 'cliente')
+        
+        # Iterar por cada día en el rango
+        fecha_actual = fecha_desde
+        while fecha_actual <= fecha_hasta:
+            dia_semana = fecha_actual.weekday()
+            
+            # Filtrar turnos fijos que aplican para este día
+            for turno_fijo in turnos_fijos:
+                if turno_fijo.dia_semana != dia_semana:
+                    continue
+                
+                # Verificar que la fecha esté dentro del rango del turno fijo
+                if fecha_actual < turno_fijo.fecha_inicio:
+                    continue
+                if turno_fijo.fecha_fin and fecha_actual > turno_fijo.fecha_fin:
+                    continue
+                
+                # Verificar si ya existe un turno para esta fecha/hora/cancha
+                turno_existente = Turno.objects.filter(
+                    cancha=turno_fijo.cancha,
+                    fecha=fecha_actual,
+                    hora_inicio=turno_fijo.hora_inicio
+                ).first()
+                
+                if turno_existente:
+                    turnos_ya_existentes += 1
+                    continue
+                
+                # Crear el turno
+                try:
+                    Turno.objects.create(
+                        cancha=turno_fijo.cancha,
+                        cliente=turno_fijo.cliente,
+                        fecha=fecha_actual,
+                        hora_inicio=turno_fijo.hora_inicio,
+                        estado=Turno.Estado.CONFIRMADO,
+                        precio_total=turno_fijo.cancha.precio_hora,
+                        senia_requerida=turno_fijo.cancha.precio_senia,
+                        senia_pagada=turno_fijo.cancha.precio_senia,
+                        notas=f'Turno fijo: {turno_fijo.notas or ""}',
+                    )
+                    turnos_creados += 1
+                    # Invalidar caché para esta fecha
+                    TurnoService.invalidar_cache_slots(complejo.id, fecha_actual)
+                except IntegrityError:
+                    # Por si acaso hay una race condition
+                    turnos_ya_existentes += 1
+                    continue
+            
+            fecha_actual += timedelta(days=1)
+        
+        return turnos_creados, turnos_ya_existentes
 

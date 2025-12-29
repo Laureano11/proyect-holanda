@@ -32,7 +32,9 @@ urlpatterns = [
     # Turnos fijos (Staff)
     path('turnos-fijos/', views.turnos_fijos, name='turnos_fijos'),
     path('crear-turno-fijo/', views.crear_turno_fijo, name='crear_turno_fijo'),
+    path('confirmar-turno-fijo/', views.confirmar_turno_fijo, name='confirmar_turno_fijo'),
     path('eliminar-turno-fijo/<int:turno_fijo_id>/', views.eliminar_turno_fijo, name='eliminar_turno_fijo'),
+    path('generar-turnos-desde-fijos/', views.generar_turnos_desde_fijos, name='generar_turnos_desde_fijos'),
     
     # Bloqueos (Staff/Admin)
     path('bloqueos/', views.bloqueos, name='bloqueos'),

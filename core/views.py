@@ -12,6 +12,7 @@ from django.db import transaction, IntegrityError
 from django.db.models import Sum, Q
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.core.paginator import Paginator
+from django.urls import reverse
 from datetime import datetime, timedelta, time as dt_time
 from decimal import Decimal
 from .models import Usuario, Complejo, Cancha, Turno, Bloqueo, CreditoCliente, TurnoFijo
@@ -252,6 +253,12 @@ def dashboard(request):
         hoy = timezone.now().date()
         complejo = user.complejo
         
+        # Limitar a máximo 15 días en el futuro para clientes
+        fecha_maxima_permitida = hoy + timedelta(days=15)
+        if fecha_seleccionada > fecha_maxima_permitida:
+            fecha_seleccionada = fecha_maxima_permitida
+            messages.info(request, 'Solo podés ver turnos hasta 15 días en el futuro')
+        
         # Usar servicio optimizado para generar slots disponibles
         slots_result = TurnoService.generar_slots_disponibles(complejo, fecha_seleccionada)
         slots_por_hora = slots_result['slots_por_hora']
@@ -281,9 +288,9 @@ def dashboard(request):
         mes_actual = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         turnos_mes = turnos_cliente.filter(fecha__gte=mes_actual).count()
         
-        # Calcular fechas para el selector (ventana amplia centrada en la fecha seleccionada)
-        fecha_minima = fecha_seleccionada - timedelta(days=rango_selector_dias)
-        fecha_maxima = fecha_seleccionada + timedelta(days=rango_selector_dias)
+        # Calcular fechas para el selector (limitado a 15 días para clientes)
+        fecha_minima = hoy  # Clientes no pueden ver fechas pasadas
+        fecha_maxima = fecha_maxima_permitida  # Máximo 15 días
         
         context.update({
             'complejo': complejo,
@@ -308,12 +315,16 @@ def dashboard(request):
         complejo = user.complejo
         orden_turnos = request.GET.get('orden', 'juego')
         
+        # Vista de pestaña: "activos" (por defecto) o "historial"
+        vista_tab = request.GET.get('vista', 'activos')
+        
         # Filtros y paginación
         estado_filtro = request.GET.get('estado')
         cancha_filtro = request.GET.get('cancha')
         cliente_filtro = request.GET.get('cliente', '').strip()
         desde = request.GET.get('desde')
         hasta = request.GET.get('hasta')
+        dia_filtro = request.GET.get('dia')  # Filtro por día específico
         page = request.GET.get('page', 1)
         try:
             por_pagina = int(request.GET.get('por_pagina', 50))
@@ -333,10 +344,23 @@ def dashboard(request):
             estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
         ).select_related('cancha', 'cliente')
         
-        # Query de listado (incluye todos los estados para permitir filtros)
+        # Query de listado - depende de la pestaña activa
         turnos_complejo_qs = Turno.objects.filter(
             cancha__complejo=complejo
         ).select_related('cancha', 'cliente')
+        
+        # Aplicar filtro según la pestaña
+        if vista_tab == 'historial':
+            # Mostrar solo turnos del pasado (fecha anterior a hoy)
+            turnos_complejo_qs = turnos_complejo_qs.filter(fecha__lt=hoy)
+        else:
+            # Mostrar solo turnos activos (fecha de hoy o futura)
+            turnos_complejo_qs = turnos_complejo_qs.filter(fecha__gte=hoy)
+            # Por defecto excluir cancelados/expirados en vista activa
+            if not estado_filtro:
+                turnos_complejo_qs = turnos_complejo_qs.exclude(
+                    estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+                )
         
         # Estadísticas (queries optimizadas)
         turnos_hoy = turnos_base_qs.filter(fecha=hoy).count()
@@ -347,13 +371,8 @@ def dashboard(request):
             estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN]
         ).count()
         
-        # Aplicar filtros al listado
-        if not estado_filtro:
-            # Por defecto ocultar cancelados/expirados (se muestran solo si se filtra)
-            turnos_complejo_qs = turnos_complejo_qs.exclude(
-                estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
-            )
-        else:
+        # Aplicar filtros de estado al listado
+        if estado_filtro:
             if estado_filtro == 'cancelados':
                 turnos_complejo_qs = turnos_complejo_qs.filter(
                     estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN]
@@ -371,19 +390,28 @@ def dashboard(request):
                 Q(cliente__username__icontains=cliente_filtro)
             )
         
-        if desde:
+        # Filtro por día específico (tiene prioridad sobre rango de fechas)
+        if dia_filtro:
             try:
-                fecha_desde = datetime.strptime(desde, '%Y-%m-%d').date()
-                turnos_complejo_qs = turnos_complejo_qs.filter(fecha__gte=fecha_desde)
+                fecha_dia = datetime.strptime(dia_filtro, '%Y-%m-%d').date()
+                turnos_complejo_qs = turnos_complejo_qs.filter(fecha=fecha_dia)
             except ValueError:
                 pass
-        
-        if hasta:
-            try:
-                fecha_hasta = datetime.strptime(hasta, '%Y-%m-%d').date()
-                turnos_complejo_qs = turnos_complejo_qs.filter(fecha__lte=fecha_hasta)
-            except ValueError:
-                pass
+        else:
+            # Solo aplicar filtros de rango si no hay filtro de día específico
+            if desde:
+                try:
+                    fecha_desde = datetime.strptime(desde, '%Y-%m-%d').date()
+                    turnos_complejo_qs = turnos_complejo_qs.filter(fecha__gte=fecha_desde)
+                except ValueError:
+                    pass
+            
+            if hasta:
+                try:
+                    fecha_hasta = datetime.strptime(hasta, '%Y-%m-%d').date()
+                    turnos_complejo_qs = turnos_complejo_qs.filter(fecha__lte=fecha_hasta)
+                except ValueError:
+                    pass
         
         # Ordenar
         if orden_turnos == 'creacion':
@@ -406,6 +434,24 @@ def dashboard(request):
         slots_por_hora_staff = TurnoService.generar_slots_staff(complejo, hoy)
         slots_ordenados_staff = sorted(slots_por_hora_staff.items(), key=lambda x: x[0])
         
+        # Generar lista de próximos 7 días para el selector rápido
+        dias_semana_selector = []
+        for i in range(7):
+            fecha = hoy + timedelta(days=i)
+            dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+            if i == 0:
+                nombre = 'Hoy'
+            elif i == 1:
+                nombre = 'Mañana'
+            else:
+                nombre = dias_nombres[fecha.weekday()]
+            
+            dias_semana_selector.append({
+                'fecha': fecha,
+                'nombre': nombre,
+                'activo': dia_filtro == fecha.strftime('%Y-%m-%d')
+            })
+        
         context.update({
             'complejo': complejo,
             'hoy': hoy,
@@ -425,6 +471,9 @@ def dashboard(request):
             'hasta': hasta or '',
             'por_pagina': por_pagina,
             'querystring': querystring,
+            'vista_tab': vista_tab,
+            'dia_filtro': dia_filtro or '',
+            'dias_semana_selector': dias_semana_selector,
         })
     
     # Redirigir según rol
@@ -550,7 +599,9 @@ def reservar_turno(request):
     TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_obj)
     
     messages.success(request, f'¡Turno reservado exitosamente! {cancha.nombre} - {fecha_obj.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
-    return redirect('dashboard')
+    
+    # Redirigir a la misma fecha para que el cliente pueda seguir viendo turnos disponibles
+    return redirect(f'{reverse("dashboard")}?fecha={fecha_obj.strftime("%Y-%m-%d")}')
 
 
 @login_required
@@ -589,7 +640,7 @@ def cancelar_turno(request, turno_id):
     TurnoService.invalidar_cache_slots(turno.cancha.complejo.id, turno.fecha)
     
     messages.success(request, f'Turno cancelado. Se te acreditó ${turno.senia_pagada} en créditos.')
-    return redirect('dashboard')
+    return redirect('turnos_actuales')
 
 
 @login_required
@@ -1164,6 +1215,9 @@ def crear_turno_fijo(request):
         messages.error(request, 'Formato de fecha/hora inválido')
         return redirect('turnos_fijos')
     
+    # Verificar si se forzó la creación (ignorar conflictos)
+    forzar_creacion = request.POST.get('forzar_creacion') == 'true'
+    
     # Buscar o crear cliente por nombre
     cliente, created = Usuario.objects.get_or_create(
         username=f"cliente_{nombre_cliente.lower().replace(' ', '_')}_{complejo.id}",
@@ -1179,7 +1233,64 @@ def crear_turno_fijo(request):
         cliente.complejo = complejo
         cliente.save()
     
-    # Crear un TurnoFijo por cada día seleccionado
+    # Detectar conflictos con turnos existentes
+    if not forzar_creacion:
+        conflictos_encontrados = []
+        fecha_fin_limite = fecha_fin_obj or (fecha_inicio_obj + timedelta(days=365))
+        
+        # Iterar por cada día seleccionado
+        for dia_str in dias_semana:
+            try:
+                dia_semana = int(dia_str)
+                dia_nombre = TurnoFijo.DiaSemana(dia_semana).label
+                
+                # Buscar todas las fechas que coinciden con este día de la semana en el rango
+                fecha_actual = fecha_inicio_obj
+                turnos_conflictivos = []
+                
+                while fecha_actual <= fecha_fin_limite:
+                    if fecha_actual.weekday() == dia_semana:
+                        # Verificar si existe un turno en esta fecha/hora/cancha
+                        turno_existente = Turno.objects.filter(
+                            cancha=cancha,
+                            fecha=fecha_actual,
+                            hora_inicio=hora_obj
+                        ).exclude(
+                            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+                        ).first()
+                        
+                        if turno_existente:
+                            turnos_conflictivos.append({
+                                'fecha': fecha_actual.strftime('%Y-%m-%d'),
+                                'fecha_display': fecha_actual.strftime('%d/%m/%Y'),
+                                'cliente': turno_existente.cliente.get_full_name() or turno_existente.cliente.username,
+                            })
+                    
+                    fecha_actual += timedelta(days=1)
+                
+                if turnos_conflictivos:
+                    conflictos_encontrados.append({
+                        'dia': dia_nombre,
+                        'turnos': turnos_conflictivos
+                    })
+            except (ValueError, KeyError):
+                continue
+        
+        # Si hay conflictos, guardar en sesión y redirigir a confirmación
+        if conflictos_encontrados:
+            request.session['turno_fijo_pendiente'] = {
+                'cancha_id': cancha_id,
+                'nombre_cliente': nombre_cliente,
+                'hora_inicio': hora_inicio,
+                'dias_semana': dias_semana,
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin,
+                'notas': notas,
+                'conflictos': conflictos_encontrados,
+            }
+            return redirect('confirmar_turno_fijo')
+    
+    # Si no hay conflictos o se forzó, crear los turnos fijos
     turnos_creados = []
     turnos_duplicados = []
     
@@ -1214,10 +1325,61 @@ def crear_turno_fijo(request):
         except (ValueError, KeyError):
             continue
     
+    # Limpiar datos de sesión si existen
+    if 'turno_fijo_pendiente' in request.session:
+        del request.session['turno_fijo_pendiente']
+    
+    # Generar turnos reales automáticamente para los turnos fijos creados
+    turnos_generados = 0
+    if turnos_creados:
+        hoy = timezone.now().date()
+        fecha_hasta = hoy + timedelta(days=60)  # Generar para los próximos 60 días
+        
+        # Generar turnos para cada turno fijo creado
+        for turno_fijo in turnos_creados:
+            fecha_actual = max(turno_fijo.fecha_inicio, hoy)
+            fecha_fin_limite = turno_fijo.fecha_fin or fecha_hasta
+            fecha_fin_limite = min(fecha_fin_limite, fecha_hasta)
+            
+            while fecha_actual <= fecha_fin_limite:
+                # Verificar si esta fecha coincide con el día de la semana del turno fijo
+                if fecha_actual.weekday() == turno_fijo.dia_semana:
+                    # Verificar si ya existe un turno en esta fecha/hora/cancha
+                    turno_existente = Turno.objects.filter(
+                        cancha=turno_fijo.cancha,
+                        fecha=fecha_actual,
+                        hora_inicio=turno_fijo.hora_inicio
+                    ).first()
+                    
+                    if not turno_existente:
+                        # Crear el turno
+                        try:
+                            Turno.objects.create(
+                                cancha=turno_fijo.cancha,
+                                cliente=turno_fijo.cliente,
+                                fecha=fecha_actual,
+                                hora_inicio=turno_fijo.hora_inicio,
+                                estado=Turno.Estado.CONFIRMADO,
+                                precio_total=turno_fijo.cancha.precio_hora,
+                                senia_requerida=turno_fijo.cancha.precio_senia,
+                                senia_pagada=turno_fijo.cancha.precio_senia,
+                                notas=f'Turno fijo: {turno_fijo.notas or ""}',
+                            )
+                            turnos_generados += 1
+                            # Invalidar caché para esta fecha
+                            TurnoService.invalidar_cache_slots(complejo.id, fecha_actual)
+                        except IntegrityError:
+                            pass  # Si hay conflicto, continuar
+                
+                fecha_actual += timedelta(days=1)
+    
     # Mensajes de resultado
     if turnos_creados:
         dias_creados = [t.get_dia_semana_display() for t in turnos_creados]
-        messages.success(request, f'Turnos fijos creados para {nombre_cliente} - {cancha.nombre} - {", ".join(dias_creados)} a las {hora_obj.strftime("%H:%M")}')
+        mensaje = f'Turnos fijos creados para {nombre_cliente} - {cancha.nombre} - {", ".join(dias_creados)} a las {hora_obj.strftime("%H:%M")}'
+        if turnos_generados > 0:
+            mensaje += f' ({turnos_generados} turnos generados automáticamente)'
+        messages.success(request, mensaje)
     
     if turnos_duplicados:
         messages.warning(request, f'Turnos fijos ya existentes para: {", ".join(turnos_duplicados)}')
@@ -1226,6 +1388,71 @@ def crear_turno_fijo(request):
         messages.error(request, 'No se pudo crear ningún turno fijo')
     
     return redirect('turnos_fijos')
+
+
+@login_required
+def confirmar_turno_fijo(request):
+    """Mostrar confirmación de turno fijo con conflictos."""
+    if not (request.user.es_staff_complejo or request.user.es_admin or request.user.es_superadmin):
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    if not request.user.complejo:
+        messages.error(request, 'No tenés un complejo asignado')
+        return redirect('dashboard')
+    
+    # Obtener datos de la sesión
+    turno_pendiente = request.session.get('turno_fijo_pendiente')
+    if not turno_pendiente:
+        messages.error(request, 'No hay turno fijo pendiente')
+        return redirect('turnos_fijos')
+    
+    # Obtener la cancha
+    cancha = get_object_or_404(
+        Cancha, 
+        id=turno_pendiente['cancha_id'], 
+        complejo=request.user.complejo
+    )
+    
+    context = {
+        'complejo': request.user.complejo,
+        'turno_pendiente': turno_pendiente,
+        'cancha': cancha,
+    }
+    
+    return render(request, 'staff/confirmar_turno_fijo.html', context)
+
+
+@login_required
+@transaction.atomic
+def generar_turnos_desde_fijos(request):
+    """Generar turnos normales a partir de los turnos fijos (Staff)."""
+    if not (request.user.es_staff_complejo or request.user.es_admin or request.user.es_superadmin):
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    if not request.user.complejo:
+        messages.error(request, 'No tenés un complejo asignado')
+        return redirect('dashboard')
+    
+    complejo = request.user.complejo
+    
+    # Generar turnos para los próximos 60 días
+    hoy = timezone.now().date()
+    fecha_hasta = hoy + timedelta(days=60)
+    
+    turnos_creados, turnos_ya_existentes = TurnoService.generar_turnos_desde_fijos(
+        complejo=complejo,
+        fecha_desde=hoy,
+        fecha_hasta=fecha_hasta
+    )
+    
+    if turnos_creados > 0:
+        messages.success(request, f'Se crearon {turnos_creados} turnos desde los turnos fijos ({turnos_ya_existentes} ya existían)')
+    else:
+        messages.info(request, f'No se crearon turnos nuevos ({turnos_ya_existentes} ya existían)')
+    
+    return redirect('dashboard')
 
 
 @login_required
@@ -1296,6 +1523,7 @@ def turnos_actuales(request):
         return redirect('dashboard')
     
     complejo = request.user.complejo
+    hoy = timezone.now().date()
     
     # Obtener turnos activos (no cancelados, no expirados)
     turnos_activos = Turno.objects.filter(
@@ -1308,6 +1536,7 @@ def turnos_actuales(request):
     context = {
         'complejo': complejo,
         'turnos_activos': turnos_activos,
+        'hoy': hoy,
     }
     
     return render(request, 'cliente/turnos_actuales.html', context)
