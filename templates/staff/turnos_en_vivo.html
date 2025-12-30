@@ -55,28 +55,15 @@
                             <!-- Horario -->
                             <div class="mb-3">
                                 <p class="text-2xl font-bold text-white">
-                                    {{ turno_data.hora_inicio|time:"H:i" }} - {{ turno_data.hora_fin|time:"H:i" }}
+                                    {{ turno_data.hora_inicio|time:"H:i" }}
                                 </p>
                             </div>
                             
                             <!-- Cliente -->
-                            <div class="mb-2">
-                                <p class="text-sm text-slate-300 font-medium">
+                            <div>
+                                <p class="text-base text-slate-200 font-medium">
                                     {{ turno_data.turno.cliente.get_full_name|default:turno_data.turno.cliente.username }}
                                 </p>
-                                {% if turno_data.turno.cliente.celular %}
-                                <p class="text-xs text-slate-400 mt-1">
-                                    📞 {{ turno_data.turno.cliente.celular }}
-                                </p>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Precio -->
-                            <div class="flex items-center justify-between pt-2 border-t border-slate-600/50">
-                                <span class="text-xs text-slate-400">Precio</span>
-                                <span class="text-sm font-semibold text-white">
-                                    ${{ turno_data.turno.precio_total|floatformat:0 }}
-                                </span>
                             </div>
                         </div>
                         {% endfor %}
