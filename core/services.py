@@ -418,6 +418,7 @@ class CreditoService:
             Decimal: Monto efectivamente cubierto con créditos
         """
         from .models import CreditoCliente
+        from django.utils import timezone
         
         creditos_activos = CreditoCliente.objects.filter(
             usuario=usuario,
@@ -434,26 +435,114 @@ class CreditoService:
             saldo = credito.saldo_disponible
             if saldo > 0:
                 monto_a_usar = min(saldo, monto_requerido - creditos_aplicados)
+                monto_usado_anterior = credito.monto_usado
                 credito.monto_usado += monto_a_usar
-                credito.save(update_fields=['monto_usado', 'updated_at'])
+                
+                # Registrar en historial
+                if not isinstance(credito.historial, list):
+                    credito.historial = []
+                credito.historial.append({
+                    'accion': 'aplicado',
+                    'fecha': timezone.now().isoformat(),
+                    'monto_aplicado': str(monto_a_usar),
+                    'monto_usado_anterior': str(monto_usado_anterior),
+                    'monto_usado_nuevo': str(credito.monto_usado),
+                })
+                
+                credito.save(update_fields=['monto_usado', 'updated_at', 'historial'])
                 creditos_aplicados += monto_a_usar
         
         return creditos_aplicados
     
     @staticmethod
-    def generar_credito(usuario, complejo, monto, motivo, turno_origen=None):
+    def generar_credito(usuario, complejo, monto, motivo, turno_origen=None, creado_por=None):
         """
-        Genera un nuevo crédito para el usuario.
-        """
-        from .models import CreditoCliente
+        Genera un nuevo crédito para el usuario con validaciones de seguridad.
         
-        return CreditoCliente.objects.create(
+        Args:
+            usuario: Usuario que recibe el crédito
+            complejo: Complejo donde se genera el crédito
+            monto: Monto del crédito (Decimal)
+            motivo: Motivo del crédito (string)
+            turno_origen: Turno que originó el crédito (opcional)
+            creado_por: Usuario que crea el crédito (opcional, para auditoría)
+            
+        Returns:
+            CreditoCliente: El crédito creado
+            
+        Raises:
+            PermissionDenied: Si el creador no tiene permisos
+            ValueError: Si hay errores de validación
+        """
+        from .models import CreditoCliente, Turno
+        from django.core.exceptions import PermissionDenied, ValidationError
+        from django.utils import timezone
+        
+        # Validación 1: Permisos del creador
+        if creado_por and not creado_por.puede_gestionar_turnos:
+            raise PermissionDenied(
+                "Solo staff/admin puede generar créditos. "
+                f"Usuario '{creado_por.username}' no tiene permisos."
+            )
+        
+        # Validación 2: Usuario debe pertenecer al complejo
+        if usuario.complejo != complejo:
+            raise ValueError(
+                f"El usuario '{usuario.username}' no pertenece al complejo '{complejo.nombre}'"
+            )
+        
+        # Validación 3: Validar turno origen si existe
+        if turno_origen:
+            if turno_origen.cliente != usuario:
+                raise ValueError(
+                    f"El turno #{turno_origen.id} no pertenece al usuario '{usuario.username}'"
+                )
+            
+            if turno_origen.cancha.complejo != complejo:
+                raise ValueError(
+                    f"El turno #{turno_origen.id} no pertenece al complejo '{complejo.nombre}'"
+                )
+            
+            # Validar que el monto coincide con la seña pagada (con tolerancia de 0.01)
+            diferencia = abs(monto - turno_origen.senia_pagada)
+            if diferencia > Decimal('0.01'):
+                raise ValueError(
+                    f"El monto del crédito (${monto}) debe coincidir con la seña pagada "
+                    f"(${turno_origen.senia_pagada}) del turno #{turno_origen.id}"
+                )
+        
+        # Validación 4: Monto debe ser positivo
+        if monto <= Decimal('0.00'):
+            raise ValueError("El monto del crédito debe ser mayor a cero")
+        
+        # Crear crédito con auditoría
+        credito = CreditoCliente(
             usuario=usuario,
             complejo=complejo,
             monto=monto,
             motivo=motivo,
             turno_origen=turno_origen,
+            creado_por=creado_por,
         )
+        
+        # Registrar creación en historial
+        credito.historial = [{
+            'accion': 'creado',
+            'fecha': timezone.now().isoformat(),
+            'monto': str(monto),
+            'motivo': motivo,
+            'creado_por': creado_por.username if creado_por else 'sistema',
+            'turno_origen_id': turno_origen.id if turno_origen else None,
+        }]
+        
+        # Validar y guardar
+        try:
+            credito.full_clean()
+            credito.save()
+        except ValidationError as e:
+            raise ValueError(f"Error de validación: {e}")
+        
+        return credito
     
     @staticmethod
     def generar_turnos_desde_fijos(complejo, fecha_desde=None, fecha_hasta=None):
@@ -520,10 +609,10 @@ class CreditoService:
                         cliente=turno_fijo.cliente,
                         fecha=fecha_actual,
                         hora_inicio=turno_fijo.hora_inicio,
-                        estado=Turno.Estado.CONFIRMADO,
+                        estado=Turno.Estado.PENDIENTE_PAGO,
                         precio_total=turno_fijo.cancha.precio_hora,
                         senia_requerida=turno_fijo.cancha.precio_senia,
-                        senia_pagada=turno_fijo.cancha.precio_senia,
+                        senia_pagada=Decimal('0.00'),
                         notas=f'Turno fijo: {turno_fijo.notas or ""}',
                     )
                     turnos_creados += 1

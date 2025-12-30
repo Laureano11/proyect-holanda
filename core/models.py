@@ -527,6 +527,7 @@ class Turno(models.Model):
         CANCELADO_USUARIO = 'cancelado_usuario', 'Cancelado por Usuario'
         CANCELADO_ADMIN = 'cancelado_admin', 'Cancelado por Admin'
         EXPIRADO = 'expirado', 'Expirado'
+        JUGADO = 'jugado', 'Jugado'
     
     cancha = models.ForeignKey(
         Cancha,
@@ -647,27 +648,34 @@ class Turno(models.Model):
         return self.estado in [self.Estado.CANCELADO_USUARIO, self.Estado.CANCELADO_ADMIN, self.Estado.EXPIRADO]
     
     @property
+    def ya_paso(self):
+        """Verifica si el turno ya pasó (fecha y hora de fin ya pasaron)."""
+        from django.utils import timezone
+        from datetime import datetime, timedelta
+        
+        ahora = timezone.now()
+        fecha_hora_inicio = timezone.make_aware(
+            timezone.datetime.combine(self.fecha, self.hora_inicio)
+        )
+        fecha_hora_fin = fecha_hora_inicio + timedelta(minutes=self.duracion_minutos)
+        
+        return ahora > fecha_hora_fin
+    
+    @property
     def estado_visual(self):
         """
         Retorna el estado visual normalizado del turno:
-        1. Pagado completo: Cuando se abona completamente
-        2. Reservado con seña: Cliente lo reserva y abona seña
-        3. Reservado: Staff lo crea sin seña
-        4. Bloqueado: Staff bloquea el turno
-        5. No disponible: Turnos del pasado (fecha/hora ya pasó)
+        1. Jugado: Turno que ya pasó y no fue cancelado
+        2. Pagado completo: Cuando se abona completamente
+        3. Reservado con seña: Cliente lo reserva y abona seña
+        4. Reservado: Staff lo crea sin seña
+        5. Bloqueado: Staff bloquea el turno
+        6. Cancelado: Turno cancelado
         """
-        from django.utils import timezone
-        
-        # Verificar si el turno ya pasó
-        ahora = timezone.now()
-        fecha_hora_turno = timezone.make_aware(
-            timezone.datetime.combine(self.fecha, self.hora_inicio)
-        )
-        if fecha_hora_turno < ahora:
-            return 'No disponible'
-        
         # Estados normalizados
-        if self.estado == self.Estado.BLOQUEADO:
+        if self.estado == self.Estado.JUGADO:
+            return 'Jugado'
+        elif self.estado == self.Estado.BLOQUEADO:
             return 'Bloqueado'
         elif self.fue_cancelado:
             return 'Cancelado'
@@ -679,6 +687,38 @@ class Turno(models.Model):
             else:
                 return 'Reservado'
         return 'Desconocido'
+    
+    @classmethod
+    def marcar_turnos_como_jugados(cls):
+        """
+        Marca automáticamente los turnos que ya pasaron como 'Jugado'.
+        Solo marca turnos que no fueron cancelados y que ya pasó su hora de fin.
+        """
+        from django.utils import timezone
+        from datetime import datetime, timedelta
+        
+        ahora = timezone.now()
+        turnos_actualizados = 0
+        
+        # Obtener turnos que no están cancelados ni ya marcados como jugados
+        turnos_a_verificar = cls.objects.exclude(
+            estado__in=[cls.Estado.CANCELADO_USUARIO, cls.Estado.CANCELADO_ADMIN, 
+                       cls.Estado.EXPIRADO, cls.Estado.JUGADO]
+        )
+        
+        for turno in turnos_a_verificar:
+            fecha_hora_inicio = timezone.make_aware(
+                timezone.datetime.combine(turno.fecha, turno.hora_inicio)
+            )
+            fecha_hora_fin = fecha_hora_inicio + timedelta(minutes=turno.duracion_minutos)
+            
+            # Si ya pasó la hora de fin, marcar como jugado
+            if ahora > fecha_hora_fin:
+                turno.estado = cls.Estado.JUGADO
+                turno.save(update_fields=['estado'])
+                turnos_actualizados += 1
+        
+        return turnos_actualizados
     
     @property
     def esta_pagado_completo(self):
@@ -832,6 +872,32 @@ class CreditoCliente(models.Model):
         verbose_name='Activo'
     )
     
+    # Campos de auditoría
+    creado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='creditos_creados',
+        verbose_name='Creado por',
+        help_text='Usuario que generó este crédito'
+    )
+    modificado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='creditos_modificados',
+        verbose_name='Modificado por',
+        help_text='Último usuario que modificó este crédito'
+    )
+    historial = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Historial',
+        help_text='Registro de cambios realizados en este crédito'
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -847,6 +913,80 @@ class CreditoCliente(models.Model):
     
     def __str__(self):
         return f"{self.usuario} - ${self.saldo_disponible} ({self.complejo})"
+    
+    def clean(self):
+        """Validar integridad de datos."""
+        from django.core.exceptions import ValidationError
+        
+        # Verificar que monto_usado no exceda monto
+        if self.monto_usado > self.monto:
+            raise ValidationError({
+                'monto_usado': 'El monto usado no puede ser mayor al monto total del crédito.'
+            })
+        
+        # Verificar que monto_usado no sea negativo
+        if self.monto_usado < Decimal('0.00'):
+            raise ValidationError({
+                'monto_usado': 'El monto usado no puede ser negativo.'
+            })
+        
+        # Si hay turno_origen, validar que pertenece al usuario y complejo
+        if self.turno_origen:
+            if self.turno_origen.cliente != self.usuario:
+                raise ValidationError({
+                    'turno_origen': 'El turno origen debe pertenecer al usuario del crédito.'
+                })
+            
+            if self.turno_origen.cancha.complejo != self.complejo:
+                raise ValidationError({
+                    'turno_origen': 'El turno origen debe pertenecer al mismo complejo del crédito.'
+                })
+    
+    def save(self, *args, **kwargs):
+        """Guardar con validaciones y registro de historial."""
+        from django.utils import timezone
+        
+        # Ejecutar validaciones
+        self.full_clean()
+        
+        # Si es una actualización, registrar en historial
+        if self.pk:
+            try:
+                credito_anterior = CreditoCliente.objects.get(pk=self.pk)
+                
+                # Detectar cambios
+                cambios = {}
+                if credito_anterior.monto != self.monto:
+                    cambios['monto'] = {
+                        'anterior': str(credito_anterior.monto),
+                        'nuevo': str(self.monto)
+                    }
+                if credito_anterior.monto_usado != self.monto_usado:
+                    cambios['monto_usado'] = {
+                        'anterior': str(credito_anterior.monto_usado),
+                        'nuevo': str(self.monto_usado)
+                    }
+                if credito_anterior.activo != self.activo:
+                    cambios['activo'] = {
+                        'anterior': credito_anterior.activo,
+                        'nuevo': self.activo
+                    }
+                
+                # Registrar cambio en historial si hay modificaciones
+                if cambios:
+                    if not isinstance(self.historial, list):
+                        self.historial = []
+                    
+                    self.historial.append({
+                        'accion': 'modificado',
+                        'fecha': timezone.now().isoformat(),
+                        'cambios': cambios,
+                        'modificado_por': self.modificado_por.username if self.modificado_por else 'sistema',
+                    })
+            except CreditoCliente.DoesNotExist:
+                pass  # Es un nuevo crédito
+        
+        super().save(*args, **kwargs)
     
     @property
     def saldo_disponible(self):

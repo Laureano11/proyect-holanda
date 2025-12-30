@@ -12,6 +12,27 @@
         </p>
     </div>
     
+    <!-- Selector de días -->
+    <div class="mb-4">
+        <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+            <div class="flex items-center gap-2 overflow-x-auto">
+                <span class="text-xs text-slate-400 whitespace-nowrap mr-2">Filtro rápido:</span>
+                <a href="{% url 'historial_turnos' %}" 
+                   class="px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition
+                          {% if not dia_filtro %}bg-cyan-500 text-white{% else %}bg-slate-700/50 text-slate-300 hover:bg-slate-700{% endif %}">
+                    Todos
+                </a>
+                {% for dia in dias_semana_selector %}
+                <a href="{% url 'historial_turnos' %}?dia={{ dia.fecha|date:'Y-m-d' }}" 
+                   class="px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition
+                          {% if dia.activo %}bg-cyan-500 text-white{% else %}bg-slate-700/50 text-slate-300 hover:bg-slate-700{% endif %}">
+                    {{ dia.nombre }} <span class="text-xs opacity-75">{{ dia.fecha|date:'d/m' }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
     <!-- Filtros -->
     <div class="flex items-center gap-3">
         <select 
@@ -20,6 +41,7 @@
             onchange="filtrarTurnos()"
         >
             <option value="todos">Todos los estados</option>
+            <option value="jugado">Jugados</option>
             <option value="confirmado">Abonado completo</option>
             <option value="con_senia">Reservado con seña</option>
             <option value="cancelado">Cancelados</option>
@@ -42,7 +64,8 @@
                             </p>
                         </div>
                         <span class="px-2.5 py-1 rounded text-xs font-medium
-                            {% if turno.estado_visual == 'Pagado completo' %}bg-emerald-500/20 text-emerald-400
+                            {% if turno.estado_visual == 'Jugado' %}bg-green-600/20 text-green-400
+                            {% elif turno.estado_visual == 'Pagado completo' %}bg-emerald-500/20 text-emerald-400
                             {% elif turno.estado_visual == 'Reservado con seña' %}bg-amber-500/20 text-amber-400
                             {% elif turno.estado_visual == 'Reservado' %}bg-blue-500/20 text-blue-400
                             {% elif turno.estado_visual == 'Bloqueado' %}bg-purple-500/20 text-purple-400
@@ -84,6 +107,8 @@ function filtrarTurnos() {
         const estado = turno.dataset.estado;
         
         if (filtro === 'todos') {
+            turno.style.display = '';
+        } else if (filtro === 'jugado' && estado === 'jugado') {
             turno.style.display = '';
         } else if (filtro === 'confirmado' && estado === 'confirmado') {
             turno.style.display = '';

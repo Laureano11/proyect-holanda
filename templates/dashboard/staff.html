@@ -185,7 +185,8 @@
                                 <span>Creado: {{ turno.created_at|date:"d/m/Y H:i" }}</span>
                             </div>
                             <span class="px-2 py-1 rounded text-xs font-medium
-                                {% if turno.estado_visual == 'Pagado completo' %}bg-emerald-500/20 text-emerald-400
+                                {% if turno.estado_visual == 'Jugado' %}bg-green-600/20 text-green-400
+                                {% elif turno.estado_visual == 'Pagado completo' %}bg-emerald-500/20 text-emerald-400
                                 {% elif turno.estado_visual == 'Reservado con seña' %}bg-amber-500/20 text-amber-400
                                 {% elif turno.estado_visual == 'Reservado' %}bg-blue-500/20 text-blue-400
                                 {% elif turno.estado_visual == 'Bloqueado' %}bg-purple-500/20 text-purple-400
