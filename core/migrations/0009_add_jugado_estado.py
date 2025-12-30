@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0007_add_auditoria_creditos'),
+        ('core', '0008_merge_0007_migrations'),
     ]
 
     operations = [
