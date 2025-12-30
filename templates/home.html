@@ -206,7 +206,7 @@
                             <a href="{% url 'turnos_actuales' %}" class="hover:text-orange-400 transition-colors">Mis Turnos</a>
                         </li>
                         <li>
-                            <a href="{% url 'perfil' %}" class="hover:text-orange-400 transition-colors">Mi Perfil</a>
+                            <a href="{% url 'mi_perfil' %}" class="hover:text-orange-400 transition-colors">Mi Perfil</a>
                         </li>
                         {% else %}
                         <li>
@@ -259,8 +259,10 @@
                                 @{{ complejo_actual.twitter_x }}
                             </a>
                             {% endif %}
-                        {% endif %}
-                        {% if not complejo_actual.instagram and not complejo_actual.twitter_x %}
+                            {% if not complejo_actual.instagram and not complejo_actual.twitter_x %}
+                            <p class="text-slate-500 text-sm">Síguenos en nuestras redes sociales</p>
+                            {% endif %}
+                        {% else %}
                         <p class="text-slate-500 text-sm">Síguenos en nuestras redes sociales</p>
                         {% endif %}
                     </div>
