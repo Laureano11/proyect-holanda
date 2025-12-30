@@ -14,3 +14,4 @@ class Migration(migrations.Migration):
         # Esta migración solo une las dos ramas, no realiza cambios en la BD
     ]
 
+

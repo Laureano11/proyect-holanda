@@ -39,6 +39,7 @@ urlpatterns = [
     # Bloqueos (Staff/Admin)
     path('bloqueos/', views.bloqueos, name='bloqueos'),
     path('crear-bloqueo/', views.crear_bloqueo, name='crear_bloqueo'),
+    path('eliminar-bloqueo/<int:bloqueo_id>/', views.eliminar_bloqueo, name='eliminar_bloqueo'),
     
     # Gestión de turnos (Staff)
     path('marcar-pagado/<int:turno_id>/', views.marcar_turno_pagado, name='marcar_turno_pagado'),

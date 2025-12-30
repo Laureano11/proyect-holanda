@@ -1088,6 +1088,39 @@ def crear_bloqueo(request):
 
 
 @login_required
+@transaction.atomic
+def eliminar_bloqueo(request, bloqueo_id):
+    """Eliminar un bloqueo de turnos/canchas."""
+    if not (request.user.es_staff_complejo or request.user.es_admin or request.user.es_superadmin):
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    bloqueo = get_object_or_404(
+        Bloqueo.objects.select_related('complejo', 'cancha'),
+        id=bloqueo_id
+    )
+    
+    # Verificar que el staff pertenece al mismo complejo (o es superadmin)
+    if not request.user.es_superadmin:
+        if not request.user.complejo or request.user.complejo != bloqueo.complejo:
+            messages.error(request, 'No autorizado')
+            return redirect('dashboard')
+    
+    # Guardar información para el mensaje
+    fecha_str = bloqueo.fecha.strftime("%d/%m/%Y")
+    cancha_nombre = bloqueo.cancha.nombre if bloqueo.cancha else "Todas las canchas"
+    
+    # Eliminar el bloqueo
+    bloqueo.delete()
+    
+    # Invalidar cache de slots del día bloqueado
+    TurnoService.invalidar_cache_slots(bloqueo.complejo.id, bloqueo.fecha)
+    
+    messages.success(request, f'Bloqueo eliminado: {cancha_nombre} - {fecha_str}')
+    return redirect('bloqueos')
+
+
+@login_required
 def turnos_fijos(request):
     """Vista para listar y gestionar turnos fijos (Staff)."""
     if not (request.user.es_staff_complejo or request.user.es_admin or request.user.es_superadmin):

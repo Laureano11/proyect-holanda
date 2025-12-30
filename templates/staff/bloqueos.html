@@ -77,8 +77,8 @@
             {% if bloqueos %}
             <div class="space-y-2">
                 {% for bloqueo in bloqueos %}
-                <div class="bg-slate-900/40 border border-slate-700/60 rounded-lg p-3 flex items-center justify-between">
-                    <div class="text-sm text-slate-200 space-y-1">
+                <div class="bg-slate-900/40 border border-slate-700/60 rounded-lg p-3 flex items-center justify-between gap-3">
+                    <div class="text-sm text-slate-200 space-y-1 flex-1">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="font-medium text-white">{{ bloqueo.fecha|date:"d/m/Y" }}</span>
                             {% if bloqueo.hora_inicio %}
@@ -93,10 +93,19 @@
                         <div class="text-xs text-slate-400">
                             Motivo: {{ bloqueo.motivo|default:"-" }}
                         </div>
+                        <div class="text-xs text-slate-500">
+                            Creado: {{ bloqueo.created_at|date:"d/m/Y H:i" }}
+                        </div>
                     </div>
-                    <div class="text-xs text-slate-500">
-                        Creado: {{ bloqueo.created_at|date:"d/m/Y H:i" }}
-                    </div>
+                    <form method="post" action="{% url 'eliminar_bloqueo' bloqueo.id %}" class="flex-shrink-0 eliminar-bloqueo-form" data-fecha="{{ bloqueo.fecha|date:'d/m/Y' }}">
+                        {% csrf_token %}
+                        <button 
+                            type="submit"
+                            class="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition whitespace-nowrap"
+                        >
+                            Eliminar
+                        </button>
+                    </form>
                 </div>
                 {% endfor %}
             </div>
@@ -124,6 +133,17 @@
         checkbox.addEventListener('change', toggle);
         toggle();
     }
+    
+    // Manejar confirmación de eliminación de bloqueos
+    document.querySelectorAll('.eliminar-bloqueo-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const fecha = this.getAttribute('data-fecha');
+            if (!confirm('¿Eliminar bloqueo del ' + fecha + '?')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    });
 })();
 </script>
 {% endblock %}

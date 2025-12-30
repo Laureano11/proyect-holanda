@@ -114,12 +114,15 @@
             <!-- Cancha -->
             <div>
                 <label class="block text-sm font-medium text-slate-300 mb-1">Cancha *</label>
-                <select name="cancha_id" required class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                <select name="cancha_id" required class="w-full px-3 py-2 rounded bg-slate-900/50 border border-slate-600 text-white focus:outline-none focus:ring-1 focus:ring-cyan-500 appearance-none cursor-pointer" style="-webkit-appearance: menulist; -moz-appearance: menulist; appearance: menulist;">
                     <option value="">Seleccionar cancha</option>
                     {% for cancha in canchas %}
                     <option value="{{ cancha.id }}">{{ cancha.nombre }}</option>
                     {% endfor %}
                 </select>
+                {% if not canchas %}
+                <p class="text-xs text-red-400 mt-1">No hay canchas disponibles</p>
+                {% endif %}
             </div>
             
             <!-- Nombre del cliente -->
@@ -225,60 +228,105 @@
 
 {% block extra_scripts %}
 <script>
+// Detectar si es móvil
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+// Función para actualizar campo oculto
+function updateHiddenField(inputId, hiddenId, fecha) {
+    if (fecha) {
+        const año = fecha.getFullYear();
+        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+        const dia = String(fecha.getDate()).padStart(2, '0');
+        document.getElementById(hiddenId).value = `${año}-${mes}-${dia}`;
+    }
+}
+
 // Inicializar Flatpickr para fecha de inicio
-flatpickr("#fecha-inicio-fijo", {
+const fechaInicioPicker = flatpickr("#fecha-inicio-fijo", {
     dateFormat: "d/m/Y",
     locale: "es",
     allowInput: true,
     minDate: "{{ 'now'|date:'Y-m-d' }}",
-    onReady: function(selectedDates) {
+    disableMobile: false, // Habilitar en móvil
+    clickOpens: true,
+    onReady: function(selectedDates, dateStr, instance) {
         if (selectedDates.length > 0) {
-            const fecha = selectedDates[0];
-            const año = fecha.getFullYear();
-            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-            const dia = String(fecha.getDate()).padStart(2, '0');
-            document.getElementById('fecha-inicio-hidden').value = `${año}-${mes}-${dia}`;
+            updateHiddenField('fecha-inicio-fijo', 'fecha-inicio-hidden', selectedDates[0]);
         }
     },
     onChange: function(selectedDates, dateStr, instance) {
         if (selectedDates.length > 0) {
-            const fecha = selectedDates[0];
-            const año = fecha.getFullYear();
-            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-            const dia = String(fecha.getDate()).padStart(2, '0');
-            document.getElementById('fecha-inicio-hidden').value = `${año}-${mes}-${dia}`;
+            updateHiddenField('fecha-inicio-fijo', 'fecha-inicio-hidden', selectedDates[0]);
         }
     }
 });
 
 // Inicializar Flatpickr para fecha de fin (opcional)
-flatpickr("#fecha-fin-fijo", {
+const fechaFinPicker = flatpickr("#fecha-fin-fijo", {
     dateFormat: "d/m/Y",
     locale: "es",
     allowInput: true,
     minDate: "{{ 'now'|date:'Y-m-d' }}",
-    onReady: function(selectedDates) {
+    disableMobile: false, // Habilitar en móvil
+    clickOpens: true,
+    onReady: function(selectedDates, dateStr, instance) {
         if (selectedDates.length > 0) {
-            const fecha = selectedDates[0];
-            const año = fecha.getFullYear();
-            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-            const dia = String(fecha.getDate()).padStart(2, '0');
-            document.getElementById('fecha-fin-hidden').value = `${año}-${mes}-${dia}`;
+            updateHiddenField('fecha-fin-fijo', 'fecha-fin-hidden', selectedDates[0]);
         }
     },
     onChange: function(selectedDates, dateStr, instance) {
         if (selectedDates.length > 0) {
-            const fecha = selectedDates[0];
-            const año = fecha.getFullYear();
-            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-            const dia = String(fecha.getDate()).padStart(2, '0');
-            document.getElementById('fecha-fin-hidden').value = `${año}-${mes}-${dia}`;
+            updateHiddenField('fecha-fin-fijo', 'fecha-fin-hidden', selectedDates[0]);
         } else {
-            // Si se borra la fecha, limpiar el campo oculto
             document.getElementById('fecha-fin-hidden').value = '';
         }
     }
 });
+
+// Validar formulario antes de enviar
+const formTurnoFijo = document.querySelector('form[action*="crear_turno_fijo"]');
+if (formTurnoFijo) {
+    formTurnoFijo.addEventListener('submit', function(e) {
+    const canchaId = document.querySelector('select[name="cancha_id"]').value;
+    const fechaInicio = document.getElementById('fecha-inicio-hidden').value;
+    
+    if (!canchaId) {
+        e.preventDefault();
+        alert('Por favor seleccioná una cancha');
+        return false;
+    }
+    
+    if (!fechaInicio) {
+        e.preventDefault();
+        alert('Por favor seleccioná una fecha de inicio');
+        return false;
+    }
+    
+    // Asegurar que el campo oculto tenga valor si Flatpickr no lo actualizó
+    const fechaInicioVisible = document.getElementById('fecha-inicio-fijo').value;
+    if (fechaInicioVisible && !fechaInicio) {
+        // Intentar parsear la fecha visible
+        const partes = fechaInicioVisible.split('/');
+        if (partes.length === 3) {
+            const dia = partes[0].padStart(2, '0');
+            const mes = partes[1].padStart(2, '0');
+            const año = partes[2];
+            document.getElementById('fecha-inicio-hidden').value = `${año}-${mes}-${dia}`;
+        }
+    }
+    
+    const fechaFinVisible = document.getElementById('fecha-fin-fijo').value;
+    if (fechaFinVisible && !document.getElementById('fecha-fin-hidden').value) {
+        const partes = fechaFinVisible.split('/');
+        if (partes.length === 3) {
+            const dia = partes[0].padStart(2, '0');
+            const mes = partes[1].padStart(2, '0');
+            const año = partes[2];
+            document.getElementById('fecha-fin-hidden').value = `${año}-${mes}-${dia}`;
+        }
+    }
+    });
+}
 </script>
 {% endblock %}
 
