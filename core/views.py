@@ -91,64 +91,38 @@ def register_view(request):
         username = (request.POST.get('username') or '').strip()
         email = (request.POST.get('email', '') or '').strip()
         password = request.POST.get('password') or ''
+        password_confirm = request.POST.get('password_confirm') or ''
         first_name = (request.POST.get('first_name', '') or '').strip()
         last_name = (request.POST.get('last_name', '') or '').strip()
         celular = (request.POST.get('celular', '') or '').strip()
         dni = (request.POST.get('dni', '') or '').strip()
         
-        # Construir dirección completa
-        calle = (request.POST.get('calle', '') or '').strip()
-        altura = (request.POST.get('altura', '') or '').strip()
-        ciudad = (request.POST.get('ciudad', '') or '').strip()
-        direccion_parts = [p for p in [calle, altura, ciudad] if p.strip()]
-        direccion = ', '.join(direccion_parts) if direccion_parts else ''
-        
         # Forzar siempre rol de cliente en el registro público
         rol = Usuario.Rol.CLIENTE
 
+        # Validaciones básicas
         if not username or not password:
             messages.error(request, 'Usuario y contraseña son obligatorios')
             return render(request, 'auth/register.html')
         
-        # Crear usuario asignado al complejo del subdominio actual
-        user = Usuario.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name,
-            celular=celular,
-            dni=dni,
-            direccion=direccion,
-            rol=rol,
-            complejo=complejo_actual,  # Asignar complejo del subdominio
-        )
+        # Validar que las contraseñas coincidan
+        if password != password_confirm:
+            messages.error(request, 'Las contraseñas no coinciden')
+            return render(request, 'auth/register.html')
         
-        # TEMPORAL: Asignar crédito inicial de 150.000 para tests
-        if complejo_actual:
-            CreditoCliente.objects.create(
-                usuario=user,
-                complejo=complejo_actual,
-                monto=Decimal('150000.00'),
-                motivo='Crédito inicial de bienvenida (temporal para tests)',
-                activo=True
-            )
-
-        # Si el usuario ya existe, intentar autenticarlos en vez de mostrar un error genérico.
-        existing_user = Usuario.objects.filter(username=username).first()
-        if existing_user:
-            autenticado = authenticate(request, username=username, password=password)
-            if autenticado:
-                login(request, autenticado)
-                messages.info(request, f'Ya tenías cuenta, te iniciamos sesión como {autenticado.first_name or autenticado.username}')
-                return redirect('dashboard')
-            
-            messages.error(request, 'Ese usuario ya existe. Probá iniciar sesión con tu contraseña.')
+        # Validar campos requeridos
+        if not first_name or not last_name or not dni or not email or not celular:
+            messages.error(request, 'Todos los campos son obligatorios')
+            return render(request, 'auth/register.html')
+        
+        # Verificar si el usuario ya existe
+        if Usuario.objects.filter(username=username).exists():
+            messages.error(request, 'Ese usuario ya existe. Probá iniciar sesión.')
             return render(request, 'auth/register.html')
         
         try:
             with transaction.atomic():
-                # Crear usuario
+                # Crear usuario asignado al complejo del subdominio actual
                 user = Usuario.objects.create_user(
                     username=username,
                     email=email,
@@ -157,24 +131,26 @@ def register_view(request):
                     last_name=last_name,
                     celular=celular,
                     dni=dni,
-                    direccion=direccion,
+                    direccion='',  # Se puede completar después en el perfil
                     rol=rol,
+                    complejo=complejo_actual,  # Asignar complejo del subdominio
                 )
                 
-                # Asignar complejo por defecto (basanta) si existe
-                if complejo_por_defecto:
-                    user.complejo = complejo_por_defecto
-                    user.save()
-                    # TEMPORAL: Asignar crédito inicial de 150.000 para tests
-                    CreditoCliente.objects.create(
+                # TEMPORAL: Asignar crédito inicial de 150.000 para tests
+                if complejo_actual:
+                    CreditoService.generar_credito(
                         usuario=user,
-                        complejo=complejo_por_defecto,
+                        complejo=complejo_actual,
                         monto=Decimal('150000.00'),
                         motivo='Crédito inicial de bienvenida (temporal para tests)',
-                        activo=True
+                        turno_origen=None,
+                        creado_por=None,  # Crédito automático del sistema
                     )
         except IntegrityError:
-            messages.error(request, 'Ese usuario ya existe. Probá iniciar sesión.')
+            messages.error(request, 'Error al crear la cuenta. El usuario o email ya existe.')
+            return render(request, 'auth/register.html')
+        except Exception as e:
+            messages.error(request, f'Error al crear la cuenta: {str(e)}')
             return render(request, 'auth/register.html')
         
         # Login automático
@@ -183,32 +159,6 @@ def register_view(request):
         return redirect('dashboard')
     
     return render(request, 'auth/register.html')
-
-
-@login_required
-def actualizar_perfil(request):
-    """Actualizar datos personales (solo campos seguros)."""
-    if not request.user.es_cliente:
-        messages.error(request, 'No tenés permisos para editar este perfil')
-        return redirect('dashboard')
-
-    if request.method != 'POST':
-        return redirect('dashboard')
-
-    first_name = request.POST.get('first_name', '').strip()
-    last_name = request.POST.get('last_name', '').strip()
-    direccion = request.POST.get('direccion', '').strip()
-
-    user = request.user
-    if first_name:
-        user.first_name = first_name
-    if last_name:
-        user.last_name = last_name
-    user.direccion = direccion
-    user.save()
-
-    messages.success(request, 'Perfil actualizado correctamente')
-    return redirect('dashboard')
 
 
 def logout_view(request):
@@ -240,6 +190,9 @@ def dashboard(request):
     
     # Si es cliente, calcular turnos disponibles del día
     if user.es_cliente and user.complejo:
+        # Marcar turnos como jugados automáticamente
+        Turno.marcar_turnos_como_jugados()
+        
         # Obtener fecha desde parámetro GET o usar hoy
         fecha_param = request.GET.get('fecha')
         if fecha_param:
@@ -311,6 +264,9 @@ def dashboard(request):
     
     # Si es staff, obtener turnos del complejo y calcular disponibles
     if user.es_staff_complejo and user.complejo:
+        # Marcar turnos como jugados automáticamente
+        Turno.marcar_turnos_como_jugados()
+        
         hoy = timezone.now().date()
         complejo = user.complejo
         orden_turnos = request.GET.get('orden', 'juego')
@@ -633,6 +589,7 @@ def cancelar_turno(request, turno_id):
     turno.save(update_fields=['estado', 'updated_at'])
     
     # Generar crédito para el cliente (si pagó seña) usando servicio
+    # Nota: Cuando el cliente cancela, no hay creado_por (es automático del sistema)
     if turno.senia_pagada > 0:
         CreditoService.generar_credito(
             usuario=request.user,
@@ -640,6 +597,7 @@ def cancelar_turno(request, turno_id):
             monto=turno.senia_pagada,
             motivo=f'Cancelación turno {turno.cancha.nombre} - {turno.fecha.strftime("%d/%m/%Y")} {turno.hora_inicio.strftime("%H:%M")}',
             turno_origen=turno,
+            creado_por=None,  # Cancelación automática por cliente
         )
     
     # Invalidar caché de slots
@@ -681,6 +639,7 @@ def cancelar_turno_staff(request, turno_id):
             monto=turno.senia_pagada,
             motivo=f'Cancelación por staff - Turno {turno.cancha.nombre} - {turno.fecha.strftime("%d/%m/%Y")} {turno.hora_inicio.strftime("%H:%M")}',
             turno_origen=turno,
+            creado_por=request.user,  # Staff/admin que cancela
         )
     
     # Invalidar caché de slots
@@ -1111,6 +1070,7 @@ def crear_bloqueo(request):
                 monto=turno.senia_pagada,
                 motivo=f'Bloqueo: {turno.cancha.nombre} {turno.fecha.strftime("%d/%m/%Y")} {turno.hora_inicio.strftime("%H:%M")}',
                 turno_origen=turno,
+                creado_por=request.user,  # Staff/admin que crea el bloqueo
             )
     
     # Invalidar cache de slots del día bloqueado
@@ -1365,10 +1325,10 @@ def crear_turno_fijo(request):
                                 cliente=turno_fijo.cliente,
                                 fecha=fecha_actual,
                                 hora_inicio=turno_fijo.hora_inicio,
-                                estado=Turno.Estado.CONFIRMADO,
+                                estado=Turno.Estado.PENDIENTE_PAGO,
                                 precio_total=turno_fijo.cancha.precio_hora,
                                 senia_requerida=turno_fijo.cancha.precio_senia,
-                                senia_pagada=turno_fijo.cancha.precio_senia,
+                                senia_pagada=Decimal('0.00'),
                                 notas=f'Turno fijo: {turno_fijo.notas or ""}',
                             )
                             turnos_generados += 1
@@ -1505,11 +1465,15 @@ def actualizar_perfil(request):
     # Obtener datos del formulario (solo campos editables)
     first_name = request.POST.get('first_name', '').strip()
     last_name = request.POST.get('last_name', '').strip()
+    dni = request.POST.get('dni', '').strip()
+    celular = request.POST.get('celular', '').strip()
     direccion = request.POST.get('direccion', '').strip()
     
     # Actualizar solo campos permitidos
     user.first_name = first_name
     user.last_name = last_name
+    user.dni = dni if dni else None
+    user.celular = celular if celular else None
     user.direccion = direccion
     user.save()
     
@@ -1530,6 +1494,9 @@ def turnos_actuales(request):
     
     complejo = request.user.complejo
     hoy = timezone.now().date()
+    
+    # Marcar turnos como jugados automáticamente
+    Turno.marcar_turnos_como_jugados()
     
     # Obtener turnos activos (no cancelados, no expirados)
     turnos_activos = Turno.objects.filter(
@@ -1560,16 +1527,52 @@ def historial_turnos(request):
         return redirect('dashboard')
     
     complejo = request.user.complejo
+    hoy = timezone.now().date()
+    
+    # Marcar turnos como jugados automáticamente
+    Turno.marcar_turnos_como_jugados()
+    
+    # Obtener filtro de día desde parámetro GET
+    dia_filtro = request.GET.get('dia')
     
     # Obtener todos los turnos del cliente (incluyendo cancelados y expirados)
     turnos_historial = Turno.objects.filter(
         cliente=request.user,
         cancha__complejo=complejo
-    ).order_by('-fecha', '-hora_inicio')
+    ).select_related('cancha').order_by('-fecha', '-hora_inicio')
+    
+    # Filtrar por día si se proporciona
+    if dia_filtro:
+        try:
+            fecha_filtro = datetime.strptime(dia_filtro, '%Y-%m-%d').date()
+            turnos_historial = turnos_historial.filter(fecha=fecha_filtro)
+        except ValueError:
+            pass  # Si la fecha es inválida, mostrar todos
+    
+    # Generar selector de días (próximos 7 días)
+    dias_semana_selector = []
+    for i in range(7):
+        fecha = hoy + timedelta(days=i)
+        dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+        if i == 0:
+            nombre = 'Hoy'
+        elif i == 1:
+            nombre = 'Mañana'
+        else:
+            nombre = dias_nombres[fecha.weekday()]
+        
+        dias_semana_selector.append({
+            'fecha': fecha,
+            'nombre': nombre,
+            'activo': dia_filtro == fecha.strftime('%Y-%m-%d')
+        })
     
     context = {
         'complejo': complejo,
         'turnos_historial': turnos_historial,
+        'hoy': hoy,
+        'dia_filtro': dia_filtro or '',
+        'dias_semana_selector': dias_semana_selector,
     }
     
     return render(request, 'cliente/historial.html', context)
