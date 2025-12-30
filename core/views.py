@@ -1106,7 +1106,9 @@ def eliminar_bloqueo(request, bloqueo_id):
             messages.error(request, 'No autorizado')
             return redirect('dashboard')
     
-    # Guardar información para el mensaje
+    # Guardar información antes de eliminar (necesario para cache y mensaje)
+    complejo_id = bloqueo.complejo.id
+    fecha = bloqueo.fecha
     fecha_str = bloqueo.fecha.strftime("%d/%m/%Y")
     cancha_nombre = bloqueo.cancha.nombre if bloqueo.cancha else "Todas las canchas"
     
@@ -1114,7 +1116,7 @@ def eliminar_bloqueo(request, bloqueo_id):
     bloqueo.delete()
     
     # Invalidar cache de slots del día bloqueado
-    TurnoService.invalidar_cache_slots(bloqueo.complejo.id, bloqueo.fecha)
+    TurnoService.invalidar_cache_slots(complejo_id, fecha)
     
     messages.success(request, f'Bloqueo eliminado: {cancha_nombre} - {fecha_str}')
     return redirect('bloqueos')

@@ -20,11 +20,11 @@
             </div>
             
             <!-- Lista de turnos -->
-            <div class="p-3 space-y-2 flex-1 overflow-y-auto">
+            <div class="p-4 space-y-3 flex-1 overflow-y-auto">
                 {% if item.cancha %}
                     {% if item.turnos %}
                         {% for turno_data in item.turnos %}
-                        <div class="rounded-lg p-3 border-2 transition-all duration-300
+                        <div class="rounded-lg p-4 border-2 transition-all duration-300
                             {% if turno_data.estado_temporal == 'terminado' %}
                                 bg-slate-700/30 border-slate-600/50
                             {% elif turno_data.estado_temporal == 'jugando' %}
@@ -33,8 +33,8 @@
                                 bg-blue-500/20 border-blue-500/50
                             {% endif %}">
                             <!-- Estado temporal -->
-                            <div class="mb-2">
-                                <span class="px-2 py-0.5 rounded text-xs font-semibold
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="px-2 py-1 rounded text-xs font-semibold
                                     {% if turno_data.estado_temporal == 'terminado' %}
                                         bg-slate-600 text-slate-300
                                     {% elif turno_data.estado_temporal == 'jugando' %}
@@ -52,18 +52,31 @@
                                 </span>
                             </div>
                             
-                            <!-- Hora de inicio -->
-                            <div class="mb-2">
+                            <!-- Horario -->
+                            <div class="mb-3">
                                 <p class="text-2xl font-bold text-white">
-                                    {{ turno_data.hora_inicio|time:"H:i" }}
+                                    {{ turno_data.hora_inicio|time:"H:i" }} - {{ turno_data.hora_fin|time:"H:i" }}
                                 </p>
                             </div>
                             
                             <!-- Cliente -->
-                            <div>
-                                <p class="text-base text-slate-200 font-medium">
+                            <div class="mb-2">
+                                <p class="text-sm text-slate-300 font-medium">
                                     {{ turno_data.turno.cliente.get_full_name|default:turno_data.turno.cliente.username }}
                                 </p>
+                                {% if turno_data.turno.cliente.celular %}
+                                <p class="text-xs text-slate-400 mt-1">
+                                    📞 {{ turno_data.turno.cliente.celular }}
+                                </p>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Precio -->
+                            <div class="flex items-center justify-between pt-2 border-t border-slate-600/50">
+                                <span class="text-xs text-slate-400">Precio</span>
+                                <span class="text-sm font-semibold text-white">
+                                    ${{ turno_data.turno.precio_total|floatformat:0 }}
+                                </span>
                             </div>
                         </div>
                         {% endfor %}
