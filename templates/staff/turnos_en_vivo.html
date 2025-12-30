@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Turnos en Vivo{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-slate-900 p-6">
+    <!-- Dashboard estilo aeropuerto - 3 columnas -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-screen">
+        {% for item in canchas_con_turnos %}
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden flex flex-col">
+            <!-- Header de la cancha -->
+            <div class="bg-slate-900/60 border-b border-slate-700/50 p-4 flex-shrink-0">
+                <h2 class="text-xl font-bold text-white text-center">
+                    {% if item.cancha %}
+                        {{ item.cancha.nombre }}
+                    {% else %}
+                        Sin cancha
+                    {% endif %}
+                </h2>
+            </div>
+            
+            <!-- Lista de turnos -->
+            <div class="p-3 space-y-2 flex-1 overflow-y-auto">
+                {% if item.cancha %}
+                    {% if item.turnos %}
+                        {% for turno_data in item.turnos %}
+                        <div class="rounded-lg p-3 border-2 transition-all duration-300
+                            {% if turno_data.estado_temporal == 'terminado' %}
+                                bg-slate-700/30 border-slate-600/50
+                            {% elif turno_data.estado_temporal == 'jugando' %}
+                                bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/20
+                            {% else %}
+                                bg-blue-500/20 border-blue-500/50
+                            {% endif %}">
+                            <!-- Estado temporal -->
+                            <div class="mb-2">
+                                <span class="px-2 py-0.5 rounded text-xs font-semibold
+                                    {% if turno_data.estado_temporal == 'terminado' %}
+                                        bg-slate-600 text-slate-300
+                                    {% elif turno_data.estado_temporal == 'jugando' %}
+                                        bg-green-500 text-white animate-pulse
+                                    {% else %}
+                                        bg-blue-500 text-white
+                                    {% endif %}">
+                                    {% if turno_data.estado_temporal == 'terminado' %}
+                                        Terminado
+                                    {% elif turno_data.estado_temporal == 'jugando' %}
+                                        Jugando
+                                    {% else %}
+                                        Por comenzar
+                                    {% endif %}
+                                </span>
+                            </div>
+                            
+                            <!-- Hora de inicio -->
+                            <div class="mb-2">
+                                <p class="text-2xl font-bold text-white">
+                                    {{ turno_data.hora_inicio|time:"H:i" }}
+                                </p>
+                            </div>
+                            
+                            <!-- Cliente -->
+                            <div>
+                                <p class="text-base text-slate-200 font-medium">
+                                    {{ turno_data.turno.cliente.get_full_name|default:turno_data.turno.cliente.username }}
+                                </p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Sin turnos -->
+                        <div class="text-center py-12">
+                            <p class="text-slate-400 text-sm">No hay turnos programados</p>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <!-- Cancha no disponible -->
+                    <div class="text-center py-12">
+                        <p class="text-slate-500 text-sm">Cancha no disponible</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+(function() {
+    // Recargar la página cada 30 segundos para actualizar estados
+    setTimeout(function() {
+        window.location.reload();
+    }, 30000);
+})();
+</script>
+{% endblock %}
+

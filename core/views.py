@@ -1623,3 +1623,85 @@ def mi_perfil(request):
     }
     
     return render(request, 'cliente/perfil.html', context)
+
+
+@login_required
+def turnos_en_vivo(request):
+    """
+    Dashboard estilo aeropuerto con turnos en tiempo real.
+    Muestra 3 columnas (una por cancha) con turnos clasificados por estado temporal.
+    """
+    if not request.user.puede_gestionar_turnos:
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    complejo = request.user.complejo
+    if not complejo:
+        messages.error(request, 'No tenés un complejo asignado')
+        return redirect('dashboard')
+    
+    # Obtener las primeras 3 canchas activas del complejo
+    canchas = Cancha.objects.filter(
+        complejo=complejo,
+        activa=True
+    ).order_by('nombre')[:3]
+    
+    hoy = timezone.now().date()
+    ahora = timezone.now()
+    
+    # Estructura de datos: {cancha: {'turnos': [...], 'nombre': '...'}}
+    canchas_con_turnos = []
+    
+    for cancha in canchas:
+        # Obtener turnos del día actual que no estén cancelados
+        turnos = Turno.objects.filter(
+            cancha=cancha,
+            fecha=hoy
+        ).exclude(
+            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+        ).select_related('cliente').order_by('hora_inicio')
+        
+        # Clasificar cada turno según su estado temporal
+        turnos_clasificados = []
+        for turno in turnos:
+            # Calcular fecha/hora de inicio y fin del turno
+            fecha_hora_inicio = timezone.make_aware(
+                timezone.datetime.combine(turno.fecha, turno.hora_inicio)
+            )
+            fecha_hora_fin = fecha_hora_inicio + timedelta(minutes=turno.duracion_minutos)
+            
+            # Determinar estado temporal
+            if ahora > fecha_hora_fin:
+                estado_temporal = 'terminado'  # Gris
+            elif ahora >= fecha_hora_inicio:
+                estado_temporal = 'jugando'  # Verde
+            else:
+                estado_temporal = 'por_comenzar'  # Azul
+            
+            turnos_clasificados.append({
+                'turno': turno,
+                'estado_temporal': estado_temporal,
+                'hora_inicio': turno.hora_inicio,
+                'hora_fin': turno.hora_fin,
+            })
+        
+        canchas_con_turnos.append({
+            'cancha': cancha,
+            'turnos': turnos_clasificados,
+        })
+    
+    # Si hay menos de 3 canchas, agregar columnas vacías
+    while len(canchas_con_turnos) < 3:
+        canchas_con_turnos.append({
+            'cancha': None,
+            'turnos': [],
+        })
+    
+    context = {
+        'complejo': complejo,
+        'canchas_con_turnos': canchas_con_turnos,
+        'hoy': hoy,
+        'ahora': ahora,
+    }
+    
+    return render(request, 'staff/turnos_en_vivo.html', context)
