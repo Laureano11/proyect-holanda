@@ -247,11 +247,15 @@ def dashboard(request):
         # Calcular créditos disponibles del cliente (método optimizado del modelo)
         creditos_disponibles = user.get_creditos_disponibles(complejo)
         
-        # Obtener turnos del cliente (con select_related para evitar N+1)
+        # Obtener turnos del cliente (optimizado con select_related para evitar N+1)
         turnos_cliente = Turno.objects.filter(
             cliente=user,
             cancha__complejo=complejo
-        ).select_related('cancha').order_by('fecha', 'hora_inicio')
+        ).select_related(
+            'cancha',
+            'cancha__complejo',
+            'cliente'
+        ).order_by('fecha', 'hora_inicio')
 
         turnos_activos = turnos_cliente.filter(
             estado__in=[Turno.Estado.CONFIRMADO, Turno.Estado.PENDIENTE_PAGO]
@@ -317,16 +321,18 @@ def dashboard(request):
         querystring = query_params.urlencode()
         
         # Query base (sin filtros) para estadísticas (solo activos)
+        # Optimizado con select_related para evitar N+1 queries
         turnos_base_qs = Turno.objects.filter(
             cancha__complejo=complejo
         ).exclude(
             estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
-        ).select_related('cancha', 'cliente')
+        ).select_related('cancha', 'cancha__complejo', 'cliente', 'cliente__complejo')
         
         # Query de listado - depende de la pestaña activa
+        # Optimizado con select_related para evitar N+1 queries
         turnos_complejo_qs = Turno.objects.filter(
             cancha__complejo=complejo
-        ).select_related('cancha', 'cliente')
+        ).select_related('cancha', 'cancha__complejo', 'cliente', 'cliente__complejo')
         
         # Aplicar filtro según la pestaña
         if vista_tab == 'historial':
@@ -1066,10 +1072,11 @@ def crear_bloqueo(request):
     )
     
     # Cancelar turnos afectados (autoridad máxima)
+    # Optimizado con select_related para evitar N+1 queries
     turnos_qs = Turno.objects.filter(
         cancha__complejo=complejo,
         fecha=fecha_obj
-    ).select_related('cliente', 'cancha')
+    ).select_related('cliente', 'cliente__complejo', 'cancha', 'cancha__complejo')
     if cancha:
         turnos_qs = turnos_qs.filter(cancha=cancha)
     if not dia_completo and hora_inicio:
@@ -1557,12 +1564,13 @@ def turnos_actuales(request):
     Turno.marcar_turnos_como_jugados()
     
     # Obtener turnos activos (no cancelados, no expirados)
+    # Optimizado con select_related para evitar N+1 queries
     turnos_activos = Turno.objects.filter(
         cliente=request.user,
         cancha__complejo=complejo
     ).exclude(
         estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
-    ).order_by('fecha', 'hora_inicio')
+    ).select_related('cancha', 'cancha__complejo', 'cliente').order_by('fecha', 'hora_inicio')
     
     context = {
         'complejo': complejo,
@@ -1594,10 +1602,11 @@ def historial_turnos(request):
     dia_filtro = request.GET.get('dia')
     
     # Obtener todos los turnos del cliente (incluyendo cancelados y expirados)
+    # Optimizado con select_related para evitar N+1 queries
     turnos_historial = Turno.objects.filter(
         cliente=request.user,
         cancha__complejo=complejo
-    ).select_related('cancha').order_by('-fecha', '-hora_inicio')
+    ).select_related('cancha', 'cancha__complejo', 'cliente').order_by('-fecha', '-hora_inicio')
     
     # Filtrar por día si se proporciona
     if dia_filtro:

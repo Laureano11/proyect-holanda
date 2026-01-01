@@ -1,11 +1,13 @@
 """
 Middleware para multi-tenant por subdominio.
 Resuelve el complejo actual basado en el subdominio del request.
+Optimizado con caché para reducir queries a la base de datos.
 """
 
 from django.conf import settings
 from django.http import Http404
 from django.shortcuts import redirect
+from django.core.cache import cache
 
 
 class TenantMiddleware:
@@ -72,14 +74,23 @@ class TenantMiddleware:
         subdominio = self._extraer_subdominio(host)
         
         if subdominio:
-            try:
-                request.complejo_actual = Complejo.objects.get(
-                    subdominio__iexact=subdominio,
-                    activo=True
-                )
-            except Complejo.DoesNotExist:
-                # Si no existe el subdominio, usar fallback (dominio estándar sin configurar)
-                request.complejo_actual = self._get_complejo_default()
+            # Intentar obtener del caché primero (evita query a DB)
+            cache_key = f'complejo_subdominio_{subdominio.lower()}'
+            complejo = cache.get(cache_key)
+            
+            if complejo is None:
+                try:
+                    complejo = Complejo.objects.select_related('preferencias').get(
+                        subdominio__iexact=subdominio,
+                        activo=True
+                    )
+                    # Cachear por 1 hora (3600 segundos)
+                    cache.set(cache_key, complejo, 3600)
+                except Complejo.DoesNotExist:
+                    # Si no existe el subdominio, usar fallback
+                    complejo = self._get_complejo_default()
+            
+            request.complejo_actual = complejo
         else:
             # Host sin subdominio (ej: ha.com) → usar default
             request.complejo_actual = self._get_complejo_default()
@@ -124,17 +135,33 @@ class TenantMiddleware:
         """
         Busca un complejo por slug o subdominio.
         Útil para hosts .local en desarrollo (ej: padel-point.local)
+        Optimizado con caché.
         """
         from core.models import Complejo
         
+        # Intentar obtener del caché primero
+        cache_key = f'complejo_slug_{slug.lower()}'
+        complejo = cache.get(cache_key)
+        
+        if complejo is not None:
+            return complejo
+        
         # Intentar buscar por slug primero, luego por subdominio
         try:
-            return Complejo.objects.get(slug__iexact=slug, activo=True)
+            complejo = Complejo.objects.select_related('preferencias').get(
+                slug__iexact=slug, activo=True
+            )
+            cache.set(cache_key, complejo, 3600)
+            return complejo
         except Complejo.DoesNotExist:
             pass
         
         try:
-            return Complejo.objects.get(subdominio__iexact=slug, activo=True)
+            complejo = Complejo.objects.select_related('preferencias').get(
+                subdominio__iexact=slug, activo=True
+            )
+            cache.set(cache_key, complejo, 3600)
+            return complejo
         except Complejo.DoesNotExist:
             pass
         
@@ -145,17 +172,36 @@ class TenantMiddleware:
         """
         Retorna el complejo por defecto para desarrollo/fallback.
         Por ahora retorna el primer complejo activo.
+        Optimizado con caché.
         """
         from core.models import Complejo
         
+        # Intentar obtener del caché primero
+        cache_key = 'complejo_default'
+        complejo = cache.get(cache_key)
+        
+        if complejo is not None:
+            return complejo
+        
         # Intentar primero 'basanta' (el complejo principal actual)
         try:
-            return Complejo.objects.get(slug__iexact='basanta', activo=True)
+            complejo = Complejo.objects.select_related('preferencias').get(
+                slug__iexact='basanta', activo=True
+            )
+            cache.set(cache_key, complejo, 3600)
+            return complejo
         except Complejo.DoesNotExist:
             pass
         
         # Fallback: primer complejo activo
-        return Complejo.objects.filter(activo=True).first()
+        complejo = Complejo.objects.select_related('preferencias').filter(
+            activo=True
+        ).first()
+        
+        if complejo:
+            cache.set(cache_key, complejo, 3600)
+        
+        return complejo
 
 
 def complejo_context_processor(request):
