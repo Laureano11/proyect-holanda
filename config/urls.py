@@ -6,13 +6,14 @@ from django.contrib.auth import views as auth_views
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from core.email_views import CustomPasswordResetView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     
-    # Password reset flow (Django built-in views)
+    # Password reset flow (Django built-in views con custom error handling)
     path('password-reset/', 
-         auth_views.PasswordResetView.as_view(
+         CustomPasswordResetView.as_view(
              template_name='auth/password_reset.html',
              email_template_name='auth/password_reset_email.html',
              subject_template_name='auth/password_reset_subject.txt',

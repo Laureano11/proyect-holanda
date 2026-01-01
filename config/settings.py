@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',  # Necesario para password reset emails
     
     # Third party apps
     'django_htmx',
@@ -275,14 +276,18 @@ if DEBUG and not USE_RESEND_IN_DEV:
 else:
     # En desarrollo con Resend O en producción: usar SMTP real
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.resend.com')
     EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
     EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
-    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'resend')
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+    EMAIL_TIMEOUT = 30  # Timeout de 30 segundos para SMTP
 
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@turnos.com')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
 EMAIL_SUBJECT_PREFIX = '[Turnos] '
 
 # Password reset settings
 PASSWORD_RESET_TIMEOUT = 86400  # 24 horas (en segundos)
+
+# Django Sites Framework (necesario para password reset emails)
+SITE_ID = 1
