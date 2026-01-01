@@ -29,6 +29,7 @@ def login_view(request):
     """
     Vista de login con validación multi-tenant.
     
+    Permite login con email o username.
     Bloquea el login si el usuario pertenece a un complejo diferente
     al subdominio actual (excepto superadmin que puede acceder a todos).
     """
@@ -36,10 +37,22 @@ def login_view(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
-        username = request.POST.get('username')
+        username_or_email = request.POST.get('username')
         password = request.POST.get('password')
         
-        user = authenticate(request, username=username, password=password)
+        # Intentar autenticar con username o email
+        user = None
+        
+        # Si contiene @, asumir que es email
+        if '@' in username_or_email:
+            try:
+                usuario_obj = Usuario.objects.get(email__iexact=username_or_email)
+                user = authenticate(request, username=usuario_obj.username, password=password)
+            except Usuario.DoesNotExist:
+                pass
+        else:
+            # Intentar con username directamente
+            user = authenticate(request, username=username_or_email, password=password)
         
         if user is not None:
             # Validación multi-tenant: verificar que el usuario pertenece al complejo actual
@@ -88,21 +101,23 @@ def register_view(request):
             complejo_actual = Complejo.objects.filter(activo=True).first()
     
     if request.method == 'POST':
-        username = (request.POST.get('username') or '').strip()
+        # Campos obligatorios
         email = (request.POST.get('email', '') or '').strip()
         password = request.POST.get('password') or ''
         password_confirm = request.POST.get('password_confirm') or ''
         first_name = (request.POST.get('first_name', '') or '').strip()
         last_name = (request.POST.get('last_name', '') or '').strip()
+        
+        # Campos opcionales
         celular = (request.POST.get('celular', '') or '').strip()
         dni = (request.POST.get('dni', '') or '').strip()
         
         # Forzar siempre rol de cliente en el registro público
         rol = Usuario.Rol.CLIENTE
 
-        # Validaciones básicas
-        if not username or not password:
-            messages.error(request, 'Usuario y contraseña son obligatorios')
+        # Validaciones de campos obligatorios
+        if not email or not password or not first_name or not last_name:
+            messages.error(request, 'Email, nombre, apellido y contraseña son obligatorios')
             return render(request, 'auth/register.html')
         
         # Validar que las contraseñas coincidan
@@ -110,15 +125,23 @@ def register_view(request):
             messages.error(request, 'Las contraseñas no coinciden')
             return render(request, 'auth/register.html')
         
-        # Validar campos requeridos
-        if not first_name or not last_name or not dni or not email or not celular:
-            messages.error(request, 'Todos los campos son obligatorios')
+        # Validar formato de email
+        if '@' not in email or '.' not in email:
+            messages.error(request, 'Ingresá un email válido')
             return render(request, 'auth/register.html')
         
-        # Verificar si el usuario ya existe
-        if Usuario.objects.filter(username=username).exists():
-            messages.error(request, 'Ese usuario ya existe. Probá iniciar sesión.')
+        # Verificar si el email ya existe
+        if Usuario.objects.filter(email__iexact=email).exists():
+            messages.error(request, 'Ese email ya está registrado. Probá iniciar sesión o recuperar tu contraseña.')
             return render(request, 'auth/register.html')
+        
+        # Generar username único basado en el email
+        username = email.split('@')[0].lower()
+        base_username = username
+        counter = 1
+        while Usuario.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
         
         try:
             with transaction.atomic():

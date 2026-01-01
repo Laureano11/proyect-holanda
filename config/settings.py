@@ -7,17 +7,18 @@ from dotenv import load_dotenv
 import os
 from urllib.parse import urlparse
 
-# Cargar variables de entorno
-load_dotenv()
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Cargar variables de entorno desde el archivo .env en la raíz del proyecto
+env_path = BASE_DIR / '.env'
+load_dotenv(dotenv_path=env_path)
 
 # dj-database-url es recomendado (Render/producción). En local puede no estar instalado.
 try:
     import dj_database_url  # type: ignore
 except ImportError:  # pragma: no cover
     dj_database_url = None
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-production')
@@ -260,3 +261,28 @@ CACHES = {
 #     }
 # }
 
+
+# Email configuration para recuperación de contraseñas
+# En desarrollo: puedes usar Resend real o consola
+# En producción: usar SMTP real (Resend, SendGrid, etc.)
+
+# Opción de usar Resend en desarrollo (comentá para usar consola)
+USE_RESEND_IN_DEV = os.getenv('USE_RESEND_IN_DEV', 'False').lower() == 'true'
+
+if DEBUG and not USE_RESEND_IN_DEV:
+    # En desarrollo: mostrar emails en consola (default)
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    # En desarrollo con Resend O en producción: usar SMTP real
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@turnos.com')
+EMAIL_SUBJECT_PREFIX = '[Turnos] '
+
+# Password reset settings
+PASSWORD_RESET_TIMEOUT = 86400  # 24 horas (en segundos)

@@ -14,6 +14,13 @@ DB_PASSWORD=
 DB_HOST=localhost
 DB_PORT=5432
 
-# Producción (Render) - alternativa recomendada: usar una sola URL
-# DATABASE_URL=postgres://user:password@host:5432/dbname
+USE_RESEND_IN_DEV=True
+
+EMAIL_HOST=smtp.resend.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=resend
+EMAIL_HOST_PASSWORD=re_h7BMukFW_A9KE27EAZL4NPBvDxHFKwQjX
+DEFAULT_FROM_EMAIL=onboarding@resend.dev
+
 

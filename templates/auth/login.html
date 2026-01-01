@@ -21,22 +21,27 @@
             <form method="post" class="space-y-6">
                 {% csrf_token %}
                 
-                <!-- Username -->
+                <!-- Email or Username -->
                 <div>
-                    <label for="username" class="block text-sm font-medium text-slate-300 mb-2">Usuario</label>
+                    <label for="username" class="block text-sm font-medium text-slate-300 mb-2">Email o Usuario</label>
                     <input 
                         type="text" 
                         id="username" 
                         name="username" 
                         required
                         class="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition"
-                        placeholder="Tu usuario"
+                        placeholder="tu@email.com"
                     >
                 </div>
                 
                 <!-- Password -->
                 <div>
-                    <label for="password" class="block text-sm font-medium text-slate-300 mb-2">Contraseña</label>
+                    <div class="flex items-center justify-between mb-2">
+                        <label for="password" class="block text-sm font-medium text-slate-300">Contraseña</label>
+                        <a href="{% url 'password_reset' %}" class="text-xs text-cyan-400 hover:text-cyan-300 transition">
+                            ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
                     <input 
                         type="password" 
                         id="password" 
