@@ -311,7 +311,17 @@ CELERY_ENABLE_UTC = True
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo por tarea
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos warning
-CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+
+# En Windows: usar 'threads' pool en lugar de 'prefork' para evitar PermissionError con billiard
+if os.name == 'nt':  # Windows
+    CELERY_WORKER_POOL = 'threads'
+    CELERY_WORKER_CONCURRENCY = 4  # Menos threads en Windows para estabilidad
+    CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+else:  # Linux/Mac
+    CELERY_WORKER_POOL = 'prefork'
+    CELERY_WORKER_CONCURRENCY = 4
+    CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Reciclar workers después de 1000 tareas
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
