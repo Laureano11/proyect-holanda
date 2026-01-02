@@ -367,7 +367,7 @@ Una vez que tengas todo funcionando:
 1. **Probar en desarrollo** - Verificar que todo funciona correctamente
 2. **Monitorear logs** - Ver que las tareas de Celery se ejecutan
 3. **Medir rendimiento** - Usar Django Debug Toolbar para ver queries
-4. **Deploy a producción** - Seguir guía en `DEPLOYMENT_OPTIMIZATIONS.md`
+4. **Deploy a producción** - Seguir guía en `SETUP_PRODUCTION.md`
 
 ---
 
