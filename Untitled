@@ -1,0 +1,41 @@
+# Configuración de Django
+SECRET_KEY=t6&zx-cuj98a)a-47qw&!%8g2+(eou0j&av%9+-bo4gv0=8_9t
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Para usar con ngrok (evita 403 CSRF al registrarse/loguearse)
+# Podés dejarlo vacío si no usás ngrok.
+CSRF_TRUSTED_ORIGINS=https://*.ngrok-free.dev,https://*.ngrok-free.app
+
+# Base de datos PostgreSQL
+DB_NAME=turnos_db
+DB_USER=lauri11
+DB_PASSWORD=admin
+DB_HOST=localhost
+DB_PORT=5432
+
+# Producción (Render) - alternativa recomendada: usar una sola URL
+# DATABASE_URL=postgres://user:password@host:5432/dbname
+
+# Redis - Caché y Celery (IMPORTANTE para producción)
+# En desarrollo local: redis://localhost:6379/0
+# En Render: automático cuando agregas Redis addon
+REDIS_URL=redis://localhost:6379/0
+
+# Configuración de Email (para recuperación de contraseñas)
+# En desarrollo: 
+#   - USE_RESEND_IN_DEV=False → Los emails se muestran en consola (por defecto)
+#   - USE_RESEND_IN_DEV=True → Los emails se envían realmente con Resend
+# En producción: siempre usa SMTP real
+
+USE_RESEND_IN_DEV=True
+
+# Opción RECOMENDADA: Resend (moderno, confiable, gratis 3K/mes)
+EMAIL_HOST=smtp.resend.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=resend
+EMAIL_HOST_PASSWORD=re_XwFqZWP7_9vnu7zdNE1dgKbHpyYZ7xjpS
+DEFAULT_FROM_EMAIL=onboarding@resend.dev
+
+
