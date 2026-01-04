@@ -7,9 +7,15 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from core.email_views import CustomPasswordResetView
+from core import views as core_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # Mercado Pago - Vista de prueba aislada
+    path('mercadopago/demo/', core_views.mercadopago_checkout_demo, name='mercadopago_checkout_demo'),
+    path('mercadopago/feedback/', core_views.mercadopago_feedback, name='mercadopago_feedback'),
+    path('mercadopago/webhook/', core_views.mercadopago_webhook, name='mercadopago_webhook'),
     
     # Password reset flow (Django built-in views con custom error handling)
     path('password-reset/', 

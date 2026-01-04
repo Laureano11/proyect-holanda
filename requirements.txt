@@ -18,6 +18,9 @@ django-htmx>=1.17.0
 # Variables de entorno
 python-dotenv>=1.0.0
 
+# Pagos
+mercadopago>=2.2.0
+
 # Para desarrollo
 django-debug-toolbar>=4.2.0
 

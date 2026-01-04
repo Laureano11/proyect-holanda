@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout Pro - Demo{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-12 px-6">
+    <h1 class="text-3xl font-semibold mb-4">Checkout Pro (demo aislada)</h1>
+    <p class="text-slate-300 mb-6">
+        Usa este flujo para validar la integración con Mercado Pago antes de conectarlo a los turnos.
+    </p>
+    <form action="{% url 'mercadopago_checkout_demo' %}" method="post" class="space-y-4">
+        {% csrf_token %}
+        <div class="bg-slate-800 rounded-xl p-4 border border-slate-700">
+            <p class="text-sm text-slate-400">Producto de prueba</p>
+            <p class="text-lg font-medium">Turno de Prueba — $100</p>
+        </div>
+        <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-3 rounded-lg transition">
+            Ir a pagar con Mercado Pago
+        </button>
+    </form>
+</div>
+{% endblock %}
+

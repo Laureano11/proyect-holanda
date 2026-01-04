@@ -3,6 +3,7 @@ Views de la aplicación core.
 """
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.conf import settings
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -11,12 +12,15 @@ from django.http import JsonResponse
 from django.db import transaction, IntegrityError
 from django.db.models import Sum, Q
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.urls import reverse
 from datetime import datetime, timedelta, time as dt_time
 from decimal import Decimal
 from .models import Usuario, Complejo, Cancha, Turno, Bloqueo, CreditoCliente, TurnoFijo
 from .services import TurnoService, CreditoService
+import mercadopago
 
 
 def home(request):
@@ -1739,3 +1743,111 @@ def turnos_en_vivo(request):
     }
     
     return render(request, 'staff/turnos_en_vivo.html', context)
+
+
+@require_http_methods(["GET", "POST"])
+def mercadopago_checkout_demo(request):
+    """
+    Vista aislada para testear Checkout Pro antes de integrarlo con los turnos.
+    """
+    if request.method == "GET":
+        return render(request, "mercadopago/iniciar_pago.html")
+    
+    # POST: crear preferencia y redirigir al checkout
+    if not settings.MERCADOPAGO_ACCESS_TOKEN:
+        messages.error(request, "Configurá MERCADOPAGO_ACCESS_TOKEN en tu .env para iniciar pagos.")
+        return redirect("mercadopago_checkout_demo")
+    
+    sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+    feedback_url = request.build_absolute_uri(reverse("mercadopago_feedback"))
+    webhook_url = request.build_absolute_uri(reverse("mercadopago_webhook"))
+    
+    preference = {
+        "items": [
+            {
+                "title": "Turno de Prueba",
+                "quantity": 1,
+                "unit_price": float(Decimal("100.00")),
+                "currency_id": "ARS",
+            }
+        ],
+        "back_urls": {
+            # Para auto_return, MP valida especialmente success. En local (http) suele fallar.
+            "success": feedback_url,
+            "failure": feedback_url,
+            "pending": feedback_url,
+        },
+        # binary_mode fuerza que el pago quede aprobado o rechazado (evita "pending")
+        "binary_mode": True,
+        "external_reference": f"demo-{timezone.now().timestamp()}",
+    }
+    
+    # Mercado Pago puede rechazar auto_return si success no es HTTPS/valida.
+    # En local (http://localhost) es común que falle con:
+    # "auto_return invalid. back_url.success must be defined"
+    if feedback_url.startswith("https://"):
+        preference["auto_return"] = "approved"
+    
+    # Mercado Pago puede rechazar notification_url si no es HTTPS/URL pública válida.
+    # En local (http://localhost) es común el 400: "notification_url attribute must be a valid url"
+    if webhook_url.startswith("https://"):
+        preference["notification_url"] = webhook_url
+    
+    try:
+        preference_response = sdk.preference().create(preference)
+        status_code = preference_response.get("status")
+        body = preference_response.get("response") or {}
+        
+        # En token de test, MP suele proveer `sandbox_init_point`.
+        is_test_token = settings.MERCADOPAGO_ACCESS_TOKEN.startswith("TEST-") or settings.MERCADOPAGO_ACCESS_TOKEN.startswith("mp_test")
+        init_point = body.get("init_point")
+        sandbox_init_point = body.get("sandbox_init_point")
+        
+        checkout_url = (sandbox_init_point if is_test_token else init_point) or init_point or sandbox_init_point
+        if not checkout_url:
+            # Dejar error con información útil (mensaje/cause suele venir en 400/401)
+            mp_message = body.get("message") or body.get("error") or body.get("status")
+            mp_cause = body.get("cause") or body.get("causes") or body.get("details")
+            raise ValueError(
+                f"MP no devolvió URL de checkout (status={status_code}, message={mp_message}, cause={mp_cause})."
+            )
+    except Exception as exc:  # pragma: no cover - manejo defensivo
+        messages.error(request, f"Error al crear la preferencia: {exc}")
+        return redirect("mercadopago_checkout_demo")
+    
+    messages.info(request, "Redirigiendo a Mercado Pago...")
+    return redirect(checkout_url)
+
+
+@require_http_methods(["GET"])
+def mercadopago_feedback(request):
+    """
+    Recibe los parámetros de retorno de Checkout Pro y los muestra para revisión.
+    """
+    context = {
+        "payment_id": request.GET.get("payment_id"),
+        "status": request.GET.get("status"),
+        "merchant_order_id": request.GET.get("merchant_order_id"),
+        "preference_id": request.GET.get("preference_id"),
+    }
+    return render(request, "mercadopago/feedback.html", context)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mercadopago_webhook(request):
+    """
+    Endpoint para recibir notificaciones (webhooks/IPN) de Mercado Pago.
+    
+    Nota: para producción, conviene validar la notificación:
+    - verificar firma/secret (si lo configurás en MP)
+    - y consultar a la API (payment) para obtener el estado final
+    """
+    # MP puede enviar JSON o form-data según configuración/evento
+    try:
+        payload = request.body.decode("utf-8") if request.body else ""
+    except Exception:
+        payload = ""
+    
+    # Respuesta mínima: 200 OK para que MP no reintente
+    return JsonResponse({"ok": True, "received": True, "raw": payload[:2000]})

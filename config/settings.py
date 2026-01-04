@@ -55,6 +55,10 @@ if DEBUG:
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 
+# Integraciones externas
+MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+MERCADOPAGO_PUBLIC_KEY = os.getenv("MERCADOPAGO_PUBLIC_KEY", "")
+
 # Render: autoconfigurar host/CSRF si no se setean explícitamente
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")

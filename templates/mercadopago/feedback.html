@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado del pago{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-12 px-6">
+    <h1 class="text-3xl font-semibold mb-4">Resultado de Mercado Pago</h1>
+    <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 space-y-3">
+        <p><span class="text-slate-400">Payment ID:</span> {{ payment_id|default:"-" }}</p>
+        <p><span class="text-slate-400">Preference ID:</span> {{ preference_id|default:"-" }}</p>
+        <p><span class="text-slate-400">Status:</span> {{ status|default:"-" }}</p>
+        <p><span class="text-slate-400">Merchant Order ID:</span> {{ merchant_order_id|default:"-" }}</p>
+    </div>
+    <p class="text-slate-300 mt-4">
+        Usa estos datos para depurar el flujo y luego actualiza la base de datos según corresponda.
+    </p>
+    <div class="mt-6">
+        <a href="{% url 'mercadopago_checkout_demo' %}" class="text-cyan-400 hover:text-cyan-300 underline">Volver a intentar</a>
+    </div>
+</div>
+{% endblock %}
+
