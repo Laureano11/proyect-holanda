@@ -723,6 +723,11 @@ def editar_turno(request, turno_id):
         id=turno_id
     )
     
+    # Bloquear edición de turnos ya jugados o que ya pasaron
+    if turno.estado == Turno.Estado.JUGADO or turno.ya_paso:
+        messages.error(request, 'Solo se pueden editar turnos futuros que no hayan sido jugados')
+        return redirect('dashboard')
+    
     # Verificar que el staff pertenece al mismo complejo (o es superadmin)
     if not request.user.es_superadmin:
         if not request.user.complejo or request.user.complejo != turno.cancha.complejo:
@@ -758,6 +763,11 @@ def actualizar_turno(request, turno_id):
         Turno.objects.select_related('cancha', 'cancha__complejo'), 
         id=turno_id
     )
+    
+    # Bloquear edición de turnos ya jugados o que ya pasaron
+    if turno.estado == Turno.Estado.JUGADO or turno.ya_paso:
+        messages.error(request, 'Solo se pueden editar turnos futuros que no hayan sido jugados')
+        return redirect('dashboard')
     
     # Verificar que el staff pertenece al mismo complejo (o es superadmin)
     if not request.user.es_superadmin:
