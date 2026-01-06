@@ -94,3 +94,27 @@ def enviar_email_async(self, subject, message, from_email, recipient_list):
         # Reintentar en 5 minutos
         raise self.retry(exc=exc, countdown=300)
 
+
+@shared_task(name='core.tasks.refresh_mp_token')
+def refresh_mp_token(complejo_id):
+    """
+    Refresca el token de Mercado Pago para un complejo usando su refresh_token.
+    Se puede programar con Celery Beat o invocar on-demand.
+    """
+    from core.models import IntegracionMercadoPago
+    from core.services import MercadoPagoOAuthService
+    
+    try:
+        integ = IntegracionMercadoPago.objects.get(complejo_id=complejo_id, activo=True)
+    except IntegracionMercadoPago.DoesNotExist:
+        logger.warning(f"Integración MP no encontrada para complejo {complejo_id}")
+        return {'exito': False, 'error': 'Integración no encontrada'}
+    
+    try:
+        MercadoPagoOAuthService.refresh_tokens(integ)
+        logger.info(f"Token de MP refrescado para complejo {complejo_id}")
+        return {'exito': True}
+    except Exception as exc:
+        logger.error(f"Error refrescando token de MP para complejo {complejo_id}: {exc}")
+        return {'exito': False, 'error': str(exc)}
+

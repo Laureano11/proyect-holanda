@@ -9,6 +9,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
+from django.core import signing
+from django.core.cache import cache
 from django.db import transaction, IntegrityError
 from django.db.models import Sum, Q
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -16,9 +18,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.urls import reverse
+from urllib.parse import urlencode
 from datetime import datetime, timedelta, time as dt_time
 from decimal import Decimal
-from .models import Usuario, Complejo, Cancha, Turno, Bloqueo, CreditoCliente, TurnoFijo
+import base64
+import hashlib
+import secrets
+import requests
+from .models import Usuario, Complejo, Cancha, Turno, Bloqueo, CreditoCliente, TurnoFijo, IntegracionMercadoPago
 from .services import TurnoService, CreditoService
 import mercadopago
 
@@ -464,6 +471,19 @@ def dashboard(request):
             'dia_filtro': dia_filtro or '',
             'dias_semana_selector': dias_semana_selector,
         })
+    
+    # Estado de integración Mercado Pago para admin/staff
+    mp_integration = None
+    if user.complejo:
+        try:
+            mp_integration = user.complejo.mercadopago
+        except IntegracionMercadoPago.DoesNotExist:
+            mp_integration = None
+    context.update({
+        'mp_integration': mp_integration,
+        'mp_oauth_ready': bool(settings.MP_CLIENT_ID and settings.MP_CLIENT_SECRET and settings.MP_REDIRECT_URI),
+        'mp_token_expired': mp_integration.is_expired() if mp_integration else False,
+    })
     
     # Redirigir según rol
     if user.es_superadmin:
@@ -1743,6 +1763,164 @@ def turnos_en_vivo(request):
     }
     
     return render(request, 'staff/turnos_en_vivo.html', context)
+
+
+def _mp_state_key():
+    return getattr(settings, "MP_OAUTH_STATE_SECRET", None) or settings.SECRET_KEY
+
+
+def _mp_code_challenge(verifier: str) -> str:
+    digest = hashlib.sha256(verifier.encode()).digest()
+    return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+
+@login_required
+def mp_oauth_start(request):
+    """Inicia el flujo OAuth (Authorization Code + PKCE) para el complejo del usuario."""
+    if not (settings.MP_CLIENT_ID and settings.MP_CLIENT_SECRET and settings.MP_REDIRECT_URI):
+        messages.error(request, "Falta configurar MP_CLIENT_ID / MP_CLIENT_SECRET / MP_REDIRECT_URI.")
+        return redirect('dashboard')
+    
+    user = request.user
+    if not user.puede_gestionar_complejo:
+        messages.error(request, "No tenés permisos para conectar Mercado Pago.")
+        return redirect('dashboard')
+    
+    complejo = user.complejo or getattr(request, 'complejo_actual', None)
+    if not complejo:
+        messages.error(request, "No se pudo determinar el complejo actual.")
+        return redirect('dashboard')
+    
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge = _mp_code_challenge(code_verifier)
+    state_payload = {
+        "c": complejo.id,
+        "u": user.id,
+        "ts": timezone.now().isoformat(),
+    }
+    state = signing.dumps(state_payload, key=_mp_state_key())
+    cache.set(f"mp_oauth_cv:{state}", code_verifier, timeout=900)
+    
+    params = {
+        "response_type": "code",
+        "client_id": settings.MP_CLIENT_ID,
+        "redirect_uri": settings.MP_REDIRECT_URI,
+        "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+        "platform_id": "mp",
+        "scope": "offline_access",
+    }
+    auth_url = "https://auth.mercadopago.com/authorization?" + urlencode(params)
+    return redirect(auth_url)
+
+
+@login_required
+def mp_oauth_callback(request):
+    """Callback de OAuth: intercambia el code por tokens y los guarda cifrados por complejo."""
+    error = request.GET.get("error")
+    if error:
+        messages.error(request, f"Mercado Pago devolvió un error: {error}")
+        return redirect("dashboard")
+    
+    code = request.GET.get("code")
+    state = request.GET.get("state")
+    if not code or not state:
+        messages.error(request, "Faltan parámetros de OAuth (code/state).")
+        return redirect("dashboard")
+    
+    try:
+        payload = signing.loads(state, key=_mp_state_key(), max_age=900)
+    except Exception:
+        messages.error(request, "State inválido o expirado.")
+        return redirect("dashboard")
+    
+    code_verifier = cache.get(f"mp_oauth_cv:{state}")
+    cache.delete(f"mp_oauth_cv:{state}")
+    if not code_verifier:
+        messages.error(request, "Code verifier expirado. Iniciá de nuevo la conexión.")
+        return redirect("dashboard")
+    
+    complejo_id = payload.get("c")
+    user_id = payload.get("u")
+    if request.user.id != user_id and not request.user.es_superadmin:
+        messages.error(request, "El usuario autenticado no coincide con la solicitud de OAuth.")
+        return redirect("dashboard")
+    
+    data = {
+        "client_id": settings.MP_CLIENT_ID,
+        "client_secret": settings.MP_CLIENT_SECRET,
+        "code": code,
+        "grant_type": "authorization_code",
+        "redirect_uri": settings.MP_REDIRECT_URI,
+        "code_verifier": code_verifier,
+    }
+    
+    try:
+        resp = requests.post(
+            "https://api.mercadopago.com/oauth/token",
+            json=data,
+            timeout=10,
+        )
+        body = resp.json()
+    except Exception as exc:
+        messages.error(request, f"No se pudo contactar a Mercado Pago: {exc}")
+        return redirect("dashboard")
+    
+    if resp.status_code >= 300:
+        mp_msg = body.get("message") or body.get("error") or body
+        messages.error(request, f"Mercado Pago rechazó el intercambio de código: {mp_msg}")
+        return redirect("dashboard")
+    
+    access_token = body.get("access_token")
+    refresh_token = body.get("refresh_token")
+    expires_in = body.get("expires_in")
+    mp_user_id = body.get("user_id")
+    
+    if not access_token:
+        messages.error(request, "Mercado Pago no devolvió access_token.")
+        return redirect("dashboard")
+    
+    integ, _ = IntegracionMercadoPago.objects.get_or_create(
+        complejo_id=complejo_id,
+        defaults={"modo": IntegracionMercadoPago.Modo.PROD},
+    )
+    integ.set_tokens(access_token, refresh_token=refresh_token, expires_in=expires_in, mp_user_id=mp_user_id)
+    integ.save()
+    
+    messages.success(request, "Cuenta de Mercado Pago conectada correctamente.")
+    return redirect("dashboard")
+
+
+@login_required
+def mp_oauth_disconnect(request):
+    """Desconecta (revoca localmente) las credenciales del complejo del usuario."""
+    user = request.user
+    if not user.puede_gestionar_complejo:
+        messages.error(request, "No tenés permisos para desconectar Mercado Pago.")
+        return redirect("dashboard")
+    
+    complejo = user.complejo or getattr(request, 'complejo_actual', None)
+    if not complejo:
+        messages.error(request, "No se pudo determinar el complejo actual.")
+        return redirect("dashboard")
+    
+    try:
+        integ = complejo.mercadopago
+    except IntegracionMercadoPago.DoesNotExist:
+        messages.info(request, "El complejo no tiene integración configurada.")
+        return redirect("dashboard")
+    
+    integ.access_token = None
+    integ.refresh_token = None
+    integ.token_expires_at = None
+    integ.mp_user_id = None
+    integ.activo = False
+    integ.revoked_at = timezone.now()
+    integ.save(update_fields=['access_token', 'refresh_token', 'token_expires_at', 'mp_user_id', 'activo', 'revoked_at', 'updated_at'])
+    
+    messages.success(request, "Mercado Pago fue desconectado para este complejo.")
+    return redirect("dashboard")
 
 
 @require_http_methods(["GET", "POST"])

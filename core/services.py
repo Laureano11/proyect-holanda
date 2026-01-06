@@ -8,6 +8,8 @@ from django.db.models import Sum
 from django.core.cache import cache
 from datetime import datetime, timedelta
 from decimal import Decimal
+import requests
+from django.conf import settings
 
 
 class TurnoService:
@@ -543,6 +545,49 @@ class CreditoService:
             raise ValueError(f"Error de validación: {e}")
         
         return credito
+
+
+class MercadoPagoOAuthService:
+    """
+    Maneja intercambio/refresh de tokens OAuth de Mercado Pago a nivel de integración por complejo.
+    """
+    
+    TOKEN_URL = "https://api.mercadopago.com/oauth/token"
+
+    @staticmethod
+    def refresh_tokens(integration):
+        """
+        Refresca el access_token usando refresh_token almacenado.
+        Guarda los nuevos tokens cifrados en la integración.
+        """
+        from core.utils.crypto import decrypt_string
+        
+        if not integration.refresh_token:
+            raise ValueError("No hay refresh_token guardado para este complejo.")
+        
+        refresh_token_plain = integration.refresh_token_plain
+        data = {
+            "grant_type": "refresh_token",
+            "client_id": settings.MP_CLIENT_ID,
+            "client_secret": settings.MP_CLIENT_SECRET,
+            "refresh_token": refresh_token_plain,
+        }
+        resp = requests.post(MercadoPagoOAuthService.TOKEN_URL, json=data, timeout=10)
+        body = resp.json()
+        if resp.status_code >= 300:
+            raise ValueError(body.get("message") or body.get("error") or body)
+        
+        access_token = body.get("access_token")
+        new_refresh_token = body.get("refresh_token") or refresh_token_plain
+        expires_in = body.get("expires_in")
+        mp_user_id = body.get("user_id") or integration.mp_user_id
+        
+        if not access_token:
+            raise ValueError("Mercado Pago no devolvió access_token en el refresh.")
+        
+        integration.set_tokens(access_token, refresh_token=new_refresh_token, expires_in=expires_in, mp_user_id=mp_user_id)
+        integration.save()
+        return integration
     
     @staticmethod
     def generar_turnos_desde_fijos(complejo, fecha_desde=None, fecha_hasta=None):

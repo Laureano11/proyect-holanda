@@ -51,4 +51,9 @@ urlpatterns = [
     path('turnos-actuales/', views.turnos_actuales, name='turnos_actuales'),
     path('historial/', views.historial_turnos, name='historial_turnos'),
     path('mi-perfil/', views.mi_perfil, name='mi_perfil'),
+    
+    # Mercado Pago OAuth por complejo
+    path('mercadopago/oauth/start/', views.mp_oauth_start, name='mp_oauth_start'),
+    path('mercadopago/oauth/callback/', views.mp_oauth_callback, name='mp_oauth_callback'),
+    path('mercadopago/oauth/disconnect/', views.mp_oauth_disconnect, name='mp_oauth_disconnect'),
 ]

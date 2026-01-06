@@ -58,6 +58,10 @@ CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 # Integraciones externas
 MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
 MERCADOPAGO_PUBLIC_KEY = os.getenv("MERCADOPAGO_PUBLIC_KEY", "")
+MP_CLIENT_ID = os.getenv("MP_CLIENT_ID", "")
+MP_CLIENT_SECRET = os.getenv("MP_CLIENT_SECRET", "")
+MP_REDIRECT_URI = os.getenv("MP_REDIRECT_URI", "")
+FIELD_ENCRYPTION_KEY = os.getenv("FIELD_ENCRYPTION_KEY", "")
 
 # Render: autoconfigurar host/CSRF si no se setean explícitamente
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")

@@ -1026,10 +1026,20 @@ class IntegracionMercadoPago(models.Model):
         verbose_name='Complejo'
     )
     
-    access_token = models.CharField(
-        max_length=255,
+    access_token = models.TextField(
         verbose_name='Access Token',
-        help_text='Token de acceso de Mercado Pago'
+        help_text='Token de acceso de Mercado Pago (cifrado)'
+    )
+    refresh_token = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Refresh Token',
+        help_text='Refresh token de Mercado Pago (cifrado)'
+    )
+    token_expires_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='Vence el'
     )
     public_key = models.CharField(
         max_length=255,
@@ -1044,9 +1054,26 @@ class IntegracionMercadoPago(models.Model):
         default=Modo.TEST,
         verbose_name='Modo'
     )
+    mp_user_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='ID usuario MP',
+        help_text='Identificador del vendedor en Mercado Pago'
+    )
     activo = models.BooleanField(
         default=True,
         verbose_name='Activo'
+    )
+    connected_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='Conectado el'
+    )
+    revoked_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='Desconectado el'
     )
     
     # Webhook URL se genera automáticamente basado en el complejo
@@ -1067,3 +1094,57 @@ class IntegracionMercadoPago(models.Model):
     
     def __str__(self):
         return f"MP - {self.complejo} ({self.get_modo_display()})"
+
+    def set_tokens(self, access_token, refresh_token=None, expires_in=None, mp_user_id=None):
+        """Configura tokens cifrados y marca la conexión activa."""
+        from django.utils import timezone
+        from datetime import timedelta
+        from core.utils.crypto import encrypt_string
+        self.access_token = encrypt_string(access_token) if access_token else None
+        if refresh_token is not None:
+            self.refresh_token = encrypt_string(refresh_token) if refresh_token else None
+        if expires_in:
+            self.token_expires_at = timezone.now() + timedelta(seconds=expires_in)
+        if mp_user_id:
+            self.mp_user_id = str(mp_user_id)
+        self.activo = True
+        if not self.connected_at:
+            self.connected_at = timezone.now()
+        self.revoked_at = None
+
+    @property
+    def access_token_plain(self):
+        """Devuelve el access token descifrado (o None)."""
+        from core.utils.crypto import decrypt_string
+        return decrypt_string(self.access_token)
+
+    @property
+    def refresh_token_plain(self):
+        """Devuelve el refresh token descifrado (o None)."""
+        from core.utils.crypto import decrypt_string
+        return decrypt_string(self.refresh_token)
+
+    def access_token_masked(self):
+        """Token enmascarado para mostrar en admin."""
+        token = self.access_token_plain
+        if not token:
+            return "—"
+        if len(token) <= 8:
+            return "***"
+        return f"{token[:4]}...{token[-4:]}"
+    access_token_masked.short_description = "Access token"
+
+    def refresh_token_masked(self):
+        token = self.refresh_token_plain
+        if not token:
+            return "—"
+        if len(token) <= 8:
+            return "***"
+        return f"{token[:4]}...{token[-4:]}"
+    refresh_token_masked.short_description = "Refresh token"
+
+    def is_expired(self):
+        from django.utils import timezone
+        if not self.token_expires_at:
+            return False
+        return timezone.now() >= self.token_expires_at

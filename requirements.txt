@@ -20,6 +20,8 @@ python-dotenv>=1.0.0
 
 # Pagos
 mercadopago>=2.2.0
+cryptography>=42.0.0
+requests>=2.31.0
 
 # Para desarrollo
 django-debug-toolbar>=4.2.0
@@ -30,6 +32,10 @@ django-tailwind>=3.5.0,<3.7.0
 
 # Utilidades
 django-extensions>=3.2.3
+
+# Fix macOS LibreSSL warning: urllib3 v2 requiere OpenSSL 1.1.1+.
+# Si tu Python está compilado con LibreSSL, pinneamos urllib3 < 2.
+urllib3<2
 
 # Producción - Servir archivos estáticos
 whitenoise>=6.6.0

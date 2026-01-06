@@ -5,6 +5,7 @@ Multi-tenant: Los usuarios admin/staff solo ven datos de su complejo.
 Superadmin puede ver todo.
 """
 
+from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
@@ -114,6 +115,27 @@ class IntegracionMercadoPagoInline(admin.StackedInline):
     model = IntegracionMercadoPago
     can_delete = False
     classes = ['collapse']
+    extra = 0
+    readonly_fields = (
+        'access_token_masked',
+        'refresh_token_masked',
+        'token_expires_at',
+        'mp_user_id',
+        'connected_at',
+        'revoked_at',
+    )
+    fields = (
+        'modo',
+        'activo',
+        'public_key',
+        'webhook_secret',
+        'access_token_masked',
+        'refresh_token_masked',
+        'token_expires_at',
+        'mp_user_id',
+        'connected_at',
+        'revoked_at',
+    )
 
 
 class CanchaInline(admin.TabularInline):
@@ -293,21 +315,30 @@ class CreditoClienteAdmin(ComplejoFilterMixin, admin.ModelAdmin):
 class IntegracionMercadoPagoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
     """Admin para IntegracionMercadoPago con filtrado por complejo."""
     
-    list_display = ['complejo', 'modo', 'activo', 'updated_at']
+    list_display = ['complejo', 'modo', 'activo', 'mp_user_id', 'token_expires_at', 'updated_at']
     list_filter = ['modo', 'activo']
     search_fields = ['complejo__nombre']
-    readonly_fields = ['created_at', 'updated_at']
+    readonly_fields = [
+        'access_token_masked',
+        'refresh_token_masked',
+        'token_expires_at',
+        'mp_user_id',
+        'connected_at',
+        'revoked_at',
+        'created_at',
+        'updated_at',
+    ]
     
     fieldsets = (
         ('Complejo', {
             'fields': ('complejo',)
         }),
         ('Credenciales', {
-            'fields': ('access_token', 'public_key', 'webhook_secret'),
-            'description': 'Nunca compartas estas credenciales. Obtenerlas desde el panel de Mercado Pago.'
+            'fields': ('public_key', 'webhook_secret', 'access_token_masked', 'refresh_token_masked', 'token_expires_at'),
+            'description': 'Las credenciales se generan vía OAuth. No se muestran valores completos.'
         }),
         ('Configuración', {
-            'fields': ('modo', 'activo')
+            'fields': ('modo', 'activo', 'mp_user_id', 'connected_at', 'revoked_at')
         }),
         ('Auditoría', {
             'fields': ('created_at', 'updated_at'),

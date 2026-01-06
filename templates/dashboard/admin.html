@@ -125,7 +125,25 @@
                 </div>
                 <div>
                     <h3 class="font-semibold text-white text-lg">Pagos</h3>
-                    <p class="text-slate-400 text-sm">Configurar Mercado Pago</p>
+                    {% if mp_integration and mp_integration.activo %}
+                        <p class="text-emerald-400 text-sm">Conectado a Mercado Pago{% if mp_integration.mp_user_id %} ({{ mp_integration.mp_user_id }}){% endif %}</p>
+                        {% if mp_token_expired %}
+                            <p class="text-amber-400 text-xs mt-1">Token vencido, reconectá para renovarlo.</p>
+                        {% elif mp_integration.token_expires_at %}
+                            <p class="text-slate-400 text-xs mt-1">Vence: {{ mp_integration.token_expires_at|date:"d/m/Y H:i" }}</p>
+                        {% endif %}
+                        <div class="mt-3 flex gap-3">
+                            <a href="{% url 'mp_oauth_disconnect' %}" class="px-4 py-2 text-sm bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition">Desconectar</a>
+                            <a href="{% url 'mp_oauth_start' %}" class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">Reconectar</a>
+                        </div>
+                    {% elif mp_oauth_ready %}
+                        <p class="text-slate-400 text-sm">Conectá tu cuenta de Mercado Pago para cobrar directo.</p>
+                        <div class="mt-3">
+                            <a href="{% url 'mp_oauth_start' %}" class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">Conectar Mercado Pago</a>
+                        </div>
+                    {% else %}
+                        <p class="text-amber-400 text-sm">Faltan MP_CLIENT_ID / MP_CLIENT_SECRET / MP_REDIRECT_URI (config global).</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
