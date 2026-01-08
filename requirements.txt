@@ -36,3 +36,6 @@ gunicorn>=21.2.0
 
 # Imágenes (Pillow para ImageField)
 Pillow>=10.0.0
+
+# Backups automáticos de base de datos
+django-dbbackup>=4.1.0

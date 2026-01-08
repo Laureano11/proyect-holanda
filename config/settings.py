@@ -100,6 +100,7 @@ INSTALLED_APPS = [
     
     # Third party apps
     'django_htmx',
+    'dbbackup',  # Backups de BD y media
     
     # Local apps
     'core',
@@ -381,3 +382,14 @@ PASSWORD_RESET_TIMEOUT = 86400  # 24 horas (en segundos)
 
 # Django Sites Framework (necesario para password reset emails)
 SITE_ID = 1
+
+
+# Backups automatizados (django-dbbackup)
+# Ubicación local por defecto; se puede apuntar a S3 u otro backend vía env.
+DBBACKUP_STORAGE = 'django.core.files.storage.FileSystemStorage'
+DBBACKUP_STORAGE_OPTIONS = {
+    'location': BASE_DIR / 'backups',
+}
+# Mantener 14 copias al limpiar; ajustable con DBBACKUP_CLEANUP_KEEP
+DBBACKUP_CLEANUP_KEEP = int(os.getenv('DBBACKUP_CLEANUP_KEEP', '14'))
+DBBACKUP_FILENAME_TEMPLATE = 'turnos-{datetime}.psql'

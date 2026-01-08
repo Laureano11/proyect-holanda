@@ -30,6 +30,11 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.limpiar_turnos_expirados_task',
         'schedule': crontab(minute='*/10'),  # Cada 10 minutos
     },
+    # Backup completo de la base de datos diariamente a las 03:30 AM
+    'backup-base-datos-diario': {
+        'task': 'core.tasks.respaldar_base_datos_task',
+        'schedule': crontab(minute=30, hour=3),
+    },
 }
 
 

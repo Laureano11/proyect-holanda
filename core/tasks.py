@@ -6,6 +6,9 @@ from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
 import logging
+from django.conf import settings
+from django.core.management import call_command
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -93,4 +96,22 @@ def enviar_email_async(self, subject, message, from_email, recipient_list):
         logger.error(f"Error enviando email: {str(exc)}")
         # Reintentar en 5 minutos
         raise self.retry(exc=exc, countdown=300)
+
+
+@shared_task(name='core.tasks.respaldar_base_datos_task')
+def respaldar_base_datos_task():
+    """
+    Genera un backup de la base de datos usando django-dbbackup.
+    Incluye limpieza automática según DBBACKUP_CLEANUP_KEEP.
+    """
+    try:
+        backup_dir = Path(settings.BACKUP_ROOT if hasattr(settings, "BACKUP_ROOT") else settings.BASE_DIR / "backups")
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        # clean=True respeta DBBACKUP_CLEANUP_KEEP para retención
+        call_command('dbbackup', clean=True, verbosity=1)
+        logger.info("Backup de base de datos generado exitosamente")
+        return {'exito': True, 'destino': str(backup_dir)}
+    except Exception as exc:
+        logger.exception("Error al generar backup de base de datos")
+        return {'exito': False, 'error': str(exc)}
 
