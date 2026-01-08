@@ -213,6 +213,13 @@ def dashboard(request):
     fecha_minima_default = hoy - timedelta(days=rango_selector_dias)
     fecha_maxima_default = hoy + timedelta(days=rango_selector_dias)
     
+    # Layouts compactos para staff/admin (persisten en sesión)
+    staff_layout = request.session.get("staff_layout", "classic")
+    layout_param = request.GET.get("layout")
+    if layout_param in ["classic", "compact"]:
+        staff_layout = layout_param
+        request.session["staff_layout"] = staff_layout
+
     context = {
         'user': user,
         'hoy': hoy,
@@ -220,6 +227,7 @@ def dashboard(request):
         'fecha_minima': fecha_minima_default,
         'fecha_maxima': fecha_maxima_default,
         'es_fecha_pasada': False,
+        'staff_layout': staff_layout,
     }
     
     # Si es cliente, calcular turnos disponibles del día
@@ -491,7 +499,8 @@ def dashboard(request):
     elif user.es_admin:
         return render(request, 'dashboard/admin.html', context)
     elif user.es_staff_complejo:
-        return render(request, 'dashboard/staff.html', context)
+        staff_template = 'dashboard/staff_compact.html' if staff_layout == 'compact' else 'dashboard/staff.html'
+        return render(request, staff_template, context)
     else:
         return render(request, 'dashboard/cliente.html', context)
 

@@ -1,0 +1,207 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block title %}Panel Staff (Compacto){% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-6">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <h1 class="text-2xl font-semibold text-white">Turnos (vista compacta)</h1>
+                {% if complejo %}
+                <span class="text-sm text-slate-400">{{ complejo.nombre }} • {{ hoy|date:"d/m/Y" }}</span>
+                {% endif %}
+            </div>
+            <p class="text-slate-400 text-sm">Solo columnas clave: Cancha, Hora, Fecha, Usuario, Estado. Detalles expandibles.</p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+            <a href="?layout=classic{% if vista_tab %}&vista={{ vista_tab }}{% endif %}" class="px-4 py-2 bg-slate-800/70 border border-slate-700 text-sm font-medium text-slate-200 rounded-lg hover:border-slate-500 transition">
+                Volver a vista clásica
+            </a>
+            <a href="?layout=compact&vista={{ vista_tab|default:'activos' }}" class="px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded-lg hover:bg-cyan-600 transition">
+                Mantener compacta
+            </a>
+        </div>
+    </div>
+
+    {% if complejo %}
+    <!-- Tabs -->
+    <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex gap-2">
+            <a href="?vista=activos&layout=compact" class="px-4 py-2 rounded-lg text-sm font-medium transition {% if vista_tab == 'activos' %}bg-cyan-500 text-white{% else %}bg-slate-800/60 text-slate-300 border border-slate-700/60 hover:text-white{% endif %}">
+                Turnos Activos
+            </a>
+            <a href="?vista=historial&layout=compact" class="px-4 py-2 rounded-lg text-sm font-medium transition {% if vista_tab == 'historial' %}bg-cyan-500 text-white{% else %}bg-slate-800/60 text-slate-300 border border-slate-700/60 hover:text-white{% endif %}">
+                Historial
+            </a>
+        </div>
+        <span class="text-xs text-slate-400">Total: {{ turnos_complejo.paginator.count }}</span>
+    </div>
+
+    <!-- Filtros mínimos -->
+    <form method="get" class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+        <input type="hidden" name="vista" value="{{ vista_tab }}">
+        <input type="hidden" name="layout" value="compact">
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400">Estado</label>
+            <select name="estado" class="px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                <option value="">Todos</option>
+                <option value="confirmado" {% if estado_filtro == 'confirmado' %}selected{% endif %}>Confirmado</option>
+                <option value="pendiente_pago" {% if estado_filtro == 'pendiente_pago' %}selected{% endif %}>Pendiente</option>
+                <option value="bloqueado" {% if estado_filtro == 'bloqueado' %}selected{% endif %}>Bloqueado</option>
+                <option value="cancelados" {% if estado_filtro == 'cancelados' %}selected{% endif %}>Cancelados</option>
+                <option value="expirado" {% if estado_filtro == 'expirado' %}selected{% endif %}>Expirado</option>
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400">Cancha</label>
+            <select name="cancha" class="px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                <option value="">Todas</option>
+                {% for cancha in canchas %}
+                <option value="{{ cancha.id }}" {% if cancha_filtro|default_if_none:'' == cancha.id|stringformat:"s" %}selected{% endif %}>{{ cancha.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400">Cliente</label>
+            <input type="text" name="cliente" value="{{ cliente_filtro }}" placeholder="Nombre o usuario" class="px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400">Fecha</label>
+            <div class="flex gap-2">
+                <input type="date" name="desde" value="{{ desde }}" class="w-1/2 px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                <input type="date" name="hasta" value="{{ hasta }}" class="w-1/2 px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+            </div>
+        </div>
+        <div class="flex items-end gap-2">
+            <button type="submit" class="px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition">Aplicar</button>
+            <a href="{% url 'dashboard' %}?vista={{ vista_tab }}&layout=compact" class="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-600 rounded hover:bg-slate-700/60 transition">Limpiar</a>
+        </div>
+    </form>
+
+    <!-- Tabla compacta -->
+    {% if turnos_complejo %}
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="overflow-auto">
+            <table class="min-w-full text-sm text-slate-200">
+                <thead class="bg-slate-800/80 text-xs uppercase text-slate-400 sticky top-0 z-10">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Cancha</th>
+                        <th class="px-4 py-3 text-left">Hora</th>
+                        <th class="px-4 py-3 text-left">Fecha</th>
+                        <th class="px-4 py-3 text-left">Usuario</th>
+                        <th class="px-4 py-3 text-left">Estado</th>
+                        <th class="px-4 py-3 text-left">Detalle</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/80">
+                    {% for turno in turnos_complejo %}
+                    <tr class="hover:bg-slate-800/40">
+                        <td class="px-4 py-3 whitespace-nowrap font-medium text-white">{{ turno.cancha.nombre }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">{{ turno.fecha|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-white">{{ turno.cliente.first_name|default:turno.cliente.username }}</div>
+                            <div class="text-[11px] text-slate-400">{{ turno.cliente.username }}</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 rounded text-xs font-medium
+                                {% if turno.estado_visual == 'Jugado' %}bg-green-600/20 text-green-300
+                                {% elif turno.estado_visual == 'Pagado completo' %}bg-emerald-500/20 text-emerald-300
+                                {% elif turno.estado_visual == 'Reservado con seña' %}bg-amber-500/20 text-amber-300
+                                {% elif turno.estado_visual == 'Reservado' %}bg-blue-500/20 text-blue-300
+                                {% elif turno.estado_visual == 'Bloqueado' %}bg-purple-500/20 text-purple-300
+                                {% elif turno.estado_visual == 'No disponible' %}bg-slate-600/40 text-slate-200
+                                {% elif turno.estado_visual == 'Cancelado' %}bg-red-500/20 text-red-300
+                                {% else %}bg-slate-700/40 text-slate-200{% endif %}">
+                                {{ turno.estado_visual }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <button 
+                                type="button"
+                                class="px-3 py-1.5 text-xs bg-slate-800/60 border border-slate-700 rounded text-slate-200 hover:border-cyan-500 transition"
+                                onclick="const row=this.closest('tr'); const d=row.nextElementSibling; d.classList.toggle('hidden');">
+                                Ver detalles
+                            </button>
+                        </td>
+                    </tr>
+                    <tr class="hidden bg-slate-900/70">
+                        <td colspan="6" class="px-4 py-3">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-200">
+                                <div>
+                                    <p class="text-slate-400">Precio</p>
+                                    <p class="text-white font-semibold">${{ turno.precio_total|floatformat:0 }}</p>
+                                    {% if turno.senia_pagada > 0 %}
+                                    <p class="text-amber-400">Seña: ${{ turno.senia_pagada|floatformat:0 }}</p>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <p class="text-slate-400">Contacto</p>
+                                    <p>Email: {{ turno.cliente.email|default:"-" }}</p>
+                                    <p>Celular: {{ turno.cliente.celular|default:"-" }}</p>
+                                </div>
+                                <div class="flex gap-2 items-start">
+                                    {% if not turno.fue_cancelado and vista_tab != 'historial' %}
+                                    <form method="post" action="{% url 'cancelar_turno_staff' turno.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" onclick="return confirm('¿Cancelar turno de {{ turno.cliente.first_name|default:turno.cliente.username }}?')" class="px-3 py-1.5 text-xs bg-red-500/20 text-red-300 rounded hover:bg-red-500/30 transition">Cancelar</button>
+                                    </form>
+                                    {% if not turno.esta_pagado_completo %}
+                                    <form method="post" action="{% url 'marcar_turno_pagado' turno.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" onclick="return confirm('¿Marcar turno como pagado completamente?')" class="px-3 py-1.5 text-xs bg-emerald-500/20 text-emerald-300 rounded hover:bg-emerald-500/30 transition">Marcar pagado</button>
+                                    </form>
+                                    {% endif %}
+                                    <a href="{% url 'editar_turno' turno.id %}" class="px-3 py-1.5 text-xs bg-cyan-500/20 text-cyan-200 rounded hover:bg-cyan-500/30 transition">Editar</a>
+                                    {% else %}
+                                    <span class="text-slate-500">Sin acciones</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if turnos_complejo.has_other_pages %}
+        <div class="flex items-center justify-between px-4 py-3 text-sm text-slate-300 border-t border-slate-800">
+            <div>Página {{ turnos_complejo.number }} de {{ turnos_complejo.paginator.num_pages }}</div>
+            <div class="flex items-center gap-2">
+                {% if turnos_complejo.has_previous %}
+                <a href="?vista={{ vista_tab }}&layout=compact&page={{ turnos_complejo.previous_page_number }}{% if querystring and 'vista=' not in querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Anterior</a>
+                {% else %}
+                <span class="px-3 py-1 rounded border border-slate-800 text-slate-600">Anterior</span>
+                {% endif %}
+
+                {% if turnos_complejo.has_next %}
+                <a href="?vista={{ vista_tab }}&layout=compact&page={{ turnos_complejo.next_page_number }}{% if querystring and 'vista=' not in querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Siguiente</a>
+                {% else %}
+                <span class="px-3 py-1 rounded border border-slate-800 text-slate-600">Siguiente</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-8 text-center">
+        <p class="text-slate-400 text-sm">
+            {% if vista_tab == 'historial' %}
+                No hay turnos en el historial
+            {% else %}
+                No hay turnos activos
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="bg-slate-800/30 border border-slate-700/50 rounded-lg p-8 text-center">
+        <p class="text-slate-400 text-sm">No tenés un complejo asignado</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
