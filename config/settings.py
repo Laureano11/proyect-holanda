@@ -388,7 +388,9 @@ SITE_ID = 1
 # Ubicación local por defecto; se puede apuntar a S3 u otro backend vía env.
 DBBACKUP_STORAGE = 'django.core.files.storage.FileSystemStorage'
 DBBACKUP_STORAGE_OPTIONS = {
-    'location': BASE_DIR / 'backups',
+    # En Render, usar un Disco Persistente y setear BACKUP_DIR (ej: /var/data/backups).
+    # Si no se setea, se usa filesystem local (ojo: puede ser efímero en algunos hosts).
+    'location': os.getenv('BACKUP_DIR') or (BASE_DIR / 'backups'),
 }
 # Mantener 14 copias al limpiar; ajustable con DBBACKUP_CLEANUP_KEEP
 DBBACKUP_CLEANUP_KEEP = int(os.getenv('DBBACKUP_CLEANUP_KEEP', '14'))

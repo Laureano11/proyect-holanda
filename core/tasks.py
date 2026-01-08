@@ -6,9 +6,8 @@ from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
 import logging
-from django.conf import settings
 from django.core.management import call_command
-from pathlib import Path
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -105,13 +104,37 @@ def respaldar_base_datos_task():
     Incluye limpieza automática según DBBACKUP_CLEANUP_KEEP.
     """
     try:
-        backup_dir = Path(settings.BACKUP_ROOT if hasattr(settings, "BACKUP_ROOT") else settings.BASE_DIR / "backups")
-        backup_dir.mkdir(parents=True, exist_ok=True)
         # clean=True respeta DBBACKUP_CLEANUP_KEEP para retención
         call_command('dbbackup', clean=True, verbosity=1)
         logger.info("Backup de base de datos generado exitosamente")
-        return {'exito': True, 'destino': str(backup_dir)}
+        return {'exito': True}
     except Exception as exc:
         logger.exception("Error al generar backup de base de datos")
         return {'exito': False, 'error': str(exc)}
+
+
+@shared_task(name='core.tasks.ops_celery_ping_task')
+def ops_celery_ping_task():
+    """
+    Tarea liviana para validar que el celery-worker está procesando jobs.
+    """
+    return {
+        'ok': True,
+        'ts': timezone.now().isoformat(),
+    }
+
+
+@shared_task(name='core.tasks.ops_celery_beat_heartbeat_task')
+def ops_celery_beat_heartbeat_task():
+    """
+    Tarea periódica (Beat) que escribe un heartbeat en Redis/cache.
+    El endpoint ops lo usa para confirmar que celery-beat está corriendo.
+    """
+    try:
+        now = timezone.now()
+        cache.set('ops:celery_beat_heartbeat', now.isoformat(), timeout=60 * 60)
+        return {'ok': True, 'ts': now.isoformat()}
+    except Exception as exc:
+        logger.exception("Error escribiendo heartbeat de celery-beat")
+        return {'ok': False, 'error': str(exc)}
 

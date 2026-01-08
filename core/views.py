@@ -2,12 +2,17 @@
 Views de la aplicación core.
 """
 
+import os
+from hmac import compare_digest
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
+from django.core.cache import cache
+from django.utils.dateparse import parse_datetime
 from django.db import transaction, IntegrityError
 from django.db.models import Sum, Q
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -1749,3 +1754,85 @@ def turnos_en_vivo(request):
     }
     
     return render(request, 'staff/turnos_en_vivo.html', context)
+
+
+@login_required
+def ops_health(request):
+    """
+    Endpoint de diagnóstico (producción) para validar:
+    - Redis/cache accesible
+    - celery-worker procesando tareas
+    - celery-beat corriendo (via heartbeat en cache)
+    
+    Seguridad:
+    - Requiere usuario logueado
+    - Requiere superadmin
+    - Requiere token secreto (OPS_HEALTHCHECK_TOKEN) por header X-Ops-Token o ?token=
+    """
+    # 1) Solo superadmin
+    if not getattr(request.user, "es_superadmin", False):
+        return JsonResponse({"ok": False, "error": "No autorizado"}, status=403)
+
+    # 2) Token secreto por env
+    expected = (os.getenv("OPS_HEALTHCHECK_TOKEN") or "").strip()
+    provided = (request.headers.get("X-Ops-Token") or request.GET.get("token") or "").strip()
+    if not expected or not provided or not compare_digest(provided, expected):
+        # 404 para no filtrar existencia del endpoint
+        return JsonResponse({"detail": "Not found"}, status=404)
+
+    data: dict = {"ok": False, "checks": {}}
+
+    # Redis / cache
+    redis_ok = False
+    redis_error = None
+    try:
+        cache.set("ops:redis_probe", "ok", timeout=30)
+        redis_ok = cache.get("ops:redis_probe") == "ok"
+    except Exception as exc:
+        redis_error = str(exc)
+    data["checks"]["redis_cache"] = {"ok": redis_ok, "error": redis_error}
+
+    # Celery worker (ejecuta una tarea y espera breve)
+    worker_ok = False
+    worker_state = "unknown"
+    worker_error = None
+    try:
+        from core.tasks import ops_celery_ping_task
+        res = ops_celery_ping_task.delay()
+        worker_state = res.state
+        try:
+            payload = res.get(timeout=2)
+            worker_ok = bool(payload and payload.get("ok") is True)
+            worker_state = "SUCCESS" if worker_ok else res.state
+        except Exception as exc:  # timeout u otros
+            worker_ok = False
+            worker_error = f"{type(exc).__name__}: {exc}"
+            worker_state = res.state
+    except Exception as exc:
+        worker_ok = False
+        worker_error = f"{type(exc).__name__}: {exc}"
+    data["checks"]["celery_worker"] = {"ok": worker_ok, "state": worker_state, "error": worker_error}
+
+    # Celery beat (heartbeat periódico)
+    beat_ok = False
+    beat_error = None
+    beat_last_iso = None
+    try:
+        beat_last_iso = cache.get("ops:celery_beat_heartbeat")
+        if beat_last_iso:
+            dt = parse_datetime(beat_last_iso)
+            if dt is not None:
+                if timezone.is_naive(dt):
+                    dt = timezone.make_aware(dt, timezone.get_current_timezone())
+                age = (timezone.now() - dt).total_seconds()
+                beat_ok = age <= 180  # 3 minutos de tolerancia
+            else:
+                beat_error = "Formato de heartbeat inválido"
+        else:
+            beat_error = "Heartbeat no encontrado"
+    except Exception as exc:
+        beat_error = f"{type(exc).__name__}: {exc}"
+    data["checks"]["celery_beat"] = {"ok": beat_ok, "last": beat_last_iso, "error": beat_error}
+
+    data["ok"] = bool(redis_ok and worker_ok and beat_ok)
+    return JsonResponse(data, status=200 if data["ok"] else 503)

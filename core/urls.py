@@ -7,6 +7,9 @@ from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
+
+    # Ops / diagnóstico (solo superadmin + token)
+    path('_ops/health/', views.ops_health, name='ops_health'),
     
     # Auth
     path('login/', views.login_view, name='login'),
