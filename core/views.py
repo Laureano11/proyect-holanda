@@ -1748,7 +1748,12 @@ def turnos_actuales(request):
         cliente=request.user,
         cancha__complejo=complejo
     ).exclude(
-        estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+        estado__in=[
+            Turno.Estado.CANCELADO_USUARIO,
+            Turno.Estado.CANCELADO_ADMIN,
+            Turno.Estado.EXPIRADO,
+            Turno.Estado.JUGADO,  # Jugados se muestran solo en historial
+        ]
     ).select_related('cancha', 'cancha__complejo', 'cliente').order_by('fecha', 'hora_inicio')
     
     context = {
