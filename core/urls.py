@@ -57,4 +57,10 @@ urlpatterns = [
     path('mercadopago/oauth/callback/', views.mp_oauth_callback, name='mp_oauth_callback'),
     path('mercadopago/oauth/disconnect/', views.mp_oauth_disconnect, name='mp_oauth_disconnect'),
     path('mercadopago/oauth/debug/', views.mp_oauth_debug, name='mp_oauth_debug'),
+
+    # Mercado Pago - pruebas / feedback / webhooks
+    path('mercadopago/test/pagar-100/', views.mp_test_pagar_100, name='mp_test_pagar_100'),
+    path('mercadopago/demo/', views.mercadopago_checkout_demo, name='mercadopago_checkout_demo'),
+    path('mercadopago/feedback/', views.mercadopago_feedback, name='mercadopago_feedback'),
+    path('mercadopago/webhook/', views.mercadopago_webhook, name='mercadopago_webhook'),
 ]

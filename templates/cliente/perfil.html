@@ -9,6 +9,32 @@
         <h1 class="text-2xl font-semibold text-white">Mi Perfil</h1>
         <p class="text-slate-400 text-sm mt-0.5">Información personal</p>
     </div>
+
+    <!-- Pago de prueba Mercado Pago -->
+    {% if user.complejo %}
+    <div class="bg-slate-800/30 rounded-lg p-6 border border-slate-700/50">
+        <div class="flex items-start justify-between gap-6 flex-wrap">
+            <div>
+                <h3 class="text-lg font-semibold text-white">Pago de prueba</h3>
+                <p class="text-slate-400 text-sm mt-1">
+                    Crea un checkout de <span class="text-white font-medium">$100</span> usando la cuenta de Mercado Pago conectada del complejo.
+                </p>
+            </div>
+            <form method="post" action="{% url 'mp_test_pagar_100' %}">
+                {% csrf_token %}
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600 transition"
+                >
+                    Pagar $100 (prueba)
+                </button>
+            </form>
+        </div>
+        <p class="text-slate-500 text-xs mt-3">
+            Vas a ser redirigido a Mercado Pago y luego volverás a la pantalla de feedback con el resultado.
+        </p>
+    </div>
+    {% endif %}
     
     <!-- Información del usuario -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

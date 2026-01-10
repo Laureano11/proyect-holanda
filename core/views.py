@@ -2063,6 +2063,72 @@ def mercadopago_checkout_demo(request):
     return redirect(checkout_url)
 
 
+@login_required
+@require_http_methods(["POST"])
+def mp_test_pagar_100(request):
+    """
+    Crea un pago de prueba de $100 usando la integración (access token) del complejo conectado por OAuth.
+    Pensado para validación end-to-end desde el lado cliente.
+    """
+    user = request.user
+    complejo = user.complejo or getattr(request, "complejo_actual", None)
+    if not complejo:
+        messages.error(request, "No se pudo determinar el complejo actual.")
+        return redirect("dashboard")
+
+    try:
+        integ = complejo.mercadopago
+    except IntegracionMercadoPago.DoesNotExist:
+        messages.error(request, "Este complejo no tiene Mercado Pago conectado.")
+        return redirect("dashboard")
+
+    if not integ.activo or not integ.access_token_plain:
+        messages.error(request, "La integración con Mercado Pago no está activa.")
+        return redirect("dashboard")
+
+    sdk = mercadopago.SDK(integ.access_token_plain)
+    feedback_url = request.build_absolute_uri(reverse("mercadopago_feedback"))
+    webhook_url = request.build_absolute_uri(reverse("mercadopago_webhook"))
+
+    preference = {
+        "items": [
+            {
+                "title": "Pago de prueba $100",
+                "quantity": 1,
+                "unit_price": float(Decimal("100.00")),
+                "currency_id": "ARS",
+            }
+        ],
+        "back_urls": {
+            "success": feedback_url,
+            "failure": feedback_url,
+            "pending": feedback_url,
+        },
+        "binary_mode": True,
+        "external_reference": f"test100-u{user.id}-c{complejo.id}-{timezone.now().timestamp()}",
+    }
+
+    if feedback_url.startswith("https://"):
+        preference["auto_return"] = "approved"
+    if webhook_url.startswith("https://"):
+        preference["notification_url"] = webhook_url
+
+    try:
+        preference_response = sdk.preference().create(preference)
+        body = preference_response.get("response") or {}
+        checkout_url = body.get("init_point") or body.get("sandbox_init_point")
+        if not checkout_url:
+            mp_message = body.get("message") or body.get("error") or body.get("status")
+            mp_cause = body.get("cause") or body.get("causes") or body.get("details")
+            raise ValueError(f"MP no devolvió URL de checkout (message={mp_message}, cause={mp_cause}).")
+    except Exception as exc:  # pragma: no cover
+        messages.error(request, f"Error al crear el pago de prueba: {exc}")
+        return redirect("mi_perfil")
+
+    messages.info(request, "Redirigiendo a Mercado Pago (pago de prueba)...")
+    return redirect(checkout_url)
+
+
 @require_http_methods(["GET"])
 def mercadopago_feedback(request):
     """
