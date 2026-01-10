@@ -7,6 +7,7 @@ from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('turnos-publicos/', views.turnos_publicos, name='turnos_publicos'),
 
     # Ops / diagnóstico (solo superadmin + token)
     path('_ops/health/', views.ops_health, name='ops_health'),
@@ -16,6 +17,7 @@ urlpatterns = [
     path('registro/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
     path('perfil/actualizar/', views.actualizar_perfil, name='actualizar_perfil'),
+    path('perfil/darse-de-baja/', views.darse_de_baja, name='darse_de_baja'),
     
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),

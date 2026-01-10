@@ -45,7 +45,13 @@ def limpiar_turnos_expirados_task():
         )
         
         cantidad = turnos_expirados.count()
-        turnos_expirados.update(estado=Turno.Estado.EXPIRADO)
+        turnos_expirados.update(
+            estado=Turno.Estado.EXPIRADO,
+            cancelacion_origen=Turno.CancelacionOrigen.SISTEMA,
+            cancelacion_motivo="Expirado por falta de pago",
+            cancelado_por=None,
+            cancelado_en=ahora,
+        )
         
         logger.info(f"Turnos expirados limpiados: {cantidad}")
         return {'exito': True, 'cantidad': cantidad}

@@ -35,10 +35,10 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.respaldar_base_datos_task',
         'schedule': crontab(minute=30, hour=3),
     },
-    # Heartbeat para validar que celery-beat está corriendo (cada minuto)
+    # Heartbeat para validar que celery-beat está corriendo (cada 5 minutos)
     'ops-celery-beat-heartbeat': {
         'task': 'core.tasks.ops_celery_beat_heartbeat_task',
-        'schedule': crontab(minute='*/1'),
+        'schedule': crontab(minute='*/5'),
     },
 }
 

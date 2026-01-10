@@ -307,17 +307,27 @@ else:
     }
 
 
-# Session configuration - Redis para producción, DB para desarrollo
-if ENABLE_REDIS and REDIS_URL:
-    # Producción u opt-in: Sessions en Redis (mucho más rápido que DB)
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-    SESSION_CACHE_ALIAS = 'default'
-    SESSION_COOKIE_AGE = 1209600  # 2 semanas
-    SESSION_SAVE_EVERY_REQUEST = False  # Solo guardar si cambió
+# Session configuration
+#
+# Importante:
+# - `sessions.backends.cache` (sesiones SOLO en cache) rompe el login si Redis/cache no está disponible,
+#   incluso con `IGNORE_EXCEPTIONS=True`, porque Django necesita poder crear una `session_key`.
+# - Por defecto usamos DB como source of truth (estable).
+# - Opcionalmente podés habilitar "cache + DB" con `ENABLE_CACHE_SESSIONS=True` para performance,
+#   sin depender 100% del cache.
+ENABLE_CACHE_SESSIONS = _env_flag("ENABLE_CACHE_SESSIONS", default=False)
+
+if ENABLE_CACHE_SESSIONS:
+    # Cache + DB (no depende al 100% de Redis; si el cache falla, DB sigue siendo la fuente).
+    SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+    if ENABLE_REDIS and REDIS_URL:
+        SESSION_CACHE_ALIAS = "default"
 else:
-    # Desarrollo: Sessions en DB (más simple para debug)
-    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-    SESSION_COOKIE_AGE = 1209600
+    # Default: sesiones en DB (robusto para dev y prod)
+    SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
+SESSION_COOKIE_AGE = 1209600  # 2 semanas
+SESSION_SAVE_EVERY_REQUEST = False  # Solo guardar si cambió
 
 
 # Celery Configuration - Tareas asincrónicas

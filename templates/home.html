@@ -42,6 +42,9 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                     </svg>
                 </a>
+                <a href="{% url 'turnos_publicos' %}" class="px-6 py-3 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition border border-slate-700 flex items-center justify-center w-full sm:w-[220px]">
+                    Ver turnos
+                </a>
                 {% else %}
                 <a href="{% url 'register' %}" class="px-6 py-3 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 transition flex items-center justify-center gap-2 w-full sm:w-[220px]">
                     Registrate
@@ -51,6 +54,9 @@
                 </a>
                 <a href="{% url 'login' %}" class="px-6 py-3 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition border border-slate-700 flex items-center justify-center w-full sm:w-[220px]">
                     Iniciar sesión
+                </a>
+                <a href="{% url 'turnos_publicos' %}" class="px-6 py-3 bg-slate-900/30 text-slate-200 font-medium rounded-lg hover:bg-slate-800/40 transition border border-slate-700 flex items-center justify-center w-full sm:w-[220px]">
+                    Ver turnos
                 </a>
                 {% endif %}
             </div>

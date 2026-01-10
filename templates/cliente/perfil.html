@@ -125,6 +125,25 @@
                     <strong>Nota:</strong> Para cambiar email o usuario contactá al administrador del complejo.
                 </p>
             </div>
+
+            <!-- Zona peligrosa -->
+            <div class="mt-6 p-4 bg-red-500/10 border border-red-500/30 rounded">
+                <p class="text-sm font-semibold text-red-300 mb-1">Zona peligrosa</p>
+                <p class="text-xs text-red-200/80 mb-3">
+                    Darse de baja elimina tu usuario y todo lo asociado. Esta acción no se puede deshacer.
+                </p>
+                <form method="post" action="{% url 'darse_de_baja' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="confirmar" value="1">
+                    <button
+                        type="submit"
+                        class="w-full px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded hover:bg-red-700 transition"
+                        onclick="return confirm('¿Seguro que querés darte de baja? Se eliminará tu cuenta y todos tus datos asociados. Esta acción no se puede deshacer.');"
+                    >
+                        Darse de baja
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
