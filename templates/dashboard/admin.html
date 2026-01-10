@@ -139,10 +139,10 @@
                     {% elif mp_oauth_ready %}
                         <p class="text-slate-400 text-sm">Conectá tu cuenta de Mercado Pago para cobrar directo.</p>
                         <div class="mt-3">
-                            <a href="{% url 'mp_oauth_start' %}" class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">Conectar Mercado Pago</a>
+                            <a href="{% url 'mp_oauth_start' %}" class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">Integrarse con Mercado Pago</a>
                         </div>
                     {% else %}
-                        <p class="text-amber-400 text-sm">Faltan MP_CLIENT_ID / MP_CLIENT_SECRET / MP_REDIRECT_URI (config global).</p>
+                        <p class="text-amber-400 text-sm">Faltan MP_CLIENT_ID / MP_CLIENT_SECRET / MP_REDIRECT_URI (o MP_REDIRECT_URL) en el .env del servidor.</p>
                     {% endif %}
                 </div>
             </div>

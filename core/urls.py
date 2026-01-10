@@ -56,4 +56,5 @@ urlpatterns = [
     path('mercadopago/oauth/start/', views.mp_oauth_start, name='mp_oauth_start'),
     path('mercadopago/oauth/callback/', views.mp_oauth_callback, name='mp_oauth_callback'),
     path('mercadopago/oauth/disconnect/', views.mp_oauth_disconnect, name='mp_oauth_disconnect'),
+    path('mercadopago/oauth/debug/', views.mp_oauth_debug, name='mp_oauth_debug'),
 ]

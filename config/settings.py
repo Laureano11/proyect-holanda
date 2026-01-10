@@ -6,9 +6,31 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from urllib.parse import urlparse
+import json
+import time
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# #region agent log
+def _agent_log(hypothesisId: str, location: str, message: str, data: dict) -> None:
+    """Escribe una línea NDJSON para debugging local (no loguear secretos)."""
+    try:
+        payload = {
+            "sessionId": "debug-session",
+            "runId": os.getenv("AGENT_RUN_ID", "pre-fix"),
+            "hypothesisId": hypothesisId,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        with open(str(BASE_DIR / ".cursor" / "debug.log"), "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception:
+        # Nunca romper settings por logging
+        pass
+# #endregion agent log
 
 # Cargar variables de entorno desde el archivo .env en la raíz del proyecto
 env_path = BASE_DIR / '.env'
@@ -60,13 +82,36 @@ MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
 MERCADOPAGO_PUBLIC_KEY = os.getenv("MERCADOPAGO_PUBLIC_KEY", "")
 MP_CLIENT_ID = os.getenv("MP_CLIENT_ID", "")
 MP_CLIENT_SECRET = os.getenv("MP_CLIENT_SECRET", "")
-MP_REDIRECT_URI = os.getenv("MP_REDIRECT_URI", "")
+# Mercado Pago suele referirse a este valor como "redirect_uri".
+# Aceptamos también MP_REDIRECT_URL para evitar confusiones al configurar el .env.
+MP_REDIRECT_URI = os.getenv("MP_REDIRECT_URI", "") or os.getenv("MP_REDIRECT_URL", "")
 FIELD_ENCRYPTION_KEY = os.getenv("FIELD_ENCRYPTION_KEY", "")
 
 # Render: autoconfigurar host/CSRF si no se setean explícitamente
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
-if not DEBUG:
+
+# #region agent log
+_agent_log(
+    "H1",
+    "config/settings.py:settings-init",
+    "Settings runtime flags",
+    {
+        "DEBUG": DEBUG,
+        "DJANGO_SETTINGS_MODULE": os.getenv("DJANGO_SETTINGS_MODULE"),
+        "RENDER_EXTERNAL_HOSTNAME_set": bool(RENDER_EXTERNAL_HOSTNAME),
+        "RENDER_EXTERNAL_URL_set": bool(RENDER_EXTERNAL_URL),
+        "SECURE_SSL_REDIRECT_env": os.getenv("SECURE_SSL_REDIRECT"),
+    },
+)
+# #endregion agent log
+
+# Solo activar settings de proxy/SSL cuando estamos en un entorno de despliegue
+# (ej: Render). Evita que un DEBUG=False accidental en local fuerce HTTPS contra
+# el runserver (que no soporta TLS).
+IS_DEPLOY_ENV = bool(RENDER_EXTERNAL_HOSTNAME or RENDER_EXTERNAL_URL or os.getenv("DEPLOY_ENV"))
+
+if (not DEBUG) and IS_DEPLOY_ENV:
     hostname = None
     if RENDER_EXTERNAL_HOSTNAME:
         hostname = RENDER_EXTERNAL_HOSTNAME.strip()
@@ -88,6 +133,20 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True").lower() == "true"
     CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True").lower() == "true"
+
+# #region agent log
+_agent_log(
+    "H2",
+    "config/settings.py:ssl-flags",
+    "Computed SSL/proxy settings",
+    {
+        "DEBUG": DEBUG,
+        "IS_DEPLOY_ENV": IS_DEPLOY_ENV,
+        "SECURE_SSL_REDIRECT_defined": "SECURE_SSL_REDIRECT" in globals(),
+        "SECURE_SSL_REDIRECT": globals().get("SECURE_SSL_REDIRECT", None),
+    },
+)
+# #endregion agent log
 
 # Application definition
 INSTALLED_APPS = [

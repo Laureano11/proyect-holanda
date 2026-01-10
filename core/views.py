@@ -16,6 +16,7 @@ from django.db.models import Sum, Q
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.urls import reverse
 from urllib.parse import urlencode
@@ -1784,6 +1785,59 @@ def _mp_code_challenge(verifier: str) -> str:
 
 
 @login_required
+def mp_oauth_debug(request):
+    """
+    Endpoint de diagnóstico para validar qué parámetros OAuth está generando el backend.
+    Importante: NO devuelve secretos.
+    """
+    user = request.user
+    if not user.puede_gestionar_complejo:
+        return JsonResponse({"error": "forbidden"}, status=403)
+
+    complejo = user.complejo or getattr(request, 'complejo_actual', None)
+    if not complejo:
+        return JsonResponse({"error": "no_complejo"}, status=400)
+
+    # Construir una URL de ejemplo (con state ficticio) para inspección visual.
+    code_verifier = "debug_verifier_no_usar"
+    code_challenge = _mp_code_challenge(code_verifier)
+    state_payload = {"c": complejo.id, "u": user.id, "ts": "debug"}
+    state = signing.dumps(state_payload, key=_mp_state_key())
+
+    params = {
+        "response_type": "code",
+        "client_id": settings.MP_CLIENT_ID,
+        "redirect_uri": settings.MP_REDIRECT_URI,
+        "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+        "platform_id": "mp",
+        "scope": "offline_access",
+    }
+    auth_url = "https://auth.mercadopago.com/authorization?" + urlencode(params)
+
+    def _mask(v: str, keep=4):
+        if not v:
+            return ""
+        s = str(v)
+        if len(s) <= keep:
+            return "*" * len(s)
+        return ("*" * (len(s) - keep)) + s[-keep:]
+
+    return JsonResponse(
+        {
+            "mp_client_id_last4": str(settings.MP_CLIENT_ID)[-4:] if settings.MP_CLIENT_ID else "",
+            "mp_redirect_uri": settings.MP_REDIRECT_URI,
+            "mp_oauth_ready": bool(settings.MP_CLIENT_ID and settings.MP_CLIENT_SECRET and settings.MP_REDIRECT_URI),
+            "mp_client_secret_present": bool(settings.MP_CLIENT_SECRET),
+            "mp_client_secret_masked": _mask(settings.MP_CLIENT_SECRET, keep=4) if settings.MP_CLIENT_SECRET else "",
+            "auth_url": auth_url,
+            "note": "Abrí auth_url en el navegador. Si MP dice 'la aplicación no está preparada', el problema es del lado de la app/credenciales en MP (entorno, permisos, app type) o mismatch de redirect_uri.",
+        }
+    )
+
+
+@login_required
 def mp_oauth_start(request):
     """Inicia el flujo OAuth (Authorization Code + PKCE) para el complejo del usuario."""
     if not (settings.MP_CLIENT_ID and settings.MP_CLIENT_SECRET and settings.MP_REDIRECT_URI):
@@ -1824,7 +1878,6 @@ def mp_oauth_start(request):
     return redirect(auth_url)
 
 
-@login_required
 def mp_oauth_callback(request):
     """Callback de OAuth: intercambia el code por tokens y los guarda cifrados por complejo."""
     error = request.GET.get("error")
@@ -1852,9 +1905,13 @@ def mp_oauth_callback(request):
     
     complejo_id = payload.get("c")
     user_id = payload.get("u")
-    if request.user.id != user_id and not request.user.es_superadmin:
-        messages.error(request, "El usuario autenticado no coincide con la solicitud de OAuth.")
-        return redirect("dashboard")
+    # Nota: este callback puede ser accedido como usuario no autenticado (por redirección externa).
+    # El `state` está firmado y expira, así que lo usamos como validación principal.
+    # Si el usuario está autenticado, además verificamos que coincida.
+    if getattr(request, "user", None) and request.user.is_authenticated:
+        if request.user.id != user_id and not request.user.es_superadmin:
+            messages.error(request, "El usuario autenticado no coincide con la solicitud de OAuth.")
+            return redirect("dashboard")
     
     data = {
         "client_id": settings.MP_CLIENT_ID,
