@@ -45,3 +45,6 @@ htmlcov/
 # mypy
 .mypy_cache/
 
+# Celery Beat
+celerybeat-schedule*
+

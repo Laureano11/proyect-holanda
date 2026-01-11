@@ -528,6 +528,12 @@ class Turno(models.Model):
         CANCELADO_ADMIN = 'cancelado_admin', 'Cancelado por Admin'
         EXPIRADO = 'expirado', 'Expirado'
         JUGADO = 'jugado', 'Jugado'
+
+    class CancelacionOrigen(models.TextChoices):
+        USUARIO = 'usuario', 'Usuario'
+        STAFF = 'staff', 'Staff'
+        BLOQUEO = 'bloqueo', 'Bloqueo'
+        SISTEMA = 'sistema', 'Sistema'
     
     cancha = models.ForeignKey(
         Cancha,
@@ -566,6 +572,37 @@ class Turno(models.Model):
         blank=True,
         verbose_name='Expira en',
         help_text='Fecha límite para completar el pago'
+    )
+
+    # Cancelación: motivo/origen/auditoría (opcional; se completa cuando aplica)
+    cancelacion_origen = models.CharField(
+        max_length=20,
+        choices=CancelacionOrigen.choices,
+        null=True,
+        blank=True,
+        verbose_name='Origen de cancelación',
+        help_text='Quién/cómo se canceló (usuario, staff, bloqueo, sistema)'
+    )
+    cancelacion_motivo = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name='Motivo de cancelación',
+        help_text='Motivo breve (p.ej. “Lluvia”, “Mantenimiento”, etc.)'
+    )
+    cancelado_por = models.ForeignKey(
+        'Usuario',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='turnos_cancelados',
+        verbose_name='Cancelado por',
+        help_text='Usuario que canceló (staff/admin). Vacío si canceló el cliente o el sistema.'
+    )
+    cancelado_en = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Cancelado en'
     )
     
     precio_total = models.DecimalField(
@@ -658,6 +695,37 @@ class Turno(models.Model):
     @property
     def fue_cancelado(self):
         return self.estado in [self.Estado.CANCELADO_USUARIO, self.Estado.CANCELADO_ADMIN, self.Estado.EXPIRADO]
+
+    @property
+    def cancelacion_descripcion(self) -> str:
+        """
+        Texto amigable para mostrar al cliente el motivo/origen de cancelación.
+        Tiene fallback para turnos viejos (sin campos de cancelación cargados).
+        """
+        if self.estado == self.Estado.CANCELADO_USUARIO:
+            base = "Cancelado por vos"
+            if self.cancelacion_motivo:
+                return f"{base}: {self.cancelacion_motivo}"
+            return base
+
+        if self.estado == self.Estado.EXPIRADO:
+            # El “expirado” es una cancelación del sistema
+            base = "Expirado por falta de pago"
+            if self.cancelacion_motivo:
+                return f"{base}: {self.cancelacion_motivo}"
+            return base
+
+        if self.estado == self.Estado.CANCELADO_ADMIN:
+            # Distinguir staff vs bloqueo, con fallback a “staff”
+            if self.cancelacion_origen == self.CancelacionOrigen.BLOQUEO:
+                base = "Cancelado por bloqueo de turnos"
+            else:
+                base = "Cancelado por staff"
+            if self.cancelacion_motivo:
+                return f"{base}: {self.cancelacion_motivo}"
+            return base
+
+        return ""
     
     @property
     def ya_paso(self):
@@ -672,6 +740,18 @@ class Turno(models.Model):
         fecha_hora_fin = fecha_hora_inicio + timedelta(minutes=self.duracion_minutos)
         
         return ahora > fecha_hora_fin
+
+    @property
+    def ya_empezo(self):
+        """Verifica si el turno ya empezó (fecha y hora de inicio ya pasaron)."""
+        from django.utils import timezone
+        from datetime import datetime
+
+        ahora = timezone.now()
+        fecha_hora_inicio = timezone.make_aware(
+            timezone.datetime.combine(self.fecha, self.hora_inicio)
+        )
+        return ahora >= fecha_hora_inicio
     
     @property
     def estado_visual(self):
@@ -708,14 +788,25 @@ class Turno(models.Model):
         """
         from django.utils import timezone
         from datetime import datetime, timedelta
+        from django.db.models import Q
         
         ahora = timezone.now()
+        hoy = ahora.date()
         turnos_actualizados = 0
         
         # Obtener turnos que no están cancelados ni ya marcados como jugados
-        turnos_a_verificar = cls.objects.exclude(
-            estado__in=[cls.Estado.CANCELADO_USUARIO, cls.Estado.CANCELADO_ADMIN, 
-                       cls.Estado.EXPIRADO, cls.Estado.JUGADO]
+        # Optimización: no tiene sentido revisar turnos de fechas futuras.
+        # Incluimos turnos de días anteriores y, del día de hoy, solo los que ya empezaron.
+        turnos_a_verificar = (
+            cls.objects.exclude(
+                estado__in=[
+                    cls.Estado.CANCELADO_USUARIO,
+                    cls.Estado.CANCELADO_ADMIN,
+                    cls.Estado.EXPIRADO,
+                    cls.Estado.JUGADO,
+                ]
+            )
+            .filter(Q(fecha__lt=hoy) | Q(fecha=hoy, hora_inicio__lte=ahora.time()))
         )
         
         for turno in turnos_a_verificar:

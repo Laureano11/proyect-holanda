@@ -52,6 +52,13 @@ def _csv_env(name: str, default: str = "") -> list[str]:
     raw = os.getenv(name, default)
     return [v.strip() for v in raw.split(",") if v.strip()]
 
+def _env_flag(name: str, default: bool) -> bool:
+    """Parsea booleans desde el entorno permitiendo defaults claros."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.lower() == "true"
+
 # ALLOWED_HOSTS - Configurar desde variable de entorno
 # En desarrollo: ALLOWED_HOSTS=localhost,127.0.0.1
 # En producción: ALLOWED_HOSTS=midominio.com,www.midominio.com
@@ -160,6 +167,7 @@ INSTALLED_APPS = [
     
     # Third party apps
     'django_htmx',
+    'dbbackup',  # Backups de BD y media
     
     # Local apps
     'core',
@@ -314,12 +322,24 @@ LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
 
 
+# Flags de funcionalidad (opt-in en dev, activados por defecto en prod)
+ENABLE_REDIS = _env_flag("ENABLE_REDIS", default=not DEBUG)
+ENABLE_CELERY = _env_flag("ENABLE_CELERY", default=not DEBUG)
+
+# Mantener compatibilidad con bandera previa de correos
+_legacy_use_resend_in_dev = os.getenv("USE_RESEND_IN_DEV")
+if _legacy_use_resend_in_dev is not None:
+    ENABLE_RESEND = _legacy_use_resend_in_dev.lower() == "true"
+else:
+    ENABLE_RESEND = _env_flag("ENABLE_RESEND", default=not DEBUG)
+
+
 # Caché configuration - Redis para producción, LocMem para desarrollo
 # Redis permite compartir caché entre múltiples workers de Gunicorn
 REDIS_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
 
-if REDIS_URL and not DEBUG:
-    # Producción: Redis compartido entre workers
+if ENABLE_REDIS and REDIS_URL:
+    # Producción u opt-in: Redis compartido entre workers
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
@@ -341,7 +361,7 @@ if REDIS_URL and not DEBUG:
         }
     }
 else:
-    # Desarrollo: LocMem (más simple para desarrollo local)
+    # Desarrollo o deshabilitado: LocMem (más simple para desarrollo local)
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -354,57 +374,72 @@ else:
     }
 
 
-# Session configuration - Redis para producción, DB para desarrollo
-if REDIS_URL and not DEBUG:
-    # Producción: Sessions en Redis (mucho más rápido que DB)
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-    SESSION_CACHE_ALIAS = 'default'
-    SESSION_COOKIE_AGE = 1209600  # 2 semanas
-    SESSION_SAVE_EVERY_REQUEST = False  # Solo guardar si cambió
+# Session configuration
+#
+# Importante:
+# - `sessions.backends.cache` (sesiones SOLO en cache) rompe el login si Redis/cache no está disponible,
+#   incluso con `IGNORE_EXCEPTIONS=True`, porque Django necesita poder crear una `session_key`.
+# - Por defecto usamos DB como source of truth (estable).
+# - Opcionalmente podés habilitar "cache + DB" con `ENABLE_CACHE_SESSIONS=True` para performance,
+#   sin depender 100% del cache.
+ENABLE_CACHE_SESSIONS = _env_flag("ENABLE_CACHE_SESSIONS", default=False)
+
+if ENABLE_CACHE_SESSIONS:
+    # Cache + DB (no depende al 100% de Redis; si el cache falla, DB sigue siendo la fuente).
+    SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+    if ENABLE_REDIS and REDIS_URL:
+        SESSION_CACHE_ALIAS = "default"
 else:
-    # Desarrollo: Sessions en DB (más simple para debug)
-    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-    SESSION_COOKIE_AGE = 1209600
+    # Default: sesiones en DB (robusto para dev y prod)
+    SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
+SESSION_COOKIE_AGE = 1209600  # 2 semanas
+SESSION_SAVE_EVERY_REQUEST = False  # Solo guardar si cambió
 
 
 # Celery Configuration - Tareas asincrónicas
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_ENABLE_UTC = True
-CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo por tarea
-CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos warning
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', REDIS_URL)
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', REDIS_URL)
 
-# En Windows: usar 'threads' pool en lugar de 'prefork' para evitar PermissionError con billiard
-if os.name == 'nt':  # Windows
-    CELERY_WORKER_POOL = 'threads'
-    CELERY_WORKER_CONCURRENCY = 4  # Menos threads en Windows para estabilidad
-    CELERY_WORKER_PREFETCH_MULTIPLIER = 1
-else:  # Linux/Mac
-    CELERY_WORKER_POOL = 'prefork'
-    CELERY_WORKER_CONCURRENCY = 4
-    CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+if ENABLE_CELERY and CELERY_BROKER_URL:
+    CELERY_TASK_ALWAYS_EAGER = False
+    CELERY_ACCEPT_CONTENT = ['json']
+    CELERY_TASK_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'json'
+    CELERY_TIMEZONE = TIME_ZONE
+    CELERY_ENABLE_UTC = True
+    CELERY_TASK_TRACK_STARTED = True
+    CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo por tarea
+    CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos warning
 
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Reciclar workers después de 1000 tareas
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+    # En Windows: usar 'threads' pool en lugar de 'prefork' para evitar PermissionError con billiard
+    if os.name == 'nt':  # Windows
+        CELERY_WORKER_POOL = 'threads'
+        CELERY_WORKER_CONCURRENCY = 4  # Menos threads en Windows para estabilidad
+        CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+    else:  # Linux/Mac
+        CELERY_WORKER_POOL = 'prefork'
+        CELERY_WORKER_CONCURRENCY = 4
+        CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+
+    CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000  # Reciclar workers después de 1000 tareas
+    CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+else:
+    # Desarrollo o deshabilitado: ejecutar tareas en modo eager sin broker externo
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_ACCEPT_CONTENT = ['json']
+    CELERY_TASK_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'json'
+    CELERY_TIMEZONE = TIME_ZONE
+    CELERY_ENABLE_UTC = True
 
 
 # Email configuration para recuperación de contraseñas
-# En desarrollo: puedes usar Resend real o consola
-# En producción: usar SMTP real (Resend, SendGrid, etc.)
-
-# Opción de usar Resend en desarrollo (comentá para usar consola)
-USE_RESEND_IN_DEV = os.getenv('USE_RESEND_IN_DEV', 'False').lower() == 'true'
-
-if DEBUG and not USE_RESEND_IN_DEV:
-    # En desarrollo: mostrar emails en consola (default)
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-else:
-    # En desarrollo con Resend O en producción: usar SMTP real
+# Desarrollo: consola por defecto. Se puede habilitar SMTP con ENABLE_RESEND/ENV.
+if ENABLE_RESEND:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.resend.com')
     EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
@@ -413,6 +448,8 @@ else:
     EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'resend')
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
     EMAIL_TIMEOUT = 10  # Timeout de 10 segundos para SMTP (falla rápido si hay problemas)
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'onboarding@resend.dev')
 EMAIL_SUBJECT_PREFIX = '[Turnos] '
@@ -422,3 +459,16 @@ PASSWORD_RESET_TIMEOUT = 86400  # 24 horas (en segundos)
 
 # Django Sites Framework (necesario para password reset emails)
 SITE_ID = 1
+
+
+# Backups automatizados (django-dbbackup)
+# Ubicación local por defecto; se puede apuntar a S3 u otro backend vía env.
+DBBACKUP_STORAGE = 'django.core.files.storage.FileSystemStorage'
+DBBACKUP_STORAGE_OPTIONS = {
+    # En Render, usar un Disco Persistente y setear BACKUP_DIR (ej: /var/data/backups).
+    # Si no se setea, se usa filesystem local (ojo: puede ser efímero en algunos hosts).
+    'location': os.getenv('BACKUP_DIR') or (BASE_DIR / 'backups'),
+}
+# Mantener 14 copias al limpiar; ajustable con DBBACKUP_CLEANUP_KEEP
+DBBACKUP_CLEANUP_KEEP = int(os.getenv('DBBACKUP_CLEANUP_KEEP', '14'))
+DBBACKUP_FILENAME_TEMPLATE = 'turnos-{datetime}.psql'

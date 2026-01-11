@@ -11,18 +11,45 @@
             <p class="text-slate-400 text-sm mt-0.5">{{ complejo.nombre }} • {{ fecha_seleccionada|date:"d/m/Y" }}</p>
         </div>
         <div class="flex items-center gap-2">
-            <form method="get" class="flex items-center gap-2">
-                <input 
-                    type="date" 
-                    name="fecha" 
-                    value="{{ fecha_seleccionada|date:'Y-m-d' }}" 
-                    class="px-3 py-1.5 rounded bg-slate-900/60 border border-slate-700 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                >
-                <button type="submit" class="px-3 py-1.5 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition">
-                    Cambiar
-                </button>
-            </form>
-            <a href="{% url 'dashboard' %}" class="px-3 py-1.5 bg-slate-700 text-white text-sm font-medium rounded hover:bg-slate-600 transition">
+            <div class="flex items-center bg-slate-900/60 border border-slate-700 rounded overflow-hidden">
+                <!-- Botón Día Anterior -->
+                {% if fecha_anterior >= hoy %}
+                <a href="?fecha={{ fecha_anterior|date:'Y-m-d' }}" 
+                   class="px-2 py-1.5 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border-r border-slate-700"
+                   title="Día anterior">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                {% else %}
+                <span class="px-2 py-1.5 text-slate-600 border-r border-slate-700 cursor-not-allowed">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </span>
+                {% endif %}
+
+                <form method="get" class="flex items-center">
+                    <input 
+                        type="date" 
+                        name="fecha" 
+                        value="{{ fecha_seleccionada|date:'Y-m-d' }}" 
+                        onchange="this.form.submit()"
+                        class="px-3 py-1.5 bg-transparent text-white text-sm focus:outline-none min-w-[140px]"
+                    >
+                </form>
+
+                <!-- Botón Día Siguiente -->
+                <a href="?fecha={{ fecha_siguiente|date:'Y-m-d' }}" 
+                   class="px-2 py-1.5 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border-l border-slate-700"
+                   title="Día siguiente">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+
+            <a href="{% url 'dashboard' %}" class="px-3 py-1.5 bg-slate-700 text-white text-sm font-medium rounded hover:bg-slate-600 transition ml-2">
                 ← Volver
             </a>
         </div>

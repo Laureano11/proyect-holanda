@@ -2,6 +2,9 @@
 Views de la aplicación core.
 """
 
+import os
+from hmac import compare_digest
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.conf import settings
 from django.contrib.auth import login, logout, authenticate
@@ -11,6 +14,8 @@ from django.utils import timezone
 from django.http import JsonResponse
 from django.core import signing
 from django.core.cache import cache
+from django.core.cache import cache
+from django.utils.dateparse import parse_datetime
 from django.db import transaction, IntegrityError
 from django.db.models import Sum, Q
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -34,6 +39,72 @@ import mercadopago
 def home(request):
     """Vista principal del sistema."""
     return render(request, 'home.html')
+
+
+def turnos_publicos(request):
+    """
+    Vista pública (sin login) para visualizar horarios/turnos del complejo.
+    Importante: NO permite reservar; solo muestra disponibilidad sin datos sensibles.
+    """
+    complejo = getattr(request, 'complejo_actual', None)
+    if not complejo:
+        messages.error(request, 'No hay un complejo disponible para mostrar turnos.')
+        return redirect('home')
+
+    hoy = timezone.now().date()
+
+    # Limitar rango visible en público (igual que clientes)
+    fecha_maxima = hoy + timedelta(days=15)
+    fecha_param = (request.GET.get('fecha') or '').strip()
+    if fecha_param:
+        try:
+            fecha_seleccionada = datetime.strptime(fecha_param, '%Y-%m-%d').date()
+        except ValueError:
+            fecha_seleccionada = hoy
+    else:
+        fecha_seleccionada = hoy
+
+    if fecha_seleccionada < hoy:
+        fecha_seleccionada = hoy
+    if fecha_seleccionada > fecha_maxima:
+        fecha_seleccionada = fecha_maxima
+        messages.info(request, 'Solo podés ver turnos hasta 15 días en el futuro')
+
+    slots_result = TurnoService.generar_slots_disponibles(complejo, fecha_seleccionada)
+    slots_por_hora = slots_result['slots_por_hora']
+    total_disponibles = slots_result['total_disponibles']
+
+    slots_ordenados = sorted(slots_por_hora.items(), key=lambda x: x[0])
+
+    # Selector rápido: próximos 7 días (desde hoy)
+    dias_semana_selector = []
+    dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    for i in range(7):
+        fecha = hoy + timedelta(days=i)
+        if i == 0:
+            nombre = 'Hoy'
+        elif i == 1:
+            nombre = 'Mañana'
+        else:
+            nombre = dias_nombres[fecha.weekday()]
+        dias_semana_selector.append({
+            'fecha': fecha,
+            'nombre': nombre,
+            'activo': fecha == fecha_seleccionada,
+        })
+
+    context = {
+        'complejo': complejo,
+        'hoy': hoy,
+        'fecha_seleccionada': fecha_seleccionada,
+        'fecha_minima': hoy,
+        'fecha_maxima': fecha_maxima,
+        'slots_por_hora': dict(slots_ordenados),
+        'slots_ordenados': slots_ordenados,
+        'total_disponibles': total_disponibles,
+        'dias_semana_selector': dias_semana_selector,
+    }
+    return render(request, 'public/turnos_publicos.html', context)
 
 
 @ensure_csrf_cookie
@@ -233,9 +304,6 @@ def dashboard(request):
     
     # Si es cliente, calcular turnos disponibles del día
     if user.es_cliente and user.complejo:
-        # Marcar turnos como jugados automáticamente
-        Turno.marcar_turnos_como_jugados()
-        
         # Obtener fecha desde parámetro GET o usar hoy
         fecha_param = request.GET.get('fecha')
         if fecha_param:
@@ -311,9 +379,6 @@ def dashboard(request):
     
     # Si es staff, obtener turnos del complejo y calcular disponibles
     if user.es_staff_complejo and user.complejo:
-        # Marcar turnos como jugados automáticamente
-        Turno.marcar_turnos_como_jugados()
-        
         hoy = timezone.now().date()
         complejo = user.complejo
         orden_turnos = request.GET.get('orden', 'juego')
@@ -647,13 +712,28 @@ def cancelar_turno(request, turno_id):
         messages.error(request, 'Este turno ya está cancelado')
         return redirect('dashboard')
     
+    # Regla de reembolso: solo si se cancela con la anticipación mínima configurada por el complejo
+    horas_minimas = 2
+    try:
+        horas_minimas = int(turno.cancha.complejo.preferencias.tiempo_minimo_cancelacion)
+    except Exception:
+        horas_minimas = 2
+
+    ahora = timezone.now()
+    inicio_turno = timezone.make_aware(datetime.combine(turno.fecha, turno.hora_inicio))
+    elegible_reembolso = ahora <= (inicio_turno - timedelta(hours=horas_minimas))
+
     # Cancelar el turno
     turno.estado = Turno.Estado.CANCELADO_USUARIO
-    turno.save(update_fields=['estado', 'updated_at'])
+    turno.cancelacion_origen = Turno.CancelacionOrigen.USUARIO
+    turno.cancelacion_motivo = "Cancelación del cliente" if elegible_reembolso else "Cancelación del cliente (fuera de ventana de reembolso)"
+    turno.cancelado_por = None
+    turno.cancelado_en = ahora
+    turno.save(update_fields=['estado', 'cancelacion_origen', 'cancelacion_motivo', 'cancelado_por', 'cancelado_en', 'updated_at'])
     
     # Generar crédito para el cliente (si pagó seña) usando servicio
     # Nota: Cuando el cliente cancela, no hay creado_por (es automático del sistema)
-    if turno.senia_pagada > 0:
+    if elegible_reembolso and turno.senia_pagada > 0:
         CreditoService.generar_credito(
             usuario=request.user,
             complejo=turno.cancha.complejo,
@@ -666,7 +746,13 @@ def cancelar_turno(request, turno_id):
     # Invalidar caché de slots
     TurnoService.invalidar_cache_slots(turno.cancha.complejo.id, turno.fecha)
     
-    messages.success(request, f'Turno cancelado. Se te acreditó ${turno.senia_pagada} en créditos.')
+    if elegible_reembolso and turno.senia_pagada > 0:
+        messages.success(request, f'Turno cancelado. Se te acreditó ${turno.senia_pagada} en créditos.')
+    else:
+        messages.success(
+            request,
+            f'Turno cancelado. No corresponde reembolso: la cancelación debe hacerse con al menos {horas_minimas}h de anticipación.'
+        )
     return redirect('turnos_actuales')
 
 
@@ -675,6 +761,10 @@ def cancelar_turno_staff(request, turno_id):
     """Cancelar un turno (Staff/Admin)."""
     if not (request.user.es_staff_complejo or request.user.es_admin or request.user.es_superadmin):
         messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+
+    if request.method != 'POST':
+        messages.error(request, 'Método no permitido')
         return redirect('dashboard')
     
     turno = get_object_or_404(Turno.objects.select_related('cancha', 'cancha__complejo', 'cliente'), id=turno_id)
@@ -689,13 +779,30 @@ def cancelar_turno_staff(request, turno_id):
     if turno.fue_cancelado:
         messages.error(request, 'Este turno ya está cancelado')
         return redirect('dashboard')
+
+    # Reembolso: staff decide SI/NO explícitamente
+    raw_reembolsar = request.POST.get('reembolsar')
+    if raw_reembolsar not in ['0', '1']:
+        messages.error(request, 'Debés indicar si corresponde reembolso (sí/no).')
+        return redirect('dashboard')
+    reembolsar = raw_reembolsar == '1'
+
+    motivo = (request.POST.get('motivo') or '').strip()
+    if not motivo:
+        motivo = "Cancelación por staff"
+    if not reembolsar:
+        motivo = f"{motivo} (sin reembolso)"
     
     # Cancelar el turno (marcado como cancelado por admin)
     turno.estado = Turno.Estado.CANCELADO_ADMIN
-    turno.save(update_fields=['estado', 'updated_at'])
+    turno.cancelacion_origen = Turno.CancelacionOrigen.STAFF
+    turno.cancelacion_motivo = motivo
+    turno.cancelado_por = request.user
+    turno.cancelado_en = timezone.now()
+    turno.save(update_fields=['estado', 'cancelacion_origen', 'cancelacion_motivo', 'cancelado_por', 'cancelado_en', 'updated_at'])
     
     # Generar crédito para el cliente (si pagó seña) usando servicio
-    if turno.senia_pagada > 0:
+    if reembolsar and turno.senia_pagada > 0:
         CreditoService.generar_credito(
             usuario=turno.cliente,
             complejo=turno.cancha.complejo,
@@ -708,7 +815,10 @@ def cancelar_turno_staff(request, turno_id):
     # Invalidar caché de slots
     TurnoService.invalidar_cache_slots(turno.cancha.complejo.id, turno.fecha)
     
-    messages.success(request, f'Turno cancelado. Se acreditó ${turno.senia_pagada} en créditos al cliente.')
+    if reembolsar and turno.senia_pagada > 0:
+        messages.success(request, f'Turno cancelado. Se acreditó ${turno.senia_pagada} en créditos al cliente.')
+    else:
+        messages.success(request, 'Turno cancelado sin reembolso.')
     return redirect('dashboard')
 
 
@@ -757,6 +867,12 @@ def editar_turno(request, turno_id):
         id=turno_id
     )
     
+    # Bloquear edición si el turno ya empezó (para no “romper” el turno).
+    # En ese caso, el staff solo puede marcar como pagado o cancelar.
+    if turno.estado == Turno.Estado.JUGADO or turno.ya_empezo:
+        messages.error(request, 'Este turno ya empezó. Solo podés marcarlo como pagado o cancelarlo.')
+        return redirect('dashboard')
+    
     # Verificar que el staff pertenece al mismo complejo (o es superadmin)
     if not request.user.es_superadmin:
         if not request.user.complejo or request.user.complejo != turno.cancha.complejo:
@@ -792,6 +908,12 @@ def actualizar_turno(request, turno_id):
         Turno.objects.select_related('cancha', 'cancha__complejo'), 
         id=turno_id
     )
+    
+    # Bloquear edición si el turno ya empezó (para no “romper” el turno).
+    # En ese caso, el staff solo puede marcar como pagado o cancelar.
+    if turno.estado == Turno.Estado.JUGADO or turno.ya_empezo:
+        messages.error(request, 'Este turno ya empezó. Solo podés marcarlo como pagado o cancelarlo.')
+        return redirect('dashboard')
     
     # Verificar que el staff pertenece al mismo complejo (o es superadmin)
     if not request.user.es_superadmin:
@@ -846,10 +968,25 @@ def actualizar_turno(request, turno_id):
         return redirect('editar_turno', turno_id=turno.id)
     
     # Actualizar el turno
+    estado_anterior = turno.estado
     turno.cancha = cancha
     turno.fecha = fecha_obj
     turno.hora_inicio = hora_obj
     turno.estado = nuevo_estado
+    # Si se está marcando como cancelado por admin desde el editor, registrar origen/motivo.
+    # Si se “reabre” (se cambia a otro estado), limpiar datos de cancelación para evitar confusiones.
+    if nuevo_estado == Turno.Estado.CANCELADO_ADMIN:
+        turno.cancelacion_origen = Turno.CancelacionOrigen.STAFF
+        turno.cancelacion_motivo = turno.cancelacion_motivo or "Cancelación por staff"
+        turno.cancelado_por = request.user
+        turno.cancelado_en = timezone.now()
+    else:
+        # Si se reabre un turno que estaba cancelado/expirado, limpiar datos de cancelación.
+        if estado_anterior in [Turno.Estado.CANCELADO_ADMIN, Turno.Estado.CANCELADO_USUARIO, Turno.Estado.EXPIRADO]:
+            turno.cancelacion_origen = None
+            turno.cancelacion_motivo = None
+            turno.cancelado_por = None
+            turno.cancelado_en = None
     turno.save()
     
     # Invalidar caché de slots para ambas fechas si cambió
@@ -894,10 +1031,16 @@ def nuevo_turno_rapido(request):
     slots_por_hora_staff = TurnoService.generar_slots_staff(complejo, fecha_base)
     slots_ordenados = sorted(slots_por_hora_staff.items(), key=lambda x: x[0])
     
+    # Calcular fechas para navegación
+    fecha_anterior = fecha_base - timedelta(days=1)
+    fecha_siguiente = fecha_base + timedelta(days=1)
+    
     context = {
         'complejo': complejo,
         'hoy': hoy,
         'fecha_seleccionada': fecha_base,
+        'fecha_anterior': fecha_anterior,
+        'fecha_siguiente': fecha_siguiente,
         'slots_ordenados': slots_ordenados,
     }
     
@@ -1124,7 +1267,11 @@ def crear_bloqueo(request):
         if turno.fue_cancelado:
             continue
         turno.estado = Turno.Estado.CANCELADO_ADMIN
-        turno.save(update_fields=['estado', 'updated_at'])
+        turno.cancelacion_origen = Turno.CancelacionOrigen.BLOQUEO
+        turno.cancelacion_motivo = motivo
+        turno.cancelado_por = request.user
+        turno.cancelado_en = timezone.now()
+        turno.save(update_fields=['estado', 'cancelacion_origen', 'cancelacion_motivo', 'cancelado_por', 'cancelado_en', 'updated_at'])
         turnos_cancelados += 1
         
         if turno.senia_pagada > 0:
@@ -1581,6 +1728,41 @@ def actualizar_perfil(request):
 
 
 @login_required
+@transaction.atomic
+def darse_de_baja(request):
+    """
+    Eliminar la cuenta del cliente y todo lo asociado.
+    Acción delicada: solo por POST y con confirmación explícita.
+    """
+    if not request.user.es_cliente:
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+
+    if request.method != 'POST':
+        messages.error(request, 'Método no permitido')
+        return redirect('mi_perfil')
+
+    if request.POST.get('confirmar') != '1':
+        messages.error(request, 'Confirmación requerida para darse de baja')
+        return redirect('mi_perfil')
+
+    user = request.user
+    username = user.username
+
+    # 1) Eliminar (borrado en cascada de objetos relacionados)
+    try:
+        user.delete()
+    except Exception as exc:
+        messages.error(request, f'No se pudo eliminar la cuenta: {type(exc).__name__}: {exc}')
+        return redirect('mi_perfil')
+
+    # 2) Cerrar sesión y mostrar feedback (en nueva sesión)
+    logout(request)
+    messages.success(request, f'Tu cuenta ({username}) fue eliminada correctamente.')
+    return redirect('home')
+
+
+@login_required
 def turnos_actuales(request):
     """Vista de turnos actuales del cliente."""
     if not request.user.es_cliente:
@@ -1594,16 +1776,18 @@ def turnos_actuales(request):
     complejo = request.user.complejo
     hoy = timezone.now().date()
     
-    # Marcar turnos como jugados automáticamente
-    Turno.marcar_turnos_como_jugados()
-    
     # Obtener turnos activos (no cancelados, no expirados)
     # Optimizado con select_related para evitar N+1 queries
     turnos_activos = Turno.objects.filter(
         cliente=request.user,
         cancha__complejo=complejo
     ).exclude(
-        estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+        estado__in=[
+            Turno.Estado.CANCELADO_USUARIO,
+            Turno.Estado.CANCELADO_ADMIN,
+            Turno.Estado.EXPIRADO,
+            Turno.Estado.JUGADO,  # Jugados se muestran solo en historial
+        ]
     ).select_related('cancha', 'cancha__complejo', 'cliente').order_by('fecha', 'hora_inicio')
     
     context = {
@@ -1628,9 +1812,6 @@ def historial_turnos(request):
     
     complejo = request.user.complejo
     hoy = timezone.now().date()
-    
-    # Marcar turnos como jugados automáticamente
-    Turno.marcar_turnos_como_jugados()
     
     # Obtener filtro de día desde parámetro GET
     dia_filtro = request.GET.get('dia')
@@ -2161,3 +2342,83 @@ def mercadopago_webhook(request):
     
     # Respuesta mínima: 200 OK para que MP no reintente
     return JsonResponse({"ok": True, "received": True, "raw": payload[:2000]})
+@login_required
+def ops_health(request):
+    """
+    Endpoint de diagnóstico (producción) para validar:
+    - Redis/cache accesible
+    - celery-worker procesando tareas
+    - celery-beat corriendo (via heartbeat en cache)
+    
+    Seguridad:
+    - Requiere usuario logueado
+    - Requiere superadmin
+    - Requiere token secreto (OPS_HEALTHCHECK_TOKEN) por header X-Ops-Token o ?token=
+    """
+    # 1) Solo superadmin
+    if not getattr(request.user, "es_superadmin", False):
+        return JsonResponse({"ok": False, "error": "No autorizado"}, status=403)
+
+    # 2) Token secreto por env
+    expected = (os.getenv("OPS_HEALTHCHECK_TOKEN") or "").strip()
+    provided = (request.headers.get("X-Ops-Token") or request.GET.get("token") or "").strip()
+    if not expected or not provided or not compare_digest(provided, expected):
+        # 404 para no filtrar existencia del endpoint
+        return JsonResponse({"detail": "Not found"}, status=404)
+
+    data: dict = {"ok": False, "checks": {}}
+
+    # Redis / cache
+    redis_ok = False
+    redis_error = None
+    try:
+        cache.set("ops:redis_probe", "ok", timeout=30)
+        redis_ok = cache.get("ops:redis_probe") == "ok"
+    except Exception as exc:
+        redis_error = str(exc)
+    data["checks"]["redis_cache"] = {"ok": redis_ok, "error": redis_error}
+
+    # Celery worker (ejecuta una tarea y espera breve)
+    worker_ok = False
+    worker_state = "unknown"
+    worker_error = None
+    try:
+        from core.tasks import ops_celery_ping_task
+        res = ops_celery_ping_task.delay()
+        worker_state = res.state
+        try:
+            payload = res.get(timeout=2)
+            worker_ok = bool(payload and payload.get("ok") is True)
+            worker_state = "SUCCESS" if worker_ok else res.state
+        except Exception as exc:  # timeout u otros
+            worker_ok = False
+            worker_error = f"{type(exc).__name__}: {exc}"
+            worker_state = res.state
+    except Exception as exc:
+        worker_ok = False
+        worker_error = f"{type(exc).__name__}: {exc}"
+    data["checks"]["celery_worker"] = {"ok": worker_ok, "state": worker_state, "error": worker_error}
+
+    # Celery beat (heartbeat periódico)
+    beat_ok = False
+    beat_error = None
+    beat_last_iso = None
+    try:
+        beat_last_iso = cache.get("ops:celery_beat_heartbeat")
+        if beat_last_iso:
+            dt = parse_datetime(beat_last_iso)
+            if dt is not None:
+                if timezone.is_naive(dt):
+                    dt = timezone.make_aware(dt, timezone.get_current_timezone())
+                age = (timezone.now() - dt).total_seconds()
+                beat_ok = age <= 600  # 10 minutos de tolerancia (heartbeat corre cada 5 min)
+            else:
+                beat_error = "Formato de heartbeat inválido"
+        else:
+            beat_error = "Heartbeat no encontrado"
+    except Exception as exc:
+        beat_error = f"{type(exc).__name__}: {exc}"
+    data["checks"]["celery_beat"] = {"ok": beat_ok, "last": beat_last_iso, "error": beat_error}
+
+    data["ok"] = bool(redis_ok and worker_ok and beat_ok)
+    return JsonResponse(data, status=200 if data["ok"] else 503)

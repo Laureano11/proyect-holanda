@@ -11,18 +11,7 @@ from django.core.cache import cache
 
 
 class TenantMiddleware:
-    """
-    Middleware que resuelve el complejo actual basado en el subdominio.
-    
-    Ejemplos de resolución:
-    - basanta.ha.com → Complejo con subdominio='basanta'
-    - padel-point.local → Complejo con slug='padel-point' (desarrollo)
-    - localhost:8000 → Complejo por defecto (el primero activo)
-    - 127.0.0.1:8000 → Complejo por defecto (el primero activo)
-    
-    Setea request.complejo_actual con el Complejo resuelto (o None si no aplica).
-    """
-    
+   
     # Hosts de desarrollo que usan complejo por defecto
     HOSTS_DESARROLLO_DEFAULT = [
         'localhost',
@@ -34,7 +23,7 @@ class TenantMiddleware:
         self.get_response = get_response
     
     def __call__(self, request):
-        # Importar aquí para evitar imports circulares
+        
         from core.models import Complejo
         
         request.complejo_actual = None
@@ -69,19 +58,19 @@ class TenantMiddleware:
             response = self.get_response(request)
             return response
         
-        # Extraer subdominio del host
-        # Ejemplo: basanta.ha.com → subdominio = 'basanta'
-        subdominio = self._extraer_subdominio(host)
+        # Extraer tenant key siguiendo la regla hs.<complejo>.<tld>
+        # Ejemplo: www.hs.complejo4.com → tenant_key = 'complejo4'
+        tenant_key = self._extraer_tenant_key(host)
         
-        if subdominio:
+        if tenant_key:
             # Intentar obtener del caché primero (evita query a DB)
-            cache_key = f'complejo_subdominio_{subdominio.lower()}'
+            cache_key = f'complejo_subdominio_{tenant_key.lower()}'
             complejo = cache.get(cache_key)
             
             if complejo is None:
                 try:
                     complejo = Complejo.objects.select_related('preferencias').get(
-                        subdominio__iexact=subdominio,
+                        subdominio__iexact=tenant_key,
                         activo=True
                     )
                     # Cachear por 1 hora (3600 segundos)
@@ -98,29 +87,27 @@ class TenantMiddleware:
         response = self.get_response(request)
         return response
     
-    def _extraer_subdominio(self, host):
+    def _extraer_tenant_key(self, host):
         """
-        Extrae el subdominio del host.
+        Extrae la clave de tenant usando la convención hs.<complejo>.<tld>.
+        - www.hs.complejo4.com → 'complejo4'
+        - hs.complejo4.com → 'complejo4'
+        - otros hosts → None (usa default)
+        """
+        # Quitar www. inicial si existe
+        if host.startswith('www.'):
+            host = host[4:]
         
-        Ejemplos:
-        - basanta.ha.com → 'basanta'
-        - www.ha.com → None (www no cuenta)
-        - ha.com → None
-        - sub1.sub2.ha.com → 'sub1' (primer nivel)
-        """
         partes = host.split('.')
-        
-        # Necesitamos al menos 3 partes para tener subdominio (sub.domain.tld)
+        # Necesitamos al menos: hs, <complejo>, <tld>
         if len(partes) < 3:
             return None
         
-        subdominio = partes[0]
-        
-        # Ignorar 'www' como subdominio
-        if subdominio == 'www':
+        if partes[0] != 'hs':
             return None
         
-        return subdominio
+        # La etiqueta siguiente a hs es el identificador del complejo
+        return partes[1] or None
     
     def _es_host_ngrok(self, host):
         """Detecta si es un host de ngrok para desarrollo."""
@@ -171,7 +158,7 @@ class TenantMiddleware:
     def _get_complejo_default(self):
         """
         Retorna el complejo por defecto para desarrollo/fallback.
-        Por ahora retorna el primer complejo activo.
+        Primero intenta un complejo activo; si no hay activos, toma el primero existente.
         Optimizado con caché.
         """
         from core.models import Complejo
@@ -197,6 +184,10 @@ class TenantMiddleware:
         complejo = Complejo.objects.select_related('preferencias').filter(
             activo=True
         ).first()
+        
+        # Si no hay activos, tomar el primero que exista
+        if complejo is None:
+            complejo = Complejo.objects.select_related('preferencias').first()
         
         if complejo:
             cache.set(cache_key, complejo, 3600)

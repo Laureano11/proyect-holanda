@@ -33,16 +33,17 @@ Sistema multi-tenant que permite múltiples complejos en un solo deploy usando s
 
 ## Cómo funciona
 
-### Resolución de tenant
+### Resolución de tenant (hs.<complejo>.<tld>)
 
-El middleware `TenantMiddleware` resuelve el complejo actual basándose en el host:
+El middleware `TenantMiddleware` resuelve el complejo actual basándose en el dominio:
 
 | Host | Comportamiento |
 |------|----------------|
-| `basanta.ha.com` | Resuelve `Complejo.subdominio='basanta'` |
-| `localhost:8000` | Usa complejo por defecto (Basanta) |
+| `www.hs.complejo4.com` | Resuelve `Complejo.subdominio='complejo4'` |
+| `hs.complejo4.com` | Resuelve `Complejo.subdominio='complejo4'` |
+| `localhost:8000` | Usa complejo por defecto (primero activo / primero existente) |
 | `*.ngrok-free.dev` | Usa complejo por defecto (desarrollo) |
-| `ha.com` (sin subdominio) | Usa complejo por defecto |
+| Host sin prefijo `hs.` o sin match | Usa complejo por defecto |
 
 ### Variables disponibles
 
@@ -66,7 +67,7 @@ complejo = getattr(request, 'complejo_actual', None)
 - Mensaje de error claro si intentan acceder desde el subdominio incorrecto
 
 ### Registro
-- Los usuarios se registran automáticamente en el complejo del subdominio actual
+- Los usuarios se registran automáticamente en el complejo del dominio actual (`hs.<complejo>.<tld>`)
 - No hay selector de complejo (se asigna automáticamente)
 
 ### Admin Django
