@@ -130,6 +130,20 @@ def turnos_publicos(request):
     return render(request, 'public/turnos_publicos.html', context)
 
 
+def terminos_y_condiciones(request):
+    """
+    Vista de Términos y Condiciones.
+    """
+    return render(request, 'terminos.html')
+
+
+def politica_privacidad(request):
+    """
+    Vista de Políticas de Privacidad.
+    """
+    return render(request, 'privacidad.html')
+
+
 @ensure_csrf_cookie
 def login_view(request):
     """

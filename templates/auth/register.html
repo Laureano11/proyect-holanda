@@ -129,6 +129,31 @@
                         placeholder="12345678"
                     >
                 </div>
+
+                <!-- Términos y Condiciones -->
+                <div class="flex items-start space-x-3 py-2">
+                    <div class="flex items-center h-5">
+                        <input 
+                            id="terminos" 
+                            name="terminos" 
+                            type="checkbox" 
+                            required
+                            class="w-4 h-4 rounded border-slate-600 bg-slate-900/50 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-800 transition cursor-pointer"
+                        >
+                    </div>
+                    <div class="text-sm">
+                        <label for="terminos" class="text-slate-400 cursor-pointer">
+                            Acepto los 
+                            <a href="{% url 'terminos' %}" target="_blank" class="text-cyan-400 hover:text-cyan-300 font-medium transition">
+                                términos y condiciones
+                            </a>
+                            y la 
+                            <a href="{% url 'privacidad' %}" target="_blank" class="text-cyan-400 hover:text-cyan-300 font-medium transition">
+                                política de privacidad
+                            </a>.
+                        </label>
+                    </div>
+                </div>
                 
                 <!-- Submit -->
                 <button 

@@ -40,7 +40,7 @@
     
     {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-slate-900 min-h-screen text-white">
+<body class="bg-slate-900 min-h-screen text-white flex flex-col">
     <!-- Messages (auto-hide after 3 seconds) -->
     {% if messages %}
     <div id="messages-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 space-y-2">
@@ -64,6 +64,34 @@
     
     {% block content %}{% endblock %}
     
+    <!-- Footer simple -->
+    <footer class="mt-auto py-8 border-t border-slate-800 bg-slate-900/50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center text-slate-400 text-sm text-center md:text-left">
+                <!-- Copyright -->
+                <div>
+                    &copy; 2026 {{ request.tenant.nombre|default:"Sistema de Turnos" }}. <br class="hidden md:block">
+                    Todos los derechos reservados.
+                </div>
+
+                <!-- Links Legales -->
+                <div class="flex justify-center space-x-6">
+                    <a href="{% url 'terminos' %}" class="hover:text-cyan-400 transition-colors">Términos</a>
+                    <a href="{% url 'privacidad' %}" class="hover:text-cyan-400 transition-colors">Privacidad</a>
+                </div>
+
+                <!-- Contacto Desarrollador -->
+                <div class="md:text-right">
+                    <p class="text-xs uppercase tracking-wider text-slate-500 mb-1">Soporte Técnico</p>
+                    <p class="text-slate-300">Desarrollado por <span class="text-cyan-400 font-medium">Laureano Enrique
+                    <span class="text-base font-bold text-orange-400">33</span></p>
+                    
+                    <a href="mailto:tu-email@ejemplo.com" class="hover:text-cyan-400 transition-colors">laureanoenrique29@gmail.com</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
@@ -71,3 +99,4 @@
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
+
