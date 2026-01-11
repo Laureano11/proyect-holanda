@@ -4,7 +4,7 @@
 {% block title %}{{ complejo_actual.nombre|default:"Sistema de Gestión de Turnos" }} · Plataforma completa{% endblock %}
 
 {% block extra_head %}
-    <style>
+<style>
     html {
         scroll-behavior: smooth;
         scroll-padding-top: 6rem;
@@ -17,7 +17,7 @@
 <div class="relative overflow-hidden">
     <!-- Header Navigation -->
     <nav id="main-nav" class="fixed top-0 left-0 right-0 z-50 bg-slate-900/60 backdrop-blur-lg border-b border-white/10 transition-transform duration-300">
-        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
             <div class="flex items-center gap-2 min-w-0">
                 <span class="text-xl font-bold bg-gradient-to-r from-orange-400 to-pink-500 bg-clip-text text-transparent truncate">
                     {{ nombre_complejo }}
@@ -27,7 +27,7 @@
             <!-- Desktop Nav -->
             <div class="hidden md:flex items-center gap-8">
                 <a href="#funcionalidades" class="text-sm text-slate-300 hover:text-white transition-colors">Funcionalidades</a>
-                
+                <a href="#como-funciona" class="text-sm text-slate-300 hover:text-white transition-colors">Cómo funciona</a>
                 <a href="#faq" class="text-sm text-slate-300 hover:text-white transition-colors">FAQ</a>
                 <a href="#contacto" class="text-sm text-slate-300 hover:text-white transition-colors">Contacto</a>
                 <div class="h-4 w-px bg-white/10 mx-2"></div>
@@ -54,415 +54,503 @@
     <div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950"></div>
     <div class="absolute inset-0 opacity-40 blur-3xl bg-[radial-gradient(circle_at_20%_20%,rgba(248,113,113,0.4),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(52,211,153,0.35),transparent_30%),radial-gradient(circle_at_40%_80%,rgba(59,130,246,0.3),transparent_35%)]"></div>
 
-    <main class="relative z-10 max-w-6xl mx-auto px-4 pt-32 pb-24 space-y-24">
+    <main class="relative z-10 max-w-7xl mx-auto px-4 pt-32 pb-24 space-y-32 lg:space-y-48">
         <!-- Hero -->
-        <section class="grid lg:grid-cols-2 gap-12 items-center">
-            <div class="space-y-6">
-                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-300 text-sm">
+        <section class="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center min-h-[70vh]">
+            <div class="space-y-10 text-center lg:text-left">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-300 text-sm font-medium">
                     <span class="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
                     Suite todo en uno para reservas deportivas
                 </div>
 
-                <h1 class="text-4xl md:text-5xl font-bold leading-tight text-white">
+                <h1 class="text-5xl md:text-7xl lg:text-8xl font-black leading-[1.1] text-white tracking-tighter">
                     Gestión de turnos moderna para
-                    <span class="text-orange-400">
+                    <span class="text-orange-400 block mt-2">
                         {{ nombre_complejo }}
                     </span>
                 </h1>
-                <p class="text-lg text-slate-300 leading-relaxed max-w-2xl">
-                    Automatizá reservas, cobros y comunicación con tus clientes. Pensado para equipos de administración, staff y jugadores que quieren dejar atrás el Excel y las llamadas eternas.
+                
+                <p class="text-xl md:text-2xl text-slate-400 leading-relaxed max-w-2xl font-medium mx-auto lg:mx-0">
+                    Automatizá reservas, cobros y comunicación con tus clientes. <span class="text-slate-200">Dejá atrás el Excel y las llamadas eternas.</span>
                 </p>
 
-                <div class="flex flex-col sm:flex-row gap-3">
+                <div class="flex flex-col sm:flex-row gap-4 pt-4 justify-center lg:justify-start">
                     {% if user.is_authenticated %}
-                    <a href="{% url 'dashboard' %}" class="px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
+                    <a href="{% url 'dashboard' %}" class="px-10 py-5 bg-orange-500 text-white font-bold rounded-2xl hover:bg-orange-600 transition shadow-2xl shadow-orange-500/40 flex items-center justify-center gap-3 hover:scale-105 active:scale-95 duration-200">
                         Ir al dashboard
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                         </svg>
                     </a>
-                    <a href="{% url 'turnos_publicos' %}" class="px-6 py-3 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition border border-white/10 flex items-center justify-center gap-2">
+                    <a href="{% url 'turnos_publicos' %}" class="px-10 py-5 bg-white/10 text-white font-bold rounded-2xl hover:bg-white/15 transition border border-white/10 flex items-center justify-center gap-3 hover:scale-105 active:scale-95 duration-200 backdrop-blur-md">
                         Ver turnos públicos
                     </a>
                     {% else %}
-                    <a href="{% url 'register' %}" class="px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
+                    <a href="{% url 'register' %}" class="px-10 py-5 bg-orange-500 text-white font-bold rounded-2xl hover:bg-orange-600 transition shadow-2xl shadow-orange-500/40 flex items-center justify-center gap-3 hover:scale-105 active:scale-95 duration-200">
                         Crear cuenta
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                         </svg>
                     </a>
-                    <a href="{% url 'login' %}" class="px-6 py-3 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition border border-white/10 flex items-center justify-center gap-2">
+                    <a href="{% url 'login' %}" class="px-10 py-5 bg-white/10 text-white font-bold rounded-2xl hover:bg-white/15 transition border border-white/10 flex items-center justify-center gap-3 hover:scale-105 active:scale-95 duration-200 backdrop-blur-md">
                         Iniciar sesión
-                    </a>
-                    <a href="{% url 'turnos_publicos' %}" class="px-6 py-3 bg-slate-900/40 text-slate-100 font-semibold rounded-xl hover:bg-slate-800/60 transition border border-slate-700 flex items-center justify-center gap-2">
-                        Ver turnos disponibles
                     </a>
                     {% endif %}
                 </div>
 
-                <!-- Features -->
-        <section id="funcionalidades" class="space-y-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-orange-300 mb-1">Capacidades</p>
-                    <h2 class="text-2xl font-semibold text-white">Lo que incluye la plataforma</h2>
-                </div>
-            </div>
-            <div class="grid md:grid-cols-3 gap-4">
-                <div class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 space-y-3">
-                    <div class="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-200 flex items-center justify-center">⚡</div>
-                    <h3 class="text-lg font-semibold text-white">Reservas online 24/7</h3>
-                    <p class="text-slate-400 text-sm">Disponibilidad en tiempo real, confirmación automática y recordatorios.</p>
-                </div>
-                <div class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 space-y-3">
-                    <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-200 flex items-center justify-center">🧾</div>
-                    <h3 class="text-lg font-semibold text-white">Pagos y señas</h3>
-                    <p class="text-slate-400 text-sm">Mercado Pago integrado, comprobantes y reglas de cancelación configurables.</p>
-                </div>
-                <div class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 space-y-3">
-                    <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-200 flex items-center justify-center">👥</div>
-                    <h3 class="text-lg font-semibold text-white">Roles</h3>
-                    <p class="text-slate-400 text-sm">Staff, admins y superadmin. Gestionar canchas, horarios y turnos para cada complejo.</p>
-                </div>
-                <div class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 space-y-3">
-                    <div class="w-12 h-12 rounded-xl bg-purple-500/20 text-purple-200 flex items-center justify-center">📊</div>
-                    <h3 class="text-lg font-semibold text-white">Reportes rápidos</h3>
-                    <p class="text-slate-400 text-sm">Turnos jugados, cancelados y créditos auditables para decisiones diarias.</p>
-                </div>
-                <div class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 space-y-3">
-                    <div class="w-12 h-12 rounded-xl bg-pink-500/20 text-pink-200 flex items-center justify-center">🔁</div>
-                    <h3 class="text-lg font-semibold text-white">Turnos fijos</h3>
-                    <p class="text-slate-400 text-sm">Recurrencia semanal, confirmación con seña y generación automática.</p>
-                </div>
-                <div class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 space-y-3">
-                    <div class="w-12 h-12 rounded-xl bg-cyan-500/20 text-cyan-200 flex items-center justify-center">🔐</div>
-                    <h3 class="text-lg font-semibold text-white">Seguridad y trazabilidad</h3>
-                    <p class="text-slate-400 text-sm">Auditoría de créditos, bloqueo de turnos y protección contra estados inválidos.</p>
-                </div>
-            </div>
-        </section>
-            
-
-             <!-- Tarjetitas y stats -->
-             <div class="relative">
-                <div class="absolute inset-0 bg-gradient-to-br from-orange-500/30 via-emerald-400/20 to-blue-500/25 blur-3xl"></div>
-                <div class="relative bg-slate-800/40 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
-                            <p class="text-sm text-emerald-200">En línea</p>
-                        </div>
-                        <p class="text-xs text-slate-400">Staff & Clientes</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 pt-12 border-t border-white/5">
+                    <div class="space-y-2">
+                        <p class="text-4xl font-black text-white">24/7</p>
+                        <p class="text-slate-500 text-sm font-bold uppercase tracking-widest">Disponibilidad</p>
                     </div>
-                    <div class="space-y-4">
-                        <div class="bg-slate-900/80 rounded-2xl p-6 border border-emerald-400/20 shadow-lg relative">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="px-3 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 font-semibold">Reservado</span>
-                                <span class="text-xs text-slate-400 flex items-center gap-1">
-                                    <svg class="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10"/></svg>
-                                    Pago online
-                                </span>
-                            </div>
-                            <div class="mb-3">
-                                <div class="flex items-center gap-3">
-                                    <span class="inline-block bg-emerald-600/60 px-2 py-1 rounded text-xs text-white font-semibold">Cancha 1</span>
-                                    <span class="text-sm text-slate-300">Blindex</span>
+                    <div class="space-y-2">
+                        <p class="text-4xl font-black text-white">10min</p>
+                        <p class="text-slate-500 text-sm font-bold uppercase tracking-widest">Setup inicial</p>
+                    </div>
+                    <div class="space-y-2">
+                        <p class="text-4xl font-black text-white">+25%</p>
+                        <p class="text-slate-500 text-sm font-bold uppercase tracking-widest">Ocupación</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Card -->
+            <div class="relative hidden lg:block">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(249,115,22,0.15),transparent_60%)] blur-[100px]"></div>
+                <div class="relative bg-slate-800/40 border border-white/10 rounded-[3rem] p-10 shadow-2xl backdrop-blur-2xl transform hover:rotate-1 transition-transform duration-700">
+                    <div class="flex items-center justify-between mb-10">
+                        <div class="flex items-center gap-3">
+                            <span class="w-4 h-4 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <p class="text-sm font-black text-emerald-200 uppercase tracking-[0.2em]">En vivo</p>
+                        </div>
+                        <div class="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Admin Dashboard</div>
+                    </div>
+                    
+                    <div class="space-y-8">
+                        <!-- Card 1 -->
+                        <div class="bg-slate-900/90 rounded-[2rem] p-8 border border-emerald-400/20 shadow-2xl relative overflow-hidden group hover:border-emerald-400/40 transition-colors">
+                            <div class="flex items-center justify-between mb-6">
+                                <span class="px-4 py-1.5 rounded-full text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-400/20 font-black uppercase">Confirmado</span>
+                                <div class="flex items-center gap-2">
+                                    <img src="{% static 'img/landing/mp.png' %}" class="h-4 opacity-80" alt="MP">
                                 </div>
-                                <div class="flex items-center gap-5 mt-2">
-                                    <p class="text-lg text-white font-bold">Jueves 20:00 - 21:00</p>
-                                    
-                                </div>
                             </div>
-                            <div class="flex items-center justify-between">
+                            <div class="mb-8">
+                                <h4 class="text-white font-black text-3xl mb-2 tracking-tight">Hoy 20:00 — 21:30</h4>
+                                <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Cancha Central · Césped Sintético</p>
+                            </div>
+                            <div class="flex items-center justify-between items-end">
                                 <div>
-                                    <p class="text-slate-200 font-semibold">Pedro Perez</p>
-                                    <p class="text-slate-400 text-xs">Celular: 123456789</p>
+                                    <p class="text-white font-black text-lg">Federico Rossi</p>
+                                    <p class="text-slate-500 text-xs font-bold uppercase">Reserva #882</p>
                                 </div>
                                 <div class="text-right">
-                                    <p class="text-emerald-300 font-bold text-lg">Pagado: $9.000</p>
-                                    <p class="text-slate-400 text-xs">Mercado Pago</p>
+                                    <p class="text-emerald-400 font-black text-3xl">$12.500</p>
+                                    <p class="text-slate-500 text-[9px] font-black uppercase tracking-widest">Pago verificado</p>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-3 mt-4">
-                                <button class="px-3 py-1 rounded-lg bg-orange-500/80 text-white text-xs font-semibold hover:bg-orange-600 transition">Modificar</button>
-                                <button class="px-3 py-1 rounded-lg bg-green-500/80 text-white text-xs font-semibold hover:bg-green-600 transition">Aceptar</button>
-                                <button class="px-3 py-1 rounded-lg bg-red-500/80 text-white text-xs font-semibold hover:bg-red-600 transition">Cancelar</button>
-                                
-                            </div>
-                            <div class="absolute top-3 right-3">
-                                
-                            </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="bg-gradient-to-br from-orange-500/30 to-pink-500/30 border border-orange-200/20 rounded-xl p-4">
-                                <p class="text-2xl font-bold text-white">+22% </p>
-                                <p class="text-sm text-white/80">Mas de reservas sin contacto por WhatsApp.</p>
+
+                        <!-- Stats small -->
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="bg-gradient-to-br from-orange-500 to-pink-600 rounded-[2rem] p-8 shadow-xl shadow-orange-500/20 transform -rotate-2">
+                                <p class="text-4xl font-black text-white">98%</p>
+                                <p class="text-xs text-orange-100 font-black uppercase tracking-widest mt-2">Satisfacción clientes</p>
                             </div>
-                            <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-                                
-                                <p class="text-lg font-semibold text-white">Reembolsos y señas </p>
-                                <p class="text-xs text-slate-400">De forma automatica e instantanea</p>
-                            </div>
-                        </div>
-                        <div class="bg-slate-900/60 border border-white/10 rounded-2xl p-4">
-                            <p class="text-sm text-slate-300 mb-2">Turno recurrente</p>
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-white font-semibold">Jueves 20:00 · Cancha 5</p>
-                                    <p class="text-slate-400 text-sm">Pedro Perez</p>
-                                </div>
-                                <span class="px-3 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">Activo</span>
+                            <div class="bg-white/5 border border-white/10 rounded-[2rem] p-8 backdrop-blur-md">
+                                <p class="text-white font-black text-xl leading-tight">Gestión Pro</p>
+                                <p class="text-slate-500 text-xs mt-3 font-bold uppercase leading-relaxed">Automatización de créditos y reembolsos</p>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-          
-        </section>
-        <section class="flex justify-center">
-            <div class="inline-flex flex-col md:flex-row items-center gap-6 px-10 py-8 rounded-[2rem] bg-gradient-to-br from-blue-600/10 via-blue-500/5 to-transparent border border-blue-500/20 backdrop-blur-sm shadow-2xl shadow-blue-500/5">
-                <div class="flex flex-col items-center md:items-start">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="flex h-2 w-2 rounded-full bg-blue-400"></span>
-                        <span class="text-blue-400 text-xs font-bold tracking-[0.2em] uppercase">Partnership</span>
-                    </div>
-                    <h3 class="text-2xl font-bold text-white">Integrado con Mercado Pago</h3>
-                    <p class="text-slate-400 text-sm mt-1">Procesamiento de señas y cobros en tiempo real.</p>
-                </div>
-                <div class="hidden md:block h-12 w-px bg-blue-500/20 mx-4"></div>
-                <div class="bg-white px-8 py-4 rounded-2xl shadow-xl flex items-center justify-center transition-transform hover:scale-105 duration-300">
-                    <img src="{% static 'img/landing/mp.png' %}" alt="Mercado Pago" class="h-8 md:h-10 object-contain">
-                </div>
-            </div>
-        </section>
-        <!-- Cómo funciona -->
-        <section id="como-funciona" class="space-y-4">
-            <div class="flex items-center gap-3">
-              
-                <div>
-                    <h2 class="text-2xl font-semibold text-white">Cómo funciona</h2>
-                   
-                </div>
-            </div>
-            <div class="grid md:grid-cols-4 gap-4">
-                <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
-                    <p class="text-sm text-orange-300 mb-2">Clientes</p>
-                    <h3 class="text-white font-semibold mb-2">Eligen y reservan</h3>
-                    <p class="text-slate-400 text-sm">Seleccionan cancha, horario y confirman con seña online.</p>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
-                    <p class="text-sm text-emerald-300 mb-2">Pagos</p>
-                    <h3 class="text-white font-semibold mb-2">Cobro seguro</h3>
-                    <p class="text-slate-400 text-sm">Integración con Mercado Pago, comprobantes y auditoría.</p>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
-                    <p class="text-sm text-blue-300 mb-2">Staff</p>
-                    <h3 class="text-white font-semibold mb-2">Operación en vivo</h3>
-                    <p class="text-slate-400 text-sm">Check-in, cancelaciones, reprogramaciones y bloqueos.</p>
-                </div>
-            
             </div>
         </section>
 
-        
-      
+        <!-- Partnership -->
+        <section class="flex justify-center">
+            <div class="inline-flex flex-col md:flex-row items-center gap-10 px-16 py-10 rounded-[3rem] bg-gradient-to-br from-blue-600/10 via-blue-500/5 to-transparent border border-blue-500/20 backdrop-blur-xl shadow-3xl">
+                <div class="flex flex-col items-center md:items-start text-center md:text-left">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="flex h-2 w-2 rounded-full bg-blue-400"></span>
+                        <span class="text-blue-400 text-xs font-black tracking-[0.3em] uppercase">Partnership Oficial</span>
+                    </div>
+                    <h3 class="text-3xl font-black text-white">Integración con Mercado Pago</h3>
+                    <p class="text-slate-400 font-medium mt-2 text-lg">Cobros, señas y reembolsos procesados al instante.</p>
+                </div>
+                <div class="hidden md:block h-20 w-px bg-blue-500/20 mx-4"></div>
+                <div class="bg-white px-10 py-6 rounded-[2rem] shadow-2xl flex items-center justify-center hover:scale-110 transition-transform duration-500">
+                    <img src="{% static 'img/landing/mp.png' %}" alt="Mercado Pago" class="h-10 md:h-12 object-contain">
+                </div>
+            </div>
+        </section>
+
+        <!-- Tarjetitas y stats (Sección Detallada) -->
+        <section class="space-y-16">
+            <div class="text-center max-w-3xl mx-auto space-y-4">
+                <p class="text-sm font-black text-emerald-400 uppercase tracking-[0.3em]">Operatividad</p>
+                <h2 class="text-4xl md:text-6xl font-black text-white tracking-tighter">Tu complejo, bajo control total</h2>
+            </div>
+
+            <div class="relative max-w-5xl mx-auto">
+                <div class="absolute inset-0 bg-gradient-to-br from-orange-500/20 via-emerald-400/10 to-blue-500/20 blur-[120px] opacity-50"></div>
+                <div class="relative bg-slate-800/40 border border-white/10 rounded-[2rem] lg:rounded-[3rem] p-5 md:p-12 shadow-2xl backdrop-blur-2xl">
+                    <div class="flex items-center justify-between mb-8 md:mb-10">
+                        <div class="flex items-center gap-3">
+                            <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <p class="text-xs md:text-sm font-bold text-emerald-200 uppercase tracking-widest">Panel de Staff en vivo</p>
+                        </div>
+                        <p class="hidden md:block text-xs text-slate-500 font-bold uppercase">Módulo de Administración</p>
+                    </div>
+                    
+                    <div class="grid lg:grid-cols-5 gap-8">
+                        <!-- Columna Principal: Turno Detallado -->
+                        <div class="lg:col-span-3 space-y-6">
+                            <div class="bg-slate-900/80 rounded-[2.5rem] p-8 border border-emerald-400/20 shadow-2xl relative overflow-hidden">
+                                <div class="flex items-center justify-between mb-8">
+                                    <span class="px-4 py-1.5 rounded-full text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-black uppercase tracking-wider">Turno Reservado</span>
+                                    <span class="text-xs text-slate-400 flex items-center gap-2 font-bold uppercase tracking-widest">
+                                        <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                                        Pago Online
+                                    </span>
+                                </div>
+                                
+                                <div class="space-y-6 mb-10">
+                                    <div class="flex items-center gap-4">
+                                        <span class="inline-block bg-emerald-600/60 px-3 py-1.5 rounded-xl text-xs text-white font-black uppercase tracking-tighter">Cancha 1 - Blindex</span>
+                                    </div>
+                                    <h4 class="text-4xl font-black text-white tracking-tighter">Jueves 20:00 — 21:00</h4>
+                                </div>
+
+                                <div class="flex items-center justify-between border-t border-white/5 pt-8">
+                                    <div class="space-y-1">
+                                        <p class="text-white font-black text-xl">Pedro Perez</p>
+                                        <p class="text-slate-500 text-xs font-bold uppercase tracking-widest">WhatsApp: +54 9 11 1234 5678</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-emerald-400 font-black text-3xl">$9.000</p>
+                                        <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Vía Mercado Pago</p>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-3 gap-3 mt-10">
+                                    <button class="px-3 py-2 rounded-2xl bg-orange-500/10 text-orange-400 text-[10px] font-black uppercase tracking-widest border border-orange-500/20 hover:bg-orange-500 hover:text-white transition-all duration-300">Modificar</button>
+                                    <button class="px-3 py-2 rounded-2xl bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all duration-300">Confirmar</button>
+                                    <button class="px-3 py-2 rounded-2xl bg-red-500/10 text-red-400 text-[10px] font-black uppercase tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition-all duration-300">Cancelar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Columna Lateral: Stats y Recurrencia -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="grid grid-cols-1 gap-6">
+                                <div class="bg-gradient-to-br from-orange-500 to-pink-600 rounded-[2.5rem] p-8 shadow-xl shadow-orange-500/20">
+                                    <p class="text-5xl font-black text-white tracking-tighter">+22%</p>
+                                    <p class="text-sm text-orange-100 font-bold leading-relaxed mt-4">Más reservas efectivas eliminando la fricción del WhatsApp.</p>
+                                </div>
+                                <div class="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-md">
+                                    <p class="text-white font-black text-2xl tracking-tight leading-none">Reembolsos & Señas</p>
+                                    <p class="text-slate-500 text-xs mt-4 font-bold uppercase leading-relaxed tracking-widest">Automático e instantáneo</p>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-slate-900/60 border border-white/10 rounded-[2.5rem] p-8 group hover:border-emerald-400/20 transition-colors">
+                                <div class="flex items-center justify-between mb-4">
+                                    <p class="text-xs font-black text-slate-500 uppercase tracking-widest">Turno Recurrente</p>
+                                    <span class="px-3 py-1 rounded-full text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-400/20 font-black uppercase tracking-widest">Activo</span>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-white font-black text-xl tracking-tight">Cancha 5 — Sábados 18hs</p>
+                                    <p class="text-slate-400 text-sm font-medium">Generación automática semanal</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section id="funcionalidades" class="space-y-16">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-10">
+                <div class="max-w-3xl space-y-6">
+                    <p class="text-sm font-black text-orange-300 uppercase tracking-[0.4em]">Capacidades</p>
+                    <h2 class="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tighter">Todo lo que necesitás para escalar tu complejo</h2>
+                </div>
+                <p class="text-slate-400 md:max-w-xs text-xl leading-relaxed">Módulos diseñados específicamente para el mercado deportivo argentino.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
+                <div class="bg-slate-800/40 border border-white/10 rounded-[2.5rem] p-10 space-y-8 hover:border-orange-500/30 transition-all group">
+                    <div class="w-16 h-16 rounded-2xl bg-orange-500/20 text-orange-300 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform shadow-lg shadow-orange-500/10">⚡</div>
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-black text-white tracking-tight">Reservas online 24/7</h3>
+                        <p class="text-slate-400 leading-relaxed text-lg">Disponibilidad en tiempo real sincronizada, confirmación automática y recordatorios inteligentes vía WhatsApp.</p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/40 border border-white/10 rounded-[2.5rem] p-10 space-y-8 hover:border-emerald-500/30 transition-all group">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/10">🧾</div>
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-black text-white tracking-tight">Pagos y señas</h3>
+                        <p class="text-slate-400 leading-relaxed text-lg">Mercado Pago integrado nativamente, manejo de señas, reembolsos y reglas de cancelación personalizables por cancha.</p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/40 border border-white/10 rounded-[2.5rem] p-10 space-y-8 hover:border-blue-500/30 transition-all group">
+                    <div class="w-16 h-16 rounded-2xl bg-blue-500/20 text-blue-300 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/10">👥</div>
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-black text-white tracking-tight">Multiusuarios</h3>
+                        <p class="text-slate-400 leading-relaxed text-lg">Roles específicos para Staff, Admins y Superadmin. Controlá accesos y permisos según las necesidades de tu equipo.</p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/40 border border-white/10 rounded-[2.5rem] p-10 space-y-8 hover:border-purple-500/30 transition-all group">
+                    <div class="w-16 h-16 rounded-2xl bg-purple-500/20 text-purple-300 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform shadow-lg shadow-purple-500/10">📊</div>
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-black text-white tracking-tight">Reportes rápidos</h3>
+                        <p class="text-slate-400 leading-relaxed text-lg">Analizá turnos jugados, cancelaciones y créditos. Auditoría completa para tomar decisiones basadas en datos reales.</p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/40 border border-white/10 rounded-[2.5rem] p-10 space-y-8 hover:border-pink-500/30 transition-all group">
+                    <div class="w-16 h-16 rounded-2xl bg-pink-500/20 text-pink-300 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform shadow-lg shadow-pink-500/10">🔁</div>
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-black text-white tracking-tight">Turnos fijos</h3>
+                        <p class="text-slate-400 leading-relaxed text-lg">Gestión de recurrencia semanal automática. Olvidate de cargar manualmente el mismo turno cada semana.</p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/40 border border-white/10 rounded-[2.5rem] p-10 space-y-8 hover:border-cyan-500/30 transition-all group">
+                    <div class="w-16 h-16 rounded-2xl bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform shadow-lg shadow-cyan-500/10">🔐</div>
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-black text-white tracking-tight">Seguridad total</h3>
+                        <p class="text-slate-400 leading-relaxed text-lg">Protección contra reservas dobles, auditoría de movimientos de créditos y bloqueo seguro de franjas horarias.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cómo funciona -->
+        <section id="como-funciona" class="space-y-20">
+            <div class="text-center max-w-4xl mx-auto space-y-6">
+                <h2 class="text-4xl md:text-6xl font-black text-white tracking-tighter">Una experiencia simplificada</h2>
+                <p class="text-slate-400 text-xl leading-relaxed">Potenciamos la interacción entre tus clientes y tu operación diaria.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-3 gap-10 lg:gap-16">
+                <div class="bg-white/5 border border-white/10 rounded-[3rem] p-12 hover:bg-white/10 transition-all group relative overflow-hidden">
+                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-orange-500/5 rounded-full"></div>
+                    <div class="w-16 h-16 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-3xl font-black mb-10 group-hover:scale-110 transition-transform shadow-xl">1</div>
+                    <p class="text-xs font-black text-orange-300 mb-4 uppercase tracking-[0.3em]">Jugadores</p>
+                    <h3 class="text-3xl text-white font-black mb-6 tracking-tight">Eligen y reservan</h3>
+                    <p class="text-slate-400 leading-relaxed text-lg">Seleccionan su cancha favorita, el horario ideal y confirman con seña online en menos de 1 minuto.</p>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-[3rem] p-12 hover:bg-white/10 transition-all group relative overflow-hidden">
+                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/5 rounded-full"></div>
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-3xl font-black mb-10 group-hover:scale-110 transition-transform shadow-xl">2</div>
+                    <p class="text-xs font-black text-emerald-300 mb-4 uppercase tracking-[0.3em]">Finanzas</p>
+                    <h3 class="text-3xl text-white font-black mb-6 tracking-tight">Cobro seguro</h3>
+                    <p class="text-slate-400 leading-relaxed text-lg">Integración nativa con Mercado Pago. Cobros automáticos, comprobantes digitales y auditoría contable.</p>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-[3rem] p-12 hover:bg-white/10 transition-all group relative overflow-hidden">
+                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/5 rounded-full"></div>
+                    <div class="w-16 h-16 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-3xl font-black mb-10 group-hover:scale-110 transition-transform shadow-xl">3</div>
+                    <p class="text-xs font-black text-blue-300 mb-4 uppercase tracking-[0.3em]">Operación</p>
+                    <h3 class="text-3xl text-white font-black mb-6 tracking-tight">Control total</h3>
+                    <p class="text-slate-400 leading-relaxed text-lg">Check-in, cancelaciones, reprogramaciones y bloqueos manuales desde cualquier dispositivo en tiempo real.</p>
+                </div>
+            </div>
+        </section>
 
         <!-- Galería de pantallas -->
-        <section class="space-y-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-orange-300 mb-1">Screenshots</p>
-                    <h2 class="text-2xl font-semibold text-white">Mirá el sistema en acción</h2>
-                    
+        <section class="space-y-16">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-10">
+                <div class="space-y-6">
+                    <p class="text-sm font-black text-orange-300 uppercase tracking-[0.4em]">Visualización</p>
+                    <h2 class="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tighter">Mirá el sistema en acción</h2>
                 </div>
-                <a href="{% url 'dashboard' %}" class="hidden md:inline-flex items-center gap-2 text-sm text-orange-200 hover:text-orange-100">
-                    Ir al dashboard
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="{% url 'dashboard' %}" class="hidden md:inline-flex items-center gap-3 text-sm font-black text-orange-400 hover:text-orange-300 transition-all uppercase tracking-[0.2em] group">
+                    Explorar demo interactiva
+                    <svg class="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                     </svg>
                 </a>
             </div>
-            <div class="grid md:grid-cols-3 gap-4">
-                <div class="relative group rounded-2xl overflow-hidden border border-white/10 bg-white/5">
-                    <img src="{% static 'img/landing/screen1.png' %}" alt="Panel de turnos" class="w-full h-64 object-cover transition duration-300 group-hover:scale-105" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=900&q=80';">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-transparent"></div>
-                    <div class="absolute bottom-3 left-3 text-white">
-                        <p class="font-semibold">Panel de turnos</p>
-                        <p class="text-sm text-white/80">Disponibilidad en vivo</p>
+            <div class="grid md:grid-cols-3 gap-10 lg:gap-12">
+                <div class="relative group rounded-[2.5rem] overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
+                    <img src="{% static 'img/landing/screen1.png' %}" alt="Panel de turnos" class="w-full h-[400px] object-cover transition duration-700 group-hover:scale-110" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=900&q=80';">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+                    <div class="absolute bottom-8 left-8 text-white">
+                        <p class="font-black text-xl mb-1">Panel de turnos</p>
+                        <p class="text-sm text-slate-400 font-bold uppercase tracking-widest">Disponibilidad en vivo</p>
                     </div>
                 </div>
-                <div class="relative group rounded-2xl overflow-hidden border border-white/10 bg-white/5">
-                    <img src="{% static 'img/landing/screen2.png' %}" alt="Checkout y pagos" class="w-full h-64 object-cover transition duration-300 group-hover:scale-105" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=900&q=80';">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-transparent"></div>
-                    <div class="absolute bottom-3 left-3 text-white">
-                        <p class="font-semibold">Checkout</p>
-                        <p class="text-sm text-white/80">Pagos con Mercado Pago</p>
+                <div class="relative group rounded-[2.5rem] overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
+                    <img src="{% static 'img/landing/screen2.png' %}" alt="Checkout y pagos" class="w-full h-[400px] object-cover transition duration-700 group-hover:scale-110" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=900&q=80';">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+                    <div class="absolute bottom-8 left-8 text-white">
+                        <p class="font-black text-xl mb-1">Checkout Pro</p>
+                        <p class="text-sm text-slate-400 font-bold uppercase tracking-widest">Pagos con Mercado Pago</p>
                     </div>
                 </div>
-                <div class="relative group rounded-2xl overflow-hidden border border-white/10 bg-white/5">
-                    <img src="{% static 'img/landing/screen3.png' %}" alt="Gestión de staff" class="w-full h-64 object-cover transition duration-300 group-hover:scale-105" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=900&q=80';">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-transparent"></div>
-                    <div class="absolute bottom-3 left-3 text-white">
-                        <p class="font-semibold">Staff</p>
-                        <p class="text-sm text-white/80">Operación diaria y bloqueos</p>
+                <div class="relative group rounded-[2.5rem] overflow-hidden border border-white/10 bg-white/5 shadow-2xl">
+                    <img src="{% static 'img/landing/screen3.png' %}" alt="Gestión de staff" class="w-full h-[400px] object-cover transition duration-700 group-hover:scale-110" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=900&q=80';">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+                    <div class="absolute bottom-8 left-8 text-white">
+                        <p class="font-black text-xl mb-1">Gestión de Staff</p>
+                        <p class="text-sm text-slate-400 font-bold uppercase tracking-widest">Operación y Bloqueos</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Preguntas frecuentes (FAQ con acordeón/fold) -->
-        <section id="faq" class="space-y-6">
-            <div class="flex items-center gap-3">
-                <span class="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-400/30 flex items-center justify-center text-orange-200">?</span>
-                <div>
-                    <h2 class="text-2xl font-semibold text-white">Preguntas frecuentes</h2>
-                    <p class="text-slate-400">Lo que más nos consultan antes de implementar.</p>
+        <!-- Preguntas frecuentes -->
+        <section id="faq" class="space-y-16">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-10">
+                <div class="space-y-6">
+                    <p class="text-sm font-black text-orange-300 uppercase tracking-[0.4em]">Soporte</p>
+                    <h2 class="text-4xl md:text-6xl font-black text-white tracking-tighter">Preguntas frecuentes</h2>
                 </div>
+                <p class="text-slate-400 text-xl font-medium">Despejá tus dudas antes de empezar.</p>
             </div>
-            <div class="grid md:grid-cols-2 gap-4">
+            
+            <div class="grid md:grid-cols-2 gap-6 lg:gap-8">
                 <!-- FAQ Item 1 -->
-                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
-                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
-                        ¿Tengo que que instalar algo?
-                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
+                <details class="bg-slate-800/40 border border-white/10 rounded-[2rem] p-8 group transition-all hover:bg-slate-800/60">
+                    <summary class="cursor-pointer flex items-center justify-between font-bold text-xl text-white focus:outline-none list-none">
+                        ¿Tengo que instalar algo?
+                        <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-open:rotate-180 transition-transform">
+                            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
                     </summary>
-                    <div class="mt-3 text-slate-400 text-sm">
-                        No, funciona en el mismo día y no hay instalación. Se crean las cuentas de admin y staff y ya podés usarlo.
+                    <div class="mt-6 text-slate-400 text-lg leading-relaxed border-t border-white/5 pt-6">
+                        No, funciona 100% en la nube. Podés acceder desde cualquier celular, tablet o PC sin instalaciones previas. Tu complejo puede estar online hoy mismo.
                     </div>
                 </details>
                 <!-- FAQ Item 2 -->
-                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
-                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
-                        ¿Cómo se cobran las señas?
-                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
+                <details class="bg-slate-800/40 border border-white/10 rounded-[2rem] p-8 group transition-all hover:bg-slate-800/60">
+                    <summary class="cursor-pointer flex items-center justify-between font-bold text-xl text-white focus:outline-none list-none">
+                        ¿Cómo recibo el dinero de las señas?
+                        <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-open:rotate-180 transition-transform">
+                            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
                     </summary>
-                    <div class="mt-3 text-slate-400 text-sm">
-                        Se procesan con Mercado Pago. Y se acredita directo a la cuenta del dueño del complejo.
+                    <div class="mt-6 text-slate-400 text-lg leading-relaxed border-t border-white/5 pt-6">
+                        El dinero se acredita de forma directa en tu propia cuenta de Mercado Pago. Nosotros no retenemos fondos; la integración es transparente y directa.
                     </div>
                 </details>
                 <!-- FAQ Item 3 -->
-                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
-                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
-                        ¿Cuántos usuarios puedo tener?
-                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
+                <details class="bg-slate-800/40 border border-white/10 rounded-[2rem] p-8 group transition-all hover:bg-slate-800/60">
+                    <summary class="cursor-pointer flex items-center justify-between font-bold text-xl text-white focus:outline-none list-none">
+                        ¿Puedo configurar turnos fijos?
+                        <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-open:rotate-180 transition-transform">
+                            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
                     </summary>
-                    <div class="mt-3 text-slate-400 text-sm">
-                        No hay límite de usuarios. Podés invitar a todo tu staff y los clientes pueden registrarse libremente.
+                    <div class="mt-6 text-slate-400 text-lg leading-relaxed border-t border-white/5 pt-6">
+                        Sí, el sistema permite cargar turnos recurrentes que se generan automáticamente cada semana, facilitando la gestión de tus clientes más fieles.
                     </div>
                 </details>
                 <!-- FAQ Item 4 -->
-                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
-                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
-                        ¿Qué datos necesito para crear el complejo?
-                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
+                <details class="bg-slate-800/40 border border-white/10 rounded-[2rem] p-8 group transition-all hover:bg-slate-800/60">
+                    <summary class="cursor-pointer flex items-center justify-between font-bold text-xl text-white focus:outline-none list-none">
+                        ¿Qué pasa con las cancelaciones?
+                        <div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-open:rotate-180 transition-transform">
+                            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
                     </summary>
-                    <div class="mt-3 text-slate-400 text-sm">
-                        Nombre, dirección, WhatsApp de contacto y (opcionalmente) tu mail o logo. El resto lo podés configurar luego.
-                    </div>
-                </details>
-                <!-- FAQ Item 5 -->
-                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
-                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
-                        ¿Qué pasa si alguien cancela un turno?
-                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </summary>
-                    <div class="mt-3 text-slate-400 text-sm">
-                        El turno vuelve a estar disponible para que otro cliente lo reserve. Podés configurar desde cuándo permiten cancelar.
-                    </div>
-                </details>
-                <!-- FAQ Item 6 -->
-                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group md:col-span-2">
-                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
-                        ¿Qué medios de pago puedo usar?
-                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </summary>
-                    <div class="mt-3 text-slate-400 text-sm">
-                        Mercado Pago (tarjeta, débito, efectivo, CVU), y podés registrar pagos en efectivo al momento de uso.
+                    <div class="mt-6 text-slate-400 text-lg leading-relaxed border-t border-white/5 pt-6">
+                        Podés configurar reglas claras: tiempo mínimo para cancelar, política de devolución de señas (en créditos del complejo) y liberación automática del turno.
                     </div>
                 </details>
             </div>
         </section>
 
         <!-- CTA final -->
-        <section class="bg-gradient-to-r from-orange-500/20 via-pink-500/20 to-emerald-400/20 border border-white/10 rounded-3xl p-8 text-center space-y-4">
-            <h2 class="text-3xl font-semibold text-white">Listo para mostrar tu complejo online</h2>
-            <p class="text-slate-200 max-w-3xl mx-auto">Activá reservas digitales, muestra tus pantallas y dejá que tus clientes se autogestionen. Menos llamadas, más tiempo en la cancha.</p>
-            <div class="flex flex-col sm:flex-row justify-center gap-3">
-                <a href="{% url 'turnos_publicos' %}" class="px-6 py-3 bg-white text-slate-900 font-semibold rounded-xl hover:bg-slate-200 transition">Ver turnos</a>
-                {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}" class="px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition">Abrir dashboard</a>
-                {% else %}
-                <a href="{% url 'register' %}" class="px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition">Crear cuenta</a>
-                <a href="{% url 'login' %}" class="px-6 py-3 bg-slate-900/60 text-white font-semibold rounded-xl hover:bg-slate-800 transition border border-white/10">Iniciar sesión</a>
-                {% endif %}
+        <section class="relative overflow-hidden bg-gradient-to-br from-orange-500/20 via-slate-950 to-emerald-500/10 border border-white/10 rounded-[4rem] p-16 lg:p-32 text-center space-y-12">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(249,115,22,0.15),transparent_50%)]"></div>
+            <div class="relative z-10 max-w-5xl mx-auto space-y-10">
+                <h2 class="text-5xl md:text-8xl font-black text-white tracking-tighter leading-[1.1]">Listo para profesionalizar tu complejo</h2>
+                <p class="text-slate-300 text-2xl leading-relaxed font-medium">Activá reservas digitales hoy mismo. Menos llamadas por WhatsApp, más tiempo enfocándote en crecer. Unirte toma menos de 10 minutos.</p>
+                <div class="flex flex-col sm:flex-row justify-center gap-6 pt-10">
+                    <a href="{% url 'turnos_publicos' %}" class="px-12 py-6 bg-white text-slate-900 font-black rounded-[2rem] hover:bg-slate-100 transition shadow-2xl hover:scale-105 active:scale-95 duration-300 text-lg">Ver turnos disponibles</a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard' %}" class="px-12 py-6 bg-orange-500 text-white font-black rounded-[2rem] hover:bg-orange-600 transition shadow-2xl shadow-orange-500/30 hover:scale-105 active:scale-95 duration-300 text-lg">Abrir dashboard</a>
+                    {% else %}
+                    <a href="{% url 'register' %}" class="px-12 py-6 bg-orange-500 text-white font-black rounded-[2rem] hover:bg-orange-600 transition shadow-2xl shadow-orange-500/30 hover:scale-105 active:scale-95 duration-300 text-lg">Empezar ahora</a>
+                    {% endif %}
+                </div>
             </div>
         </section>
     </main>
 
     <!-- Footer -->
-    <footer id="contacto" class="relative z-10 border-t border-white/5 bg-slate-950/70">
-        <div class="max-w-6xl mx-auto px-4 py-12">
-            <div class="grid md:grid-cols-4 gap-8">
-                <div>
-                    <h3 class="text-white font-semibold mb-3">Contacto</h3>
-                    <ul class="space-y-2 text-slate-300 text-sm">
+    <footer id="contacto" class="relative z-10 border-t border-white/5 bg-slate-950/80 py-24 lg:py-32">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-16 lg:gap-24">
+                <div class="space-y-6">
+                    <h3 class="text-white font-black text-2xl tracking-tight">Contacto</h3>
+                    <ul class="space-y-4 text-slate-400 text-lg">
                         {% if complejo_actual %}
                             {% if complejo_actual.telefono %}
-                            <li><a class="hover:text-orange-300 transition" href="https://wa.me/549{{ complejo_actual.telefono }}" target="_blank">WhatsApp: {{ complejo_actual.telefono }}</a></li>
+                            <li class="flex items-center gap-3 italic">
+                                <svg class="w-5 h-5 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path></svg>
+                                <a class="hover:text-orange-300 transition" href="https://wa.me/549{{ complejo_actual.telefono }}" target="_blank">{{ complejo_actual.telefono }}</a>
+                            </li>
                             {% endif %}
                             {% if complejo_actual.email %}
-                            <li><a class="hover:text-orange-300 transition" href="mailto:{{ complejo_actual.email }}">Email: {{ complejo_actual.email }}</a></li>
+                            <li class="flex items-center gap-3 italic">
+                                <svg class="w-5 h-5 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path></svg>
+                                <a class="hover:text-orange-300 transition" href="mailto:{{ complejo_actual.email }}">{{ complejo_actual.email }}</a>
+                            </li>
                             {% endif %}
-                            <li>{{ complejo_actual.direccion }}</li>
+                            <li class="flex items-center gap-3 italic text-slate-500">
+                                <svg class="w-5 h-5 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path></svg>
+                                {{ complejo_actual.direccion }}
+                            </li>
                         {% else %}
-                            <li class="text-slate-500">Datos del complejo no disponibles</li>
+                            <li class="text-slate-600 italic">Datos del complejo no disponibles</li>
                         {% endif %}
                     </ul>
                 </div>
-                <div>
-                    <h3 class="text-white font-semibold mb-3">Para clientes</h3>
-                    <ul class="space-y-2 text-slate-300 text-sm">
-                        <li><a class="hover:text-orange-300 transition" href="{% url 'turnos_publicos' %}">Ver turnos</a></li>
+                
+                <div class="space-y-6">
+                    <h3 class="text-white font-black text-2xl tracking-tight">Para jugadores</h3>
+                    <ul class="space-y-4 text-slate-400 text-lg">
+                        <li><a class="hover:text-orange-400 transition" href="{% url 'turnos_publicos' %}">Ver turnos disponibles</a></li>
                         {% if user.is_authenticated %}
-                        <li><a class="hover:text-orange-300 transition" href="{% url 'turnos_actuales' %}">Mis turnos</a></li>
-                        <li><a class="hover:text-orange-300 transition" href="{% url 'mi_perfil' %}">Mi perfil</a></li>
+                        <li><a class="hover:text-orange-400 transition" href="{% url 'turnos_actuales' %}">Mis reservas</a></li>
+                        <li><a class="hover:text-orange-400 transition" href="{% url 'mi_perfil' %}">Mi perfil</a></li>
                         {% else %}
-                        <li><a class="hover:text-orange-300 transition" href="{% url 'register' %}">Registrarse</a></li>
-                        <li><a class="hover:text-orange-300 transition" href="{% url 'login' %}">Iniciar sesión</a></li>
+                        <li><a class="hover:text-orange-400 transition" href="{% url 'register' %}">Registrarse</a></li>
+                        <li><a class="hover:text-orange-400 transition" href="{% url 'login' %}">Iniciar sesión</a></li>
                         {% endif %}
                     </ul>
                 </div>
             
-                <div>
-                    <h3 class="text-white font-semibold mb-3">Síguenos</h3>
-                    <div class="space-y-2 text-slate-300 text-sm">
+                <div class="space-y-6">
+                    <h3 class="text-white font-black text-2xl tracking-tight">Síguenos</h3>
+                    <div class="space-y-4 text-slate-400 text-lg">
                         {% if complejo_actual and complejo_actual.instagram %}
-                        <a class="block hover:text-pink-300 transition" href="https://instagram.com/{{ complejo_actual.instagram }}" target="_blank">Instagram @{{ complejo_actual.instagram }}</a>
+                        <a class="flex items-center gap-3 hover:text-pink-400 transition" href="https://instagram.com/{{ complejo_actual.instagram }}" target="_blank">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"></path></svg>
+                            Instagram @{{ complejo_actual.instagram }}
+                        </a>
                         {% endif %}
                         {% if complejo_actual and complejo_actual.twitter_x %}
-                        <a class="block hover:text-slate-200 transition" href="https://x.com/{{ complejo_actual.twitter_x }}" target="_blank">X @{{ complejo_actual.twitter_x }}</a>
+                        <a class="flex items-center gap-3 hover:text-slate-100 transition" href="https://x.com/{{ complejo_actual.twitter_x }}" target="_blank">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.134l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
+                            X @{{ complejo_actual.twitter_x }}
+                        </a>
                         {% endif %}
                         {% if not complejo_actual %}
-                        <p class="text-slate-500">Agregá tus redes en el panel.</p>
+                        <p class="text-slate-600 italic">Agregá tus redes en el panel.</p>
                         {% endif %}
                     </div>
-                </div>
-            </div>
-      
-                 
-                    
                 </div>
             </div>
         </div>

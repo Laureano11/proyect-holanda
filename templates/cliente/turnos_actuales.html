@@ -14,19 +14,20 @@
     
     <!-- Turnos activos -->
     {% if turnos_activos %}
-    <div class="space-y-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         {% for turno in turnos_activos %}
-        <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
-            <div class="flex items-center justify-between">
-                <div class="flex-1">
-                    <div class="flex items-center gap-4 flex-wrap">
-                        <div>
-                            <p class="text-base font-medium text-white">{{ turno.cancha.nombre }}</p>
-                            <p class="text-sm text-slate-400">
-                                {{ turno.fecha|date:"d/m/Y" }} • {{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}
-                            </p>
-                        </div>
-                        <span class="px-2.5 py-1 rounded text-xs font-medium
+        <div class="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50 hover:border-slate-600/80 transition-all">
+            <div class="flex items-center gap-4">
+                <!-- Hora destacada -->
+                <div class="flex flex-col items-center justify-center bg-slate-900/60 rounded-lg px-3 py-2 border border-slate-700/50 min-w-[80px]">
+                    <span class="text-xl font-bold text-white leading-none">{{ turno.hora_inicio|time:"H:i" }}</span>
+                    <span class="text-[10px] text-slate-500 font-bold uppercase mt-1">INICIO</span>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <h3 class="text-sm font-bold text-white truncate">{{ turno.cancha.nombre }}</h3>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
                             {% if turno.estado_visual == 'Jugado' %}bg-green-600/20 text-green-400
                             {% elif turno.estado_visual == 'Pagado completo' %}bg-emerald-500/20 text-emerald-400
                             {% elif turno.estado_visual == 'Reservado con seña' %}bg-amber-500/20 text-amber-400
@@ -38,26 +39,30 @@
                             {{ turno.estado_visual }}
                         </span>
                     </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="text-right">
-                        <p class="text-xs text-slate-400">Precio</p>
-                        <p class="text-sm font-semibold text-white">${{ turno.precio_total|floatformat:0 }}</p>
-                        {% if turno.senia_pagada > 0 %}
-                        <p class="text-xs text-amber-400">Seña: ${{ turno.senia_pagada|floatformat:0 }}</p>
-                        {% endif %}
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex flex-col">
+                            <span class="text-xs text-slate-400 font-medium">{{ turno.fecha|date:"d M Y" }}</span>
+                            <span class="text-[10px] text-slate-500">Finaliza: {{ turno.hora_fin|time:"H:i" }}</span>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-bold text-white">${{ turno.precio_total|floatformat:0 }}</p>
+                            {% if turno.senia_pagada > 0 %}
+                            <p class="text-[10px] text-amber-400 font-medium">Seña: ${{ turno.senia_pagada|floatformat:0 }}</p>
+                            {% endif %}
+                        </div>
                     </div>
-                    <!-- Botones de acción -->
+
                     {% if turno.fecha >= hoy %}
-                    <div class="flex items-center gap-2">
+                    <div class="mt-3 flex justify-end">
                         <form method="post" action="{% url 'cancelar_turno' turno.id %}" class="inline">
                             {% csrf_token %}
                             <button 
                                 type="submit"
                                 onclick="return confirm('¿Estás seguro de cancelar este turno?')"
-                                class="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition"
+                                class="px-3 py-1 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white text-[10px] font-bold rounded border border-red-500/20 transition-all uppercase tracking-tight"
                             >
-                                Cancelar
+                                Cancelar Turno
                             </button>
                         </form>
                     </div>
