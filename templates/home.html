@@ -3,13 +3,58 @@
 
 {% block title %}{{ complejo_actual.nombre|default:"Sistema de Gestión de Turnos" }} · Plataforma completa{% endblock %}
 
+{% block extra_head %}
+    <style>
+    html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 6rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 {% with nombre_complejo=complejo_actual.nombre|default:"Tu complejo" %}
 <div class="relative overflow-hidden">
+    <!-- Header Navigation -->
+    <nav id="main-nav" class="fixed top-0 left-0 right-0 z-50 bg-slate-900/60 backdrop-blur-lg border-b border-white/10 transition-transform duration-300">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="text-xl font-bold bg-gradient-to-r from-orange-400 to-pink-500 bg-clip-text text-transparent truncate">
+                    {{ nombre_complejo }}
+                </span>
+            </div>
+            
+            <!-- Desktop Nav -->
+            <div class="hidden md:flex items-center gap-8">
+                <a href="#funcionalidades" class="text-sm text-slate-300 hover:text-white transition-colors">Funcionalidades</a>
+                
+                <a href="#faq" class="text-sm text-slate-300 hover:text-white transition-colors">FAQ</a>
+                <a href="#contacto" class="text-sm text-slate-300 hover:text-white transition-colors">Contacto</a>
+                <div class="h-4 w-px bg-white/10 mx-2"></div>
+                {% if user.is_authenticated %}
+                <a href="{% url 'dashboard' %}" class="px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600 transition shadow-lg shadow-orange-500/20">Dashboard</a>
+                {% else %}
+                <a href="{% url 'login' %}" class="text-sm text-slate-300 hover:text-white transition-colors">Ingresar</a>
+                <a href="{% url 'register' %}" class="px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600 transition shadow-lg shadow-orange-500/20">Empezar</a>
+                {% endif %}
+            </div>
+
+            <!-- Mobile Menu Button (simplified) -->
+            <div class="md:hidden flex items-center gap-3">
+                <a href="#funcionalidades" class="text-[11px] font-medium text-slate-400 hover:text-white transition-colors">Func.</a>
+                <a href="#faq" class="text-[11px] font-medium text-slate-400 hover:text-white transition-colors">FAQ</a>
+                <a href="#contacto" class="text-[11px] font-medium text-slate-400 hover:text-white transition-colors">Contacto</a>
+                {% if not user.is_authenticated %}
+                <a href="{% url 'login' %}" class="text-[11px] px-2 py-1 bg-orange-500 text-white font-semibold rounded-lg">Login</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
     <div class="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950"></div>
     <div class="absolute inset-0 opacity-40 blur-3xl bg-[radial-gradient(circle_at_20%_20%,rgba(248,113,113,0.4),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(52,211,153,0.35),transparent_30%),radial-gradient(circle_at_40%_80%,rgba(59,130,246,0.3),transparent_35%)]"></div>
 
-    <main class="relative z-10 max-w-6xl mx-auto px-4 pt-16 pb-24 space-y-24">
+    <main class="relative z-10 max-w-6xl mx-auto px-4 pt-32 pb-24 space-y-24">
         <!-- Hero -->
         <section class="grid lg:grid-cols-2 gap-12 items-center">
             <div class="space-y-6">
@@ -55,110 +100,8 @@
                     {% endif %}
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-                    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-                        <p class="text-2xl font-semibold text-white">24/7</p>
-                        <p class="text-slate-400 text-sm">Reservas online y cancelaciones con reglas configurables.</p>
-                    </div>
-                    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-                        <p class="text-2xl font-semibold text-white">Despliegue rapido</p>
-                        <p class="text-slate-400 text-sm">No se necesita instalar nada. Funciona en el mismo dia</p>
-                    </div>
-                    <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-                        <p class="text-2xl font-semibold text-white">Pagos</p>
-                        <p class="text-slate-400 text-sm">Señas y cancelaciones vía Mercado Pago con auditoría.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="relative">
-                <div class="absolute inset-0 bg-gradient-to-br from-orange-500/30 via-emerald-400/20 to-blue-500/25 blur-3xl"></div>
-                <div class="relative bg-slate-800/40 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
-                            <p class="text-sm text-emerald-200">En línea</p>
-                        </div>
-                        <p class="text-xs text-slate-400">Staff & Clientes</p>
-                    </div>
-                    <div class="space-y-4">
-                        <div class="bg-white/5 rounded-2xl p-4 border border-white/10">
-                            <p class="text-sm text-slate-400 mb-1">Próximos turnos</p>
-                            <p class="text-lg font-semibold text-white">Bloques horarios inteligentes</p>
-                            <p class="text-slate-400 text-sm">Visualizá disponibilidad filtrando por cancha, fecha y estado.</p>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="bg-gradient-to-br from-orange-500/30 to-pink-500/30 border border-orange-200/20 rounded-xl p-4">
-                                <p class="text-2xl font-bold text-white">+65%</p>
-                                <p class="text-sm text-white/80">Uso promedio con turnos fijos.</p>
-                            </div>
-                            <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-                                <p class="text-sm text-slate-300">Cobros</p>
-                                <p class="text-lg font-semibold text-white">Pagos confirmados</p>
-                                <p class="text-xs text-slate-400">Alertas al staff y al cliente en tiempo real.</p>
-                            </div>
-                        </div>
-                        <div class="bg-slate-900/60 border border-white/10 rounded-2xl p-4">
-                            <p class="text-sm text-slate-300 mb-2">Turno recurrente</p>
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-white font-semibold">Jueves 20:00 · Cancha 5</p>
-                                    <p class="text-slate-400 text-sm">Pedro Perez</p>
-                                </div>
-                                <span class="px-3 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">Activo</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-        <section class="flex justify-center">
-            <div class="inline-flex flex-col md:flex-row items-center gap-6 px-10 py-8 rounded-[2rem] bg-gradient-to-br from-blue-600/10 via-blue-500/5 to-transparent border border-blue-500/20 backdrop-blur-sm shadow-2xl shadow-blue-500/5">
-                <div class="flex flex-col items-center md:items-start">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="flex h-2 w-2 rounded-full bg-blue-400"></span>
-                        <span class="text-blue-400 text-xs font-bold tracking-[0.2em] uppercase">Partnership</span>
-                    </div>
-                    <h3 class="text-2xl font-bold text-white">Integrado con Mercado Pago</h3>
-                    <p class="text-slate-400 text-sm mt-1">Procesamiento de señas y cobros en tiempo real.</p>
-                </div>
-                <div class="hidden md:block h-12 w-px bg-blue-500/20 mx-4"></div>
-                <div class="bg-white px-8 py-4 rounded-2xl shadow-xl flex items-center justify-center transition-transform hover:scale-105 duration-300">
-                    <img src="{% static 'img/landing/mp.png' %}" alt="Mercado Pago" class="h-8 md:h-10 object-contain">
-                </div>
-            </div>
-        </section>
-        <!-- Cómo funciona -->
-        <section class="space-y-4">
-            <div class="flex items-center gap-3">
-                <span class="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-400/30 flex items-center justify-center text-orange-200">1</span>
-                <div>
-                    <h2 class="text-2xl font-semibold text-white">Cómo funciona</h2>
-                    <p class="text-slate-400">Una experiencia simple para clientes, potente para la operación.</p>
-                </div>
-            </div>
-            <div class="grid md:grid-cols-4 gap-4">
-                <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
-                    <p class="text-sm text-orange-300 mb-2">Clientes</p>
-                    <h3 class="text-white font-semibold mb-2">Eligen y reservan</h3>
-                    <p class="text-slate-400 text-sm">Seleccionan cancha, horario y confirman con seña online.</p>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
-                    <p class="text-sm text-emerald-300 mb-2">Pagos</p>
-                    <h3 class="text-white font-semibold mb-2">Cobro seguro</h3>
-                    <p class="text-slate-400 text-sm">Integración con Mercado Pago, comprobantes y auditoría.</p>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
-                    <p class="text-sm text-blue-300 mb-2">Staff</p>
-                    <h3 class="text-white font-semibold mb-2">Operación en vivo</h3>
-                    <p class="text-slate-400 text-sm">Check-in, cancelaciones, reprogramaciones y bloqueos.</p>
-                </div>
-            
-            </div>
-        </section>
-
-        <!-- Features -->
-        <section class="space-y-6">
+                <!-- Features -->
+        <section id="funcionalidades" class="space-y-6">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-orange-300 mb-1">Capacidades</p>
@@ -198,9 +141,131 @@
                 </div>
             </div>
         </section>
+            
+
+             <!-- Tarjetitas y stats -->
+             <div class="relative">
+                <div class="absolute inset-0 bg-gradient-to-br from-orange-500/30 via-emerald-400/20 to-blue-500/25 blur-3xl"></div>
+                <div class="relative bg-slate-800/40 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+                            <p class="text-sm text-emerald-200">En línea</p>
+                        </div>
+                        <p class="text-xs text-slate-400">Staff & Clientes</p>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="bg-slate-900/80 rounded-2xl p-6 border border-emerald-400/20 shadow-lg relative">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="px-3 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 font-semibold">Reservado</span>
+                                <span class="text-xs text-slate-400 flex items-center gap-1">
+                                    <svg class="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="10"/></svg>
+                                    Pago online
+                                </span>
+                            </div>
+                            <div class="mb-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="inline-block bg-emerald-600/60 px-2 py-1 rounded text-xs text-white font-semibold">Cancha 1</span>
+                                    <span class="text-sm text-slate-300">Blindex</span>
+                                </div>
+                                <div class="flex items-center gap-5 mt-2">
+                                    <p class="text-lg text-white font-bold">Jueves 20:00 - 21:00</p>
+                                    
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-slate-200 font-semibold">Pedro Perez</p>
+                                    <p class="text-slate-400 text-xs">Celular: 123456789</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-emerald-300 font-bold text-lg">Pagado: $9.000</p>
+                                    <p class="text-slate-400 text-xs">Mercado Pago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 mt-4">
+                                <button class="px-3 py-1 rounded-lg bg-orange-500/80 text-white text-xs font-semibold hover:bg-orange-600 transition">Modificar</button>
+                                <button class="px-3 py-1 rounded-lg bg-green-500/80 text-white text-xs font-semibold hover:bg-green-600 transition">Aceptar</button>
+                                <button class="px-3 py-1 rounded-lg bg-red-500/80 text-white text-xs font-semibold hover:bg-red-600 transition">Cancelar</button>
+                                
+                            </div>
+                            <div class="absolute top-3 right-3">
+                                
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-gradient-to-br from-orange-500/30 to-pink-500/30 border border-orange-200/20 rounded-xl p-4">
+                                <p class="text-2xl font-bold text-white">+22% </p>
+                                <p class="text-sm text-white/80">Mas de reservas sin contacto por WhatsApp.</p>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+                                
+                                <p class="text-lg font-semibold text-white">Reembolsos y señas </p>
+                                <p class="text-xs text-slate-400">De forma automatica e instantanea</p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-900/60 border border-white/10 rounded-2xl p-4">
+                            <p class="text-sm text-slate-300 mb-2">Turno recurrente</p>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-white font-semibold">Jueves 20:00 · Cancha 5</p>
+                                    <p class="text-slate-400 text-sm">Pedro Perez</p>
+                                </div>
+                                <span class="px-3 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">Activo</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          
+        </section>
+        <section class="flex justify-center">
+            <div class="inline-flex flex-col md:flex-row items-center gap-6 px-10 py-8 rounded-[2rem] bg-gradient-to-br from-blue-600/10 via-blue-500/5 to-transparent border border-blue-500/20 backdrop-blur-sm shadow-2xl shadow-blue-500/5">
+                <div class="flex flex-col items-center md:items-start">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="flex h-2 w-2 rounded-full bg-blue-400"></span>
+                        <span class="text-blue-400 text-xs font-bold tracking-[0.2em] uppercase">Partnership</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white">Integrado con Mercado Pago</h3>
+                    <p class="text-slate-400 text-sm mt-1">Procesamiento de señas y cobros en tiempo real.</p>
+                </div>
+                <div class="hidden md:block h-12 w-px bg-blue-500/20 mx-4"></div>
+                <div class="bg-white px-8 py-4 rounded-2xl shadow-xl flex items-center justify-center transition-transform hover:scale-105 duration-300">
+                    <img src="{% static 'img/landing/mp.png' %}" alt="Mercado Pago" class="h-8 md:h-10 object-contain">
+                </div>
+            </div>
+        </section>
+        <!-- Cómo funciona -->
+        <section id="como-funciona" class="space-y-4">
+            <div class="flex items-center gap-3">
+              
+                <div>
+                    <h2 class="text-2xl font-semibold text-white">Cómo funciona</h2>
+                   
+                </div>
+            </div>
+            <div class="grid md:grid-cols-4 gap-4">
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
+                    <p class="text-sm text-orange-300 mb-2">Clientes</p>
+                    <h3 class="text-white font-semibold mb-2">Eligen y reservan</h3>
+                    <p class="text-slate-400 text-sm">Seleccionan cancha, horario y confirman con seña online.</p>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
+                    <p class="text-sm text-emerald-300 mb-2">Pagos</p>
+                    <h3 class="text-white font-semibold mb-2">Cobro seguro</h3>
+                    <p class="text-slate-400 text-sm">Integración con Mercado Pago, comprobantes y auditoría.</p>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
+                    <p class="text-sm text-blue-300 mb-2">Staff</p>
+                    <h3 class="text-white font-semibold mb-2">Operación en vivo</h3>
+                    <p class="text-slate-400 text-sm">Check-in, cancelaciones, reprogramaciones y bloqueos.</p>
+                </div>
+            
+            </div>
+        </section>
+
         
-        <!-- Mercado Pago Integration -->
-  
+      
 
         <!-- Galería de pantallas -->
         <section class="space-y-6">
@@ -245,8 +310,8 @@
             </div>
         </section>
 
-        <!-- Preguntas frecuentes -->
-        <section class="space-y-4">
+        <!-- Preguntas frecuentes (FAQ con acordeón/fold) -->
+        <section id="faq" class="space-y-6">
             <div class="flex items-center gap-3">
                 <span class="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-400/30 flex items-center justify-center text-orange-200">?</span>
                 <div>
@@ -255,18 +320,78 @@
                 </div>
             </div>
             <div class="grid md:grid-cols-2 gap-4">
-                <div class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 space-y-2">
-                    <h3 class="text-white font-semibold">¿Tengo que que instalar algo?</h3>
-                    <p class="text-slate-400 text-sm">No, funciona en el mismo dia y no hay instalacion. Se crean las cuentas de admin y staff y ya podes usarlo.</p>
-                </div>
-            </div>
-            <div class="grid md:grid-cols-2 gap-4">
-                <div class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 space-y-2">
-                    <h3 class="text-white font-semibold">¿Cómo se cobran las señas?</h3>
-                    <p class="text-slate-400 text-sm">Se procesan con Mercado Pago. Y se acredita directo a la cuenta del dueno del complejo.</p>
-                </div>
-           
-    
+                <!-- FAQ Item 1 -->
+                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
+                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
+                        ¿Tengo que que instalar algo?
+                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </summary>
+                    <div class="mt-3 text-slate-400 text-sm">
+                        No, funciona en el mismo día y no hay instalación. Se crean las cuentas de admin y staff y ya podés usarlo.
+                    </div>
+                </details>
+                <!-- FAQ Item 2 -->
+                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
+                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
+                        ¿Cómo se cobran las señas?
+                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </summary>
+                    <div class="mt-3 text-slate-400 text-sm">
+                        Se procesan con Mercado Pago. Y se acredita directo a la cuenta del dueño del complejo.
+                    </div>
+                </details>
+                <!-- FAQ Item 3 -->
+                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
+                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
+                        ¿Cuántos usuarios puedo tener?
+                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </summary>
+                    <div class="mt-3 text-slate-400 text-sm">
+                        No hay límite de usuarios. Podés invitar a todo tu staff y los clientes pueden registrarse libremente.
+                    </div>
+                </details>
+                <!-- FAQ Item 4 -->
+                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
+                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
+                        ¿Qué datos necesito para crear el complejo?
+                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </summary>
+                    <div class="mt-3 text-slate-400 text-sm">
+                        Nombre, dirección, WhatsApp de contacto y (opcionalmente) tu mail o logo. El resto lo podés configurar luego.
+                    </div>
+                </details>
+                <!-- FAQ Item 5 -->
+                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group">
+                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
+                        ¿Qué pasa si alguien cancela un turno?
+                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </summary>
+                    <div class="mt-3 text-slate-400 text-sm">
+                        El turno vuelve a estar disponible para que otro cliente lo reserve. Podés configurar desde cuándo permiten cancelar.
+                    </div>
+                </details>
+                <!-- FAQ Item 6 -->
+                <details class="bg-slate-800/40 border border-white/10 rounded-2xl p-5 group md:col-span-2">
+                    <summary class="cursor-pointer flex items-center justify-between font-semibold text-white focus:outline-none transition">
+                        ¿Qué medios de pago puedo usar?
+                        <svg class="w-5 h-5 ml-2 text-orange-200 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </summary>
+                    <div class="mt-3 text-slate-400 text-sm">
+                        Mercado Pago (tarjeta, débito, efectivo, CVU), y podés registrar pagos en efectivo al momento de uso.
+                    </div>
+                </details>
             </div>
         </section>
 
@@ -287,7 +412,7 @@
     </main>
 
     <!-- Footer -->
-    <footer class="relative z-10 border-t border-white/5 bg-slate-950/70">
+    <footer id="contacto" class="relative z-10 border-t border-white/5 bg-slate-950/70">
         <div class="max-w-6xl mx-auto px-4 py-12">
             <div class="grid md:grid-cols-4 gap-8">
                 <div>
@@ -344,4 +469,29 @@
     </footer>
 </div>
 {% endwith %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let lastScrollTop = 0;
+    const header = document.getElementById('main-nav');
+    const scrollThreshold = 100;
+
+    window.addEventListener('scroll', function() {
+        let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        
+        // Evitar disparar en rebotes (iOS)
+        if (scrollTop < 0) return;
+
+        if (scrollTop > lastScrollTop && scrollTop > scrollThreshold) {
+            // Scroll hacia abajo - Ocultar
+            header.style.transform = 'translateY(-100%)';
+        } else {
+            // Scroll hacia arriba - Mostrar
+            header.style.transform = 'translateY(0)';
+        }
+        
+        lastScrollTop = scrollTop;
+    }, { passive: true });
+</script>
 {% endblock %}
