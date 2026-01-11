@@ -22,6 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from urllib.parse import urlencode
 from datetime import datetime, timedelta, time as dt_time
 from decimal import Decimal
@@ -43,6 +44,19 @@ from .models import (
 )
 from .services import TurnoService, CreditoService
 import mercadopago
+
+
+def _build_canonical_absolute_uri(request, path: str) -> str:
+    """
+    Construye una URL absoluta asegurando host canónico (sin `www.`).
+    Esto evita pérdida de sesión cuando el usuario alterna www/no-www y vuelve
+    desde redirects externos (Mercado Pago, OAuth, etc).
+    """
+    host = request.get_host()
+    if host.lower().startswith("www."):
+        host = host[4:]
+    scheme = "https" if request.is_secure() else "http"
+    return f"{scheme}://{host}{path}"
 
 
 def home(request):
@@ -2198,8 +2212,8 @@ def mercadopago_checkout_demo(request):
         return redirect("mercadopago_checkout_demo")
     
     sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
-    feedback_url = request.build_absolute_uri(reverse("mercadopago_feedback"))
-    webhook_url = request.build_absolute_uri(reverse("mercadopago_webhook"))
+    feedback_url = _build_canonical_absolute_uri(request, reverse("mercadopago_feedback"))
+    webhook_url = _build_canonical_absolute_uri(request, reverse("mercadopago_webhook"))
     
     preference = {
         "items": [
@@ -2282,8 +2296,8 @@ def mp_test_pagar_100(request):
         return redirect("dashboard")
 
     sdk = mercadopago.SDK(integ.access_token_plain)
-    feedback_url = request.build_absolute_uri(reverse("mercadopago_feedback"))
-    webhook_url = request.build_absolute_uri(reverse("mercadopago_webhook"))
+    feedback_url = _build_canonical_absolute_uri(request, reverse("mercadopago_feedback"))
+    webhook_url = _build_canonical_absolute_uri(request, reverse("mercadopago_webhook"))
 
     preference = {
         "items": [
@@ -2329,18 +2343,32 @@ def mercadopago_feedback(request):
     """
     Recibe los parámetros de retorno de Checkout Pro y los muestra para revisión.
     """
-    # Definir a dónde redirigir después de mostrar el resultado
-    try:
-        redirect_url = reverse("turnos_actuales")
-    except Exception:
-        redirect_url = reverse("dashboard")
+    # Definir a dónde redirigir después de mostrar el resultado.
+    # Importante: si el usuario no está autenticado (por ejemplo, por mismatch www/no-www),
+    # no forzar una URL con login_required porque parece un "deslogueo".
+    if request.user.is_authenticated:
+        if getattr(request.user, "es_cliente", False):
+            redirect_url = reverse("turnos_actuales")
+        else:
+            redirect_url = reverse("dashboard")
+    else:
+        redirect_url = reverse("home")
+
+    requested_redirect = (request.GET.get("redirect_url") or "").strip()
+    if requested_redirect:
+        if url_has_allowed_host_and_scheme(
+            requested_redirect,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            redirect_url = requested_redirect
 
     context = {
         "payment_id": request.GET.get("payment_id"),
         "status": request.GET.get("status"),
         "merchant_order_id": request.GET.get("merchant_order_id"),
         "preference_id": request.GET.get("preference_id"),
-        "redirect_url": request.GET.get("redirect_url") or redirect_url,
+        "redirect_url": redirect_url,
         "auto_redirect_seconds": 10,
     }
     return render(request, "mercadopago/feedback.html", context)

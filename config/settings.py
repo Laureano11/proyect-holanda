@@ -176,6 +176,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Servir archivos estáticos en producción
+    # Canonicalizar host (evita pérdida de sesión al alternar www/no-www en redirects externos)
+    'core.middleware.CanonicalHostMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

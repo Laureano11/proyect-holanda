@@ -10,6 +10,25 @@ from django.shortcuts import redirect
 from django.core.cache import cache
 
 
+class CanonicalHostMiddleware:
+    """
+    Canonicaliza el host para evitar comportamientos inconsistentes de cookies de sesión
+    cuando el usuario entra con `www.` y vuelve desde terceros (Mercado Pago, etc.).
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        host = request.get_host()
+        # Solo normalizamos `www.` (no tocar subdominios de tenant).
+        if host.lower().startswith("www."):
+            canonical_host = host[4:]
+            scheme = "https" if request.is_secure() else "http"
+            return redirect(f"{scheme}://{canonical_host}{request.get_full_path()}", permanent=False)
+        return self.get_response(request)
+
+
 class TenantMiddleware:
    
     # Hosts de desarrollo que usan complejo por defecto
