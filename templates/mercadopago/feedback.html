@@ -5,18 +5,37 @@
 {% block content %}
 <div class="max-w-2xl mx-auto py-12 px-6">
     <h1 class="text-3xl font-semibold mb-4">Resultado de Mercado Pago</h1>
+
     <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 space-y-3">
         <p><span class="text-slate-400">Payment ID:</span> {{ payment_id|default:"-" }}</p>
         <p><span class="text-slate-400">Preference ID:</span> {{ preference_id|default:"-" }}</p>
         <p><span class="text-slate-400">Status:</span> {{ status|default:"-" }}</p>
         <p><span class="text-slate-400">Merchant Order ID:</span> {{ merchant_order_id|default:"-" }}</p>
     </div>
+
     <p class="text-slate-300 mt-4">
-        Usa estos datos para depurar el flujo y luego actualiza la base de datos según corresponda.
+        En {{ auto_redirect_seconds }}s te llevamos de vuelta. Si querés, podés ir ahora.
     </p>
-    <div class="mt-6">
-        <a href="{% url 'mercadopago_checkout_demo' %}" class="text-cyan-400 hover:text-cyan-300 underline">Volver a intentar</a>
+
+    <div class="mt-6 flex gap-4 flex-wrap items-center">
+        <a href="{{ redirect_url }}" class="px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition">
+            Volver ahora
+        </a>
+        <a href="{% url 'mercadopago_checkout_demo' %}" class="text-cyan-400 hover:text-cyan-300 underline">
+            Reintentar demo
+        </a>
     </div>
 </div>
+
+{% block extra_scripts %}
+<script>
+    (function() {
+        const seconds = {{ auto_redirect_seconds|default:10 }};
+        const target = "{{ redirect_url }}";
+        if (!target) return;
+        setTimeout(() => { window.location.href = target; }, seconds * 1000);
+    })();
+</script>
+{% endblock %}
 {% endblock %}
 

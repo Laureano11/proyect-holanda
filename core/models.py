@@ -1239,3 +1239,77 @@ class IntegracionMercadoPago(models.Model):
         if not self.token_expires_at:
             return False
         return timezone.now() >= self.token_expires_at
+
+
+class PagoMercadoPago(models.Model):
+    """
+    Registro básico de pagos/notificaciones de Mercado Pago para auditoría.
+    """
+    class Estado(models.TextChoices):
+        APPROVED = "approved", "Aprobado"
+        PENDING = "pending", "Pendiente"
+        IN_PROCESS = "in_process", "En proceso"
+        IN_MEDIATION = "in_mediation", "En mediación"
+        REJECTED = "rejected", "Rechazado"
+        CANCELLED = "cancelled", "Cancelado"
+        REFUNDED = "refunded", "Reembolsado"
+        CHARGED_BACK = "charged_back", "Contra-cargo"
+        UNKNOWN = "unknown", "Desconocido"
+
+    complejo = models.ForeignKey(
+        'Complejo',
+        on_delete=models.CASCADE,
+        related_name='pagos_mp',
+        verbose_name='Complejo'
+    )
+    integration = models.ForeignKey(
+        IntegracionMercadoPago,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pagos',
+        verbose_name='Integración'
+    )
+    usuario = models.ForeignKey(
+        'Usuario',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pagos_mp',
+        verbose_name='Usuario'
+    )
+
+    payment_id = models.CharField(max_length=50, unique=True)
+    merchant_order_id = models.CharField(max_length=50, blank=True, null=True)
+    preference_id = models.CharField(max_length=80, blank=True, null=True)
+    external_reference = models.CharField(max_length=120, blank=True, null=True)
+
+    status = models.CharField(
+        max_length=30,
+        choices=Estado.choices,
+        default=Estado.UNKNOWN
+    )
+    status_detail = models.CharField(max_length=120, blank=True, null=True)
+    currency_id = models.CharField(max_length=10, blank=True, null=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    source = models.CharField(
+        max_length=20,
+        default="webhook",
+        help_text="Origen del registro (webhook/feedback/manual)"
+    )
+    raw_payload = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Pago Mercado Pago"
+        verbose_name_plural = "Pagos Mercado Pago"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["complejo", "status"], name="pagomp_complejo_status_idx"),
+        ]
+
+    def __str__(self):
+        return f"Pago MP {self.payment_id} ({self.status})"

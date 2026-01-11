@@ -14,14 +14,12 @@ from django.utils import timezone
 from django.http import JsonResponse
 from django.core import signing
 from django.core.cache import cache
-from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 from django.db import transaction, IntegrityError
 from django.db.models import Sum, Q
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.urls import reverse
 from urllib.parse import urlencode
@@ -31,7 +29,18 @@ import base64
 import hashlib
 import secrets
 import requests
-from .models import Usuario, Complejo, Cancha, Turno, Bloqueo, CreditoCliente, TurnoFijo, IntegracionMercadoPago
+import json
+from .models import (
+    Usuario,
+    Complejo,
+    Cancha,
+    Turno,
+    Bloqueo,
+    CreditoCliente,
+    TurnoFijo,
+    IntegracionMercadoPago,
+    PagoMercadoPago,
+)
 from .services import TurnoService, CreditoService
 import mercadopago
 
@@ -548,15 +557,20 @@ def dashboard(request):
     
     # Estado de integración Mercado Pago para admin/staff
     mp_integration = None
+    mp_payments = []
     if user.complejo:
         try:
             mp_integration = user.complejo.mercadopago
         except IntegracionMercadoPago.DoesNotExist:
             mp_integration = None
+        mp_payments = list(
+            PagoMercadoPago.objects.filter(complejo=user.complejo).order_by("-created_at")[:10]
+        )
     context.update({
         'mp_integration': mp_integration,
         'mp_oauth_ready': bool(settings.MP_CLIENT_ID and settings.MP_CLIENT_SECRET and settings.MP_REDIRECT_URI),
         'mp_token_expired': mp_integration.is_expired() if mp_integration else False,
+        'mp_payments': mp_payments,
     })
     
     # Redirigir según rol
@@ -2315,11 +2329,19 @@ def mercadopago_feedback(request):
     """
     Recibe los parámetros de retorno de Checkout Pro y los muestra para revisión.
     """
+    # Definir a dónde redirigir después de mostrar el resultado
+    try:
+        redirect_url = reverse("turnos_actuales")
+    except Exception:
+        redirect_url = reverse("dashboard")
+
     context = {
         "payment_id": request.GET.get("payment_id"),
         "status": request.GET.get("status"),
         "merchant_order_id": request.GET.get("merchant_order_id"),
         "preference_id": request.GET.get("preference_id"),
+        "redirect_url": request.GET.get("redirect_url") or redirect_url,
+        "auto_redirect_seconds": 10,
     }
     return render(request, "mercadopago/feedback.html", context)
 
@@ -2335,13 +2357,78 @@ def mercadopago_webhook(request):
     - y consultar a la API (payment) para obtener el estado final
     """
     # MP puede enviar JSON o form-data según configuración/evento
+    raw_body = request.body.decode("utf-8") if request.body else ""
     try:
-        payload = request.body.decode("utf-8") if request.body else ""
+        body_json = json.loads(raw_body) if raw_body else {}
     except Exception:
-        payload = ""
-    
-    # Respuesta mínima: 200 OK para que MP no reintente
-    return JsonResponse({"ok": True, "received": True, "raw": payload[:2000]})
+        body_json = {}
+
+    # Extraer IDs
+    payment_id = (
+        request.GET.get("id")
+        or request.GET.get("data.id")
+        or (body_json.get("data") or {}).get("id")
+    )
+    topic = request.GET.get("topic") or body_json.get("type") or body_json.get("topic")
+    user_id = body_json.get("user_id") or body_json.get("userId")
+
+    integ = None
+    if user_id:
+        integ = IntegracionMercadoPago.objects.filter(mp_user_id=str(user_id), activo=True).first()
+
+    status = PagoMercadoPago.Estado.UNKNOWN
+    status_detail = None
+    external_reference = None
+    merchant_order_id = None
+    preference_id = None
+    amount = None
+    currency_id = None
+
+    # Consultar a MP si es un pago y tenemos access token
+    if topic == "payment" and payment_id and integ and integ.access_token_plain:
+        try:
+            resp = requests.get(
+                f"https://api.mercadopago.com/v1/payments/{payment_id}",
+                headers={"Authorization": f"Bearer {integ.access_token_plain}"},
+                timeout=8,
+            )
+            if resp.status_code < 300:
+                p = resp.json()
+                status = p.get("status") or status
+                status_detail = p.get("status_detail")
+                external_reference = p.get("external_reference")
+                preference_id = p.get("preference_id")
+                merchant_order_id = p.get("order") or p.get("merchant_order_id")
+                amount = p.get("transaction_amount")
+                currency_id = p.get("currency_id")
+                # Si el webhook trae user_id, mantenemos el match
+        except Exception:
+            # No romper el webhook; MP reintentará si necesita
+            pass
+
+    # Persistir registro mínimo
+    if payment_id:
+        defaults = {
+            "integration": integ,
+            "complejo": integ.complejo if integ else None,
+            "status": status or PagoMercadoPago.Estado.UNKNOWN,
+            "status_detail": status_detail,
+            "external_reference": external_reference,
+            "preference_id": preference_id,
+            "merchant_order_id": merchant_order_id,
+            "amount": amount,
+            "currency_id": currency_id,
+            "source": "webhook",
+            "raw_payload": body_json or raw_body[:2000],
+        }
+        # Si no tenemos complejo, no podemos guardar por FK; en ese caso no guardamos
+        if defaults["complejo"]:
+            PagoMercadoPago.objects.update_or_create(
+                payment_id=payment_id,
+                defaults=defaults,
+            )
+
+    return JsonResponse({"ok": True})
 @login_required
 def ops_health(request):
     """
