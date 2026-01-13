@@ -84,9 +84,12 @@ if DEBUG:
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 
-# Multi-tenant: hosts que siempre deben mapear al complejo default (sin resolver tenant).
-# Útil mientras no tengas dominios tipo <complejo>.hasselt.com y uses un host único (p.ej. Render).
-TENANT_DEFAULT_HOSTS = _csv_env("TENANT_DEFAULT_HOSTS", "proyect-holanda.onrender.com")
+# Multi-tenant:
+# - TENANT_BASE_DOMAINS define en qué dominios se resuelven los subdominios de cada complejo.
+# - TENANT_DEFAULT_HOSTS siempre deben mapear al complejo default (sin resolver tenant).
+#   Útil mientras no tengas dominios tipo <complejo>.pdl33.com y uses un host único (p.ej. Render).
+TENANT_BASE_DOMAINS = _csv_env("TENANT_BASE_DOMAINS", "pdl33.com")
+TENANT_DEFAULT_HOSTS = _csv_env("TENANT_DEFAULT_HOSTS", "pdl33.com,proyect-holanda.onrender.com")
 
 # Integraciones externas
 MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")

@@ -2438,8 +2438,41 @@ def mp_oauth_callback(request):
     integ.set_tokens(access_token, refresh_token=refresh_token, expires_in=expires_in, mp_user_id=mp_user_id)
     integ.save()
     
+    # Redirigir al subdominio del complejo (tenant) si es posible.
+    redirect_host = None
+    try:
+        base_domains = getattr(settings, "TENANT_BASE_DOMAINS", None)
+        if isinstance(base_domains, str):
+            base_domains = [base_domains]
+        base_domain = None
+        if base_domains:
+            for bd in base_domains:
+                if bd and str(bd).strip():
+                    base_domain = str(bd).strip().lower().rstrip(".")
+                    break
+
+        complejo = Complejo.objects.filter(id=complejo_id).first()
+        tenant_label = None
+        if complejo:
+            tenant_label = (complejo.subdominio or complejo.slug or "").strip().lower().strip(".")
+
+        if base_domain and tenant_label:
+            redirect_host = f"{tenant_label}.{base_domain}"
+    except Exception:  # pragma: no cover - defensivo
+        redirect_host = None
+
     messages.success(request, "Cuenta de Mercado Pago conectada correctamente.")
-    return redirect("dashboard")
+
+    if redirect_host:
+        scheme = "https" if request.is_secure() else "http"
+        return redirect(f"{scheme}://{redirect_host}{reverse('dashboard')}")
+
+    # Fallback: redirigir al host actual si no pudimos determinar el tenant.
+    canonical_host = request.get_host()
+    if canonical_host.lower().startswith("www."):
+        canonical_host = canonical_host[4:]
+    scheme = "https" if request.is_secure() else "http"
+    return redirect(f"{scheme}://{canonical_host}{reverse('dashboard')}")
 
 
 @login_required
