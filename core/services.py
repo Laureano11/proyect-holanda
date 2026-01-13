@@ -31,6 +31,32 @@ class TurnoService:
         """Invalida el caché de slots para una fecha específica."""
         cache_key = TurnoService.get_cache_key(complejo_id, fecha)
         cache.delete(cache_key)
+
+    @staticmethod
+    def expirar_turnos_pendientes(complejo, fecha, ahora=None):
+        """
+        Marca como expirados los turnos pendientes cuyo expira_en ya pasó.
+        Devuelve la cantidad de turnos actualizados.
+        """
+        from .models import Turno
+        if ahora is None:
+            ahora = timezone.now()
+        turnos_expirados = Turno.objects.filter(
+            cancha__complejo=complejo,
+            fecha=fecha,
+            estado=Turno.Estado.PENDIENTE_PAGO,
+            expira_en__lt=ahora
+        )
+        cantidad = turnos_expirados.count()
+        if cantidad:
+            turnos_expirados.update(
+                estado=Turno.Estado.EXPIRADO,
+                cancelacion_origen=Turno.CancelacionOrigen.SISTEMA,
+                cancelacion_motivo="Expirado por falta de pago",
+                cancelado_por=None,
+                cancelado_en=ahora,
+            )
+        return cantidad
     
     @staticmethod
     def preprocesar_bloqueos(bloqueos):
@@ -85,6 +111,9 @@ class TurnoService:
         """
         from .models import Cancha, Turno, TurnoFijo, Bloqueo, PreferenciasComplejo
         
+        # Expirar pendientes vencidos de hoy/fecha antes de calcular slots
+        cls.expirar_turnos_pendientes(complejo, fecha)
+
         # Intentar obtener de caché
         cache_key = cls.get_cache_key(complejo.id, fecha)
         if use_cache:
@@ -242,6 +271,9 @@ class TurnoService:
         """
         from .models import Cancha, Turno, Bloqueo, PreferenciasComplejo
         
+        # Expirar pendientes vencidos de hoy/fecha antes de calcular slots
+        cls.expirar_turnos_pendientes(complejo, fecha)
+
         ahora = timezone.now()
         hoy_actual = ahora.date()
         
@@ -342,6 +374,9 @@ class TurnoService:
         ahora = timezone.now()
         fecha_hora_turno = timezone.make_aware(datetime.combine(fecha, hora))
         
+        # Expirar pendientes vencidos antes de validar
+        TurnoService.expirar_turnos_pendientes(cancha.complejo, fecha, ahora=ahora)
+
         # Verificar que no sea en el pasado
         if fecha_hora_turno < ahora:
             return False, 'No se puede reservar un turno en el pasado'

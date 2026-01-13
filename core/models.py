@@ -811,10 +811,12 @@ class Turno(models.Model):
         elif self.estado == self.Estado.CONFIRMADO:
             return 'Pagado completo'
         elif self.estado == self.Estado.PENDIENTE_PAGO:
+            # Si hay un pago MP en curso, reflejarlo
+            if (self.mp_status in ['pending', 'in_process', 'in_mediation']) or (self.mp_amount and not self.senia_completa_pagada):
+                return 'En pago'
             if self.senia_pagada > 0:
                 return 'Reservado con seña'
-            else:
-                return 'Reservado'
+            return 'Reservado'
         return 'Desconocido'
     
     @classmethod

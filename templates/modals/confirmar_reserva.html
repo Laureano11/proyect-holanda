@@ -51,7 +51,9 @@
             </div>
 
             {% if monto_mp > 0 %}
-            <p class="text-xs text-slate-400 mt-1">Te vamos a redirigir a Mercado Pago para completar la seña. El turno expirará si no pagás a tiempo.</p>
+            <p class="text-xs text-slate-400 mt-1">
+                Te vamos a redirigir a Mercado Pago para completar la seña. Tenés {{ minutos_expiracion_pago }} min para pagar antes de que el turno se libere.
+            </p>
             {% else %}
             <p class="text-xs text-emerald-400 mt-1">La seña se cubre completamente con tus créditos.</p>
             {% endif %}

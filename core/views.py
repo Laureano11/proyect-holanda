@@ -708,6 +708,11 @@ def modal_reservar(request, cancha_id):
     senia_requerida = cancha.precio_senia
     creditos_a_usar = min(creditos_disponibles, senia_requerida)
     monto_mp = senia_requerida - creditos_a_usar
+    minutos_expiracion_pago = 10
+    try:
+        minutos_expiracion_pago = int(cancha.complejo.preferencias.minutos_expiracion_pago)
+    except Exception:
+        minutos_expiracion_pago = 10
 
     context = {
         'cancha': cancha,
@@ -718,6 +723,7 @@ def modal_reservar(request, cancha_id):
         'creditos_disponibles': creditos_disponibles,
         'creditos_a_usar': creditos_a_usar,
         'monto_mp': monto_mp,
+        'minutos_expiracion_pago': minutos_expiracion_pago,
     }
     
     return render(request, 'modals/confirmar_reserva.html', context)
