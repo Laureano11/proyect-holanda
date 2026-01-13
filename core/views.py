@@ -2129,11 +2129,51 @@ def mi_perfil(request):
     if not request.user.es_cliente:
         messages.error(request, 'No autorizado')
         return redirect('dashboard')
-    
+
+    from decimal import Decimal
+    from django.utils import timezone
+
+    complejo = request.user.complejo
+    hoy = timezone.localdate()
+
+    turnos_qs = Turno.objects.filter(cliente=request.user)
+    if complejo:
+        turnos_qs = turnos_qs.filter(cancha__complejo=complejo)
+
+    turnos_activos = turnos_qs.filter(fecha__gte=hoy).exclude(
+        estado__in=[
+            Turno.Estado.CANCELADO_USUARIO,
+            Turno.Estado.CANCELADO_ADMIN,
+            Turno.Estado.EXPIRADO,
+            Turno.Estado.JUGADO,
+        ]
+    )
+    turnos_reservados = turnos_qs.filter(
+        fecha__gte=hoy,
+        estado=Turno.Estado.CONFIRMADO,
+    )
+    turnos_cancelados = turnos_qs.filter(
+        estado__in=[
+            Turno.Estado.CANCELADO_USUARIO,
+            Turno.Estado.CANCELADO_ADMIN,
+            Turno.Estado.EXPIRADO,
+        ]
+    )
+    turnos_jugados = turnos_qs.filter(estado=Turno.Estado.JUGADO)
+
+    creditos_actuales = (
+        request.user.get_creditos_disponibles(complejo) if complejo else Decimal("0.00")
+    )
+
     context = {
-        'complejo': request.user.complejo,
+        'complejo': complejo,
+        'stats_turnos_activos': turnos_activos.count(),
+        'stats_turnos_reservados': turnos_reservados.count(),
+        'stats_turnos_cancelados': turnos_cancelados.count(),
+        'stats_turnos_jugados': turnos_jugados.count(),
+        'stats_creditos_actuales': creditos_actuales,
     }
-    
+
     return render(request, 'cliente/perfil.html', context)
 
 
