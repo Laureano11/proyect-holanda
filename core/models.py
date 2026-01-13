@@ -636,6 +636,43 @@ class Turno(models.Model):
         null=True,
         verbose_name='Referencia de pago'
     )
+    # Metadata de Mercado Pago (para seguimiento de la seña)
+    mp_preference_id = models.CharField(
+        max_length=120,
+        blank=True,
+        null=True,
+        verbose_name='Preferencia MP'
+    )
+    mp_payment_id = models.CharField(
+        max_length=120,
+        blank=True,
+        null=True,
+        verbose_name='Pago MP'
+    )
+    mp_status = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        verbose_name='Estado MP'
+    )
+    mp_status_detail = models.CharField(
+        max_length=120,
+        blank=True,
+        null=True,
+        verbose_name='Detalle estado MP'
+    )
+    mp_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Monto pagado MP'
+    )
+    mp_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='MP actualizado en'
+    )
     
     notas = models.TextField(
         blank=True,
@@ -827,6 +864,17 @@ class Turno(models.Model):
     def esta_pagado_completo(self):
         """Verifica si el turno está pagado completamente."""
         return self.estado == self.Estado.CONFIRMADO
+    
+    @property
+    def senia_completa_pagada(self):
+        """Indica si la seña requerida está totalmente cubierta."""
+        return self.senia_pagada >= self.senia_requerida
+    
+    @property
+    def saldo_senia_pendiente(self):
+        """Cuánto resta para completar la seña (no negativo)."""
+        restante = self.senia_requerida - self.senia_pagada
+        return restante if restante > 0 else Decimal('0.00')
     
     def save(self, *args, **kwargs):
         # Establecer precios si no están definidos

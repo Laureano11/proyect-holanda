@@ -216,6 +216,14 @@
                                     {{ turno.estado_visual }}
                                 </span>
                                 <p class="text-xs text-slate-500 mt-1">${{ turno.precio_total|floatformat:0 }}</p>
+                                {% if turno.senia_completa_pagada %}
+                                <p class="text-[11px] text-emerald-400 mt-1">Seña abonada</p>
+                                {% elif turno.senia_pagada > 0 %}
+                                <p class="text-[11px] text-amber-300 mt-1">Seña pagada: ${{ turno.senia_pagada|floatformat:0 }}</p>
+                                {% endif %}
+                                {% if turno.mp_status %}
+                                <p class="text-[11px] text-cyan-300 mt-0.5">MP: {{ turno.mp_status }}</p>
+                                {% endif %}
                             </td>
                             <td class="px-4 py-3 align-top">
                                 <div class="flex flex-wrap gap-2 justify-end">

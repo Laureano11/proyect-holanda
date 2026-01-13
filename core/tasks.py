@@ -6,6 +6,7 @@ from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
 import logging
+from decimal import Decimal
 from django.core.management import call_command
 from django.core.cache import cache
 
@@ -36,22 +37,50 @@ def limpiar_turnos_expirados_task():
     Se ejecuta cada 10 minutos vía Celery Beat.
     """
     from .models import Turno
+    from .services import CreditoService
     
     try:
         ahora = timezone.now()
-        turnos_expirados = Turno.objects.filter(
+        turnos_expirados = Turno.objects.select_related('cancha', 'cancha__complejo', 'cliente').filter(
             estado=Turno.Estado.PENDIENTE_PAGO,
             expira_en__lt=ahora
         )
         
-        cantidad = turnos_expirados.count()
-        turnos_expirados.update(
-            estado=Turno.Estado.EXPIRADO,
-            cancelacion_origen=Turno.CancelacionOrigen.SISTEMA,
-            cancelacion_motivo="Expirado por falta de pago",
-            cancelado_por=None,
-            cancelado_en=ahora,
-        )
+        cantidad = 0
+        for turno in turnos_expirados:
+            # Devolver créditos usados (si los hay)
+            if turno.creditos_usados > 0:
+                try:
+                    CreditoService.generar_credito(
+                        usuario=turno.cliente,
+                        complejo=turno.cancha.complejo,
+                        monto=turno.creditos_usados,
+                        motivo="Expiración de turno por falta de pago",
+                        turno_origen=turno,
+                        creado_por=None,
+                    )
+                    turno.senia_pagada = max(Decimal("0.00"), turno.senia_pagada - turno.creditos_usados)
+                    turno.creditos_usados = Decimal("0.00")
+                except Exception as exc:
+                    logger.error(f"Error devolviendo créditos al expirar turno {turno.id}: {exc}")
+            turno.estado = Turno.Estado.EXPIRADO
+            turno.cancelacion_origen = Turno.CancelacionOrigen.SISTEMA
+            turno.cancelacion_motivo = "Expirado por falta de pago"
+            turno.cancelado_por = None
+            turno.cancelado_en = ahora
+            turno.expira_en = None
+            turno.save(update_fields=[
+                'estado',
+                'cancelacion_origen',
+                'cancelacion_motivo',
+                'cancelado_por',
+                'cancelado_en',
+                'senia_pagada',
+                'creditos_usados',
+                'expira_en',
+                'updated_at',
+            ])
+            cantidad += 1
         
         logger.info(f"Turnos expirados limpiados: {cantidad}")
         return {'exito': True, 'cantidad': cantidad}

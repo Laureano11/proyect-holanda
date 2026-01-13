@@ -33,15 +33,27 @@
                 <span class="text-cyan-400 font-semibold">${{ senia|floatformat:0 }}</span>
             </div>
             
+            <div class="flex items-center justify-between py-2 border-b border-slate-700/50">
+                <span class="text-slate-400 text-sm">Créditos disponibles</span>
+                <span class="text-emerald-400 font-semibold text-sm">${{ creditos_disponibles|floatformat:0 }}</span>
+            </div>
+
+            <div class="flex items-center justify-between py-2 border-b border-slate-700/50">
+                <span class="text-slate-400 text-sm">Créditos a usar</span>
+                <span class="text-emerald-300 font-semibold text-sm">${{ creditos_a_usar|floatformat:0 }}</span>
+            </div>
+
             <div class="flex items-center justify-between py-2">
-                <span class="text-slate-400 text-sm">Créditos</span>
-                <span class="{% if creditos_disponibles >= senia %}text-emerald-400{% else %}text-amber-400{% endif %} font-semibold text-sm">
-                    ${{ creditos_disponibles|floatformat:0 }}
+                <span class="text-slate-400 text-sm">A pagar con Mercado Pago</span>
+                <span class="{% if monto_mp > 0 %}text-cyan-300{% else %}text-emerald-300{% endif %} font-semibold text-sm">
+                    ${{ monto_mp|floatformat:0 }}
                 </span>
             </div>
-            
-            {% if creditos_disponibles < senia %}
-            <p class="text-red-400 text-xs mt-1">⚠️ Créditos insuficientes</p>
+
+            {% if monto_mp > 0 %}
+            <p class="text-xs text-slate-400 mt-1">Te vamos a redirigir a Mercado Pago para completar la seña. El turno expirará si no pagás a tiempo.</p>
+            {% else %}
+            <p class="text-xs text-emerald-400 mt-1">La seña se cubre completamente con tus créditos.</p>
             {% endif %}
         </div>
         
@@ -75,10 +87,9 @@
                 <input type="hidden" name="hora" value="{{ hora|time:'H:i:s' }}">
                 <button 
                     type="submit"
-                    class="w-full py-2 px-3 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition {% if creditos_disponibles < senia %}opacity-50 cursor-not-allowed{% endif %}"
-                    {% if creditos_disponibles < senia %}disabled{% endif %}
+                    class="w-full py-2 px-3 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition"
                 >
-                    Aceptar y confirmar
+                    Confirmar
                 </button>
             </form>
         </div>

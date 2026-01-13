@@ -31,6 +31,7 @@ import hashlib
 import secrets
 import requests
 import json
+import logging
 from .models import (
     Usuario,
     Complejo,
@@ -45,6 +46,8 @@ from .models import (
 from .services import TurnoService, CreditoService
 import mercadopago
 
+logger = logging.getLogger(__name__)
+
 
 def _build_canonical_absolute_uri(request, path: str) -> str:
     """
@@ -57,6 +60,81 @@ def _build_canonical_absolute_uri(request, path: str) -> str:
         host = host[4:]
     scheme = "https" if request.is_secure() else "http"
     return f"{scheme}://{host}{path}"
+
+
+def _crear_preferencia_mp_para_turno(request, integration, turno, monto_mp):
+    """
+    Crea una preferencia de MP para cobrar el monto pendiente de seña.
+    Devuelve (checkout_url, preference_id, external_reference).
+    """
+    sdk = mercadopago.SDK(integration.access_token_plain)
+    feedback_url = _build_canonical_absolute_uri(request, reverse("mercadopago_feedback"))
+    webhook_url = _build_canonical_absolute_uri(request, reverse("mercadopago_webhook"))
+    external_reference = f"turno:{turno.id}"
+
+    preference = {
+        "items": [
+            {
+                "title": f"Seña turno {turno.cancha.nombre}",
+                "quantity": 1,
+                "unit_price": float(monto_mp),
+                "currency_id": "ARS",
+            }
+        ],
+        "back_urls": {
+            "success": feedback_url,
+            "failure": feedback_url,
+            "pending": feedback_url,
+        },
+        "binary_mode": True,
+        "external_reference": external_reference,
+    }
+
+    if feedback_url.startswith("https://"):
+        preference["auto_return"] = "approved"
+    if webhook_url.startswith("https://"):
+        preference["notification_url"] = webhook_url
+
+    preference_response = sdk.preference().create(preference)
+    body = preference_response.get("response") or {}
+    checkout_url = body.get("init_point") or body.get("sandbox_init_point")
+    preference_id = body.get("id") or body.get("preference_id")
+
+    if not checkout_url or not preference_id:
+        mp_message = body.get("message") or body.get("error") or body.get("status")
+        mp_cause = body.get("cause") or body.get("causes") or body.get("details")
+        raise ValueError(f"MP no devolvió checkout/preference_id (message={mp_message}, cause={mp_cause}).")
+
+    return checkout_url, preference_id, external_reference
+
+
+def _devolver_creditos_turno(turno, motivo: str):
+    """
+    Devuelve créditos usados en un turno (si existen) y pone en cero la seña pagada por créditos.
+    Retorna True si se devolvieron créditos.
+    """
+    if turno.creditos_usados <= 0:
+        return False
+
+    monto_devolver = turno.creditos_usados
+    try:
+        CreditoService.generar_credito(
+            usuario=turno.cliente,
+            complejo=turno.cancha.complejo,
+            monto=monto_devolver,
+            motivo=motivo,
+            turno_origen=turno,
+            creado_por=None,
+        )
+    except Exception as exc:  # pragma: no cover - defensivo
+        logger.error(f"No se pudieron devolver créditos del turno {turno.id}: {exc}")
+        return False
+
+    nuevo_monto_senia = turno.senia_pagada - monto_devolver
+    turno.senia_pagada = nuevo_monto_senia if nuevo_monto_senia > 0 else Decimal("0.00")
+    turno.creditos_usados = Decimal("0.00")
+    turno.save(update_fields=["senia_pagada", "creditos_usados", "updated_at"])
+    return True
 
 
 def home(request):
@@ -276,19 +354,8 @@ def register_view(request):
                     dni=dni,
                     direccion='',  # Se puede completar después en el perfil
                     rol=rol,
-                    complejo=complejo_actual,  # Asignar complejo del subdominio
+                    complejo=complejo_actual
                 )
-                
-                # TEMPORAL: Asignar crédito inicial de 150.000 para tests
-                if complejo_actual:
-                    CreditoService.generar_credito(
-                        usuario=user,
-                        complejo=complejo_actual,
-                        monto=Decimal('150000.00'),
-                        motivo='Crédito inicial de bienvenida (temporal para tests)',
-                        turno_origen=None,
-                        creado_por=None,  # Crédito automático del sistema
-                    )
         except IntegrityError:
             messages.error(request, 'Error al crear la cuenta. El usuario o email ya existe.')
             return render(request, 'auth/register.html')
@@ -636,16 +703,21 @@ def modal_reservar(request, cancha_id):
     if request.user.complejo != cancha.complejo:
         return JsonResponse({'error': 'No autorizado'}, status=403)
     
-    # Calcular créditos disponibles (método optimizado del modelo)
+    # Calcular créditos disponibles y desglose de pago de seña
     creditos_disponibles = request.user.get_creditos_disponibles(cancha.complejo)
-    
+    senia_requerida = cancha.precio_senia
+    creditos_a_usar = min(creditos_disponibles, senia_requerida)
+    monto_mp = senia_requerida - creditos_a_usar
+
     context = {
         'cancha': cancha,
         'fecha': fecha_obj,
         'hora': hora_obj,
         'precio': cancha.precio_hora,
-        'senia': cancha.precio_senia,
+        'senia': senia_requerida,
         'creditos_disponibles': creditos_disponibles,
+        'creditos_a_usar': creditos_a_usar,
+        'monto_mp': monto_mp,
     }
     
     return render(request, 'modals/confirmar_reserva.html', context)
@@ -694,19 +766,20 @@ def reservar_turno(request):
     # Calcular créditos disponibles (método optimizado del modelo)
     creditos_disponibles = request.user.get_creditos_disponibles(cancha.complejo)
     senia_requerida = cancha.precio_senia
-    
-    # Verificar si tiene créditos suficientes
-    if creditos_disponibles < senia_requerida:
-        messages.error(request, f'No tenés créditos suficientes. Necesitás ${senia_requerida}, tenés ${creditos_disponibles}')
-        return redirect('dashboard')
-    
-    # Usar servicio de créditos para aplicar el pago
     creditos_a_usar = min(creditos_disponibles, senia_requerida)
     creditos_aplicados = CreditoService.aplicar_creditos(
-        request.user, 
-        cancha.complejo, 
+        request.user,
+        cancha.complejo,
         creditos_a_usar
-    )
+    ) if creditos_a_usar > 0 else Decimal("0.00")
+    monto_mp = senia_requerida - creditos_aplicados
+    # Calcular expiración si queda saldo por pagar en MP
+    minutos_expiracion = 10
+    try:
+        minutos_expiracion = int(cancha.complejo.preferencias.minutos_expiracion_pago)
+    except Exception:
+        minutos_expiracion = 10
+    expira_en = timezone.now() + timedelta(minutes=minutos_expiracion) if monto_mp > 0 else None
     
     # Crear el turno
     try:
@@ -720,6 +793,7 @@ def reservar_turno(request):
             senia_requerida=senia_requerida,
             senia_pagada=creditos_aplicados,
             creditos_usados=creditos_aplicados,
+            expira_en=expira_en,
         )
     except IntegrityError:
         # Otro usuario tomó el turno en paralelo o existe un turno activo igual
@@ -730,10 +804,151 @@ def reservar_turno(request):
     # Invalidar caché de slots para esta fecha
     TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_obj)
     
-    messages.success(request, f'¡Turno reservado exitosamente! {cancha.nombre} - {fecha_obj.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
-    
+    # Si queda saldo por pagar vía MP, crear preferencia y redirigir al checkout
+    if monto_mp > 0:
+        try:
+            integ = cancha.complejo.mercadopago
+        except IntegracionMercadoPago.DoesNotExist:
+            transaction.set_rollback(True)
+            messages.error(request, 'No hay integración de Mercado Pago configurada para este complejo.')
+            return redirect('dashboard')
+
+        if not integ.activo or not integ.access_token_plain:
+            transaction.set_rollback(True)
+            messages.error(request, 'La integración de Mercado Pago no está activa o falta el token.')
+            return redirect('dashboard')
+
+        try:
+            checkout_url, preference_id, external_reference = _crear_preferencia_mp_para_turno(
+                request=request,
+                integration=integ,
+                turno=turno,
+                monto_mp=monto_mp
+            )
+        except Exception as exc:
+            transaction.set_rollback(True)
+            messages.error(request, f'No se pudo iniciar el pago con Mercado Pago: {exc}')
+            return redirect('dashboard')
+
+        turno.mp_preference_id = preference_id
+        turno.pago_referencia = external_reference
+        turno.mp_amount = monto_mp
+        turno.mp_status = "pending"
+        turno.mp_status_detail = None
+        turno.mp_updated_at = timezone.now()
+        turno.save(update_fields=[
+            'mp_preference_id',
+            'pago_referencia',
+            'mp_amount',
+            'mp_status',
+            'mp_status_detail',
+            'mp_updated_at',
+            'updated_at',
+        ])
+
+        messages.info(request, 'Redirigiéndote a Mercado Pago para completar la seña.')
+        return redirect(checkout_url)
+
+    messages.success(request, f'¡Turno reservado con seña cubierta por créditos! {cancha.nombre} - {fecha_obj.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
+
     # Redirigir a la misma fecha para que el cliente pueda seguir viendo turnos disponibles
     return redirect(f'{reverse("dashboard")}?fecha={fecha_obj.strftime("%Y-%m-%d")}')
+
+
+@login_required
+@transaction.atomic
+def pagar_senia_turno(request, turno_id):
+    """Permite reintentar el pago de la seña pendiente de un turno."""
+    if not request.user.es_cliente:
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+
+    turno = get_object_or_404(
+        Turno.objects.select_related('cancha', 'cancha__complejo', 'cliente'),
+        id=turno_id,
+        cliente=request.user
+    )
+
+    if turno.fue_cancelado or turno.estado != Turno.Estado.PENDIENTE_PAGO:
+        messages.error(request, 'Este turno no está disponible para pagar la seña.')
+        return redirect('turnos_actuales')
+
+    # Verificar expiración
+    ahora = timezone.now()
+    if turno.expira_en and ahora > turno.expira_en:
+        _devolver_creditos_turno(turno, "Expirado por falta de pago")
+        turno.estado = Turno.Estado.EXPIRADO
+        turno.cancelacion_origen = Turno.CancelacionOrigen.SISTEMA
+        turno.cancelacion_motivo = "Expirado por falta de pago"
+        turno.cancelado_por = None
+        turno.cancelado_en = ahora
+        turno.save(update_fields=[
+            'estado',
+            'cancelacion_origen',
+            'cancelacion_motivo',
+            'cancelado_por',
+            'cancelado_en',
+            'updated_at',
+        ])
+        messages.error(request, 'El turno expiró por falta de pago.')
+        return redirect('turnos_actuales')
+
+    saldo = turno.saldo_senia_pendiente
+    if saldo <= 0:
+        messages.info(request, 'La seña ya está cubierta.')
+        return redirect('turnos_actuales')
+
+    # Renovar expiración
+    minutos_expiracion = 10
+    try:
+        minutos_expiracion = int(turno.cancha.complejo.preferencias.minutos_expiracion_pago)
+    except Exception:
+        minutos_expiracion = 10
+    turno.expira_en = timezone.now() + timedelta(minutes=minutos_expiracion)
+
+    try:
+        integ = turno.cancha.complejo.mercadopago
+    except IntegracionMercadoPago.DoesNotExist:
+        transaction.set_rollback(True)
+        messages.error(request, 'No hay integración de Mercado Pago configurada para este complejo.')
+        return redirect('turnos_actuales')
+
+    if not integ.activo or not integ.access_token_plain:
+        transaction.set_rollback(True)
+        messages.error(request, 'La integración de Mercado Pago no está activa o falta el token.')
+        return redirect('turnos_actuales')
+
+    try:
+        checkout_url, preference_id, external_reference = _crear_preferencia_mp_para_turno(
+            request=request,
+            integration=integ,
+            turno=turno,
+            monto_mp=saldo
+        )
+    except Exception as exc:
+        transaction.set_rollback(True)
+        messages.error(request, f'No se pudo iniciar el pago con Mercado Pago: {exc}')
+        return redirect('turnos_actuales')
+
+    turno.mp_preference_id = preference_id
+    turno.pago_referencia = external_reference
+    turno.mp_amount = saldo
+    turno.mp_status = "pending"
+    turno.mp_status_detail = None
+    turno.mp_updated_at = timezone.now()
+    turno.save(update_fields=[
+        'mp_preference_id',
+        'pago_referencia',
+        'mp_amount',
+        'mp_status',
+        'mp_status_detail',
+        'mp_updated_at',
+        'expira_en',
+        'updated_at',
+    ])
+
+    messages.info(request, 'Redirigiéndote a Mercado Pago para completar la seña.')
+    return redirect(checkout_url)
 
 
 @login_required
@@ -2469,6 +2684,88 @@ def mercadopago_webhook(request):
                 payment_id=payment_id,
                 defaults=defaults,
             )
+
+    # Si el external_reference apunta a un turno, sincronizar estado del turno
+    turno_obj = None
+    if external_reference and isinstance(external_reference, str) and external_reference.startswith("turno:"):
+        try:
+            turno_id = int(external_reference.split("turno:")[-1])
+            turno_obj = Turno.objects.select_related('cancha', 'cancha__complejo', 'cliente').filter(id=turno_id).first()
+        except Exception:
+            turno_obj = None
+
+    if turno_obj:
+        status_lower = (status or "").lower()
+        monto_mp_decimal = Decimal(str(amount)) if amount is not None else Decimal("0.00")
+
+        # Actualizar campos comunes
+        turno_obj.mp_payment_id = payment_id
+        turno_obj.mp_status = status
+        turno_obj.mp_status_detail = status_detail
+        turno_obj.mp_preference_id = preference_id or turno_obj.mp_preference_id
+        turno_obj.mp_amount = monto_mp_decimal if monto_mp_decimal > 0 else turno_obj.mp_amount
+        turno_obj.mp_updated_at = timezone.now()
+
+        if status_lower == "approved":
+            nueva_senia = turno_obj.senia_pagada + monto_mp_decimal
+            # No dejar la seña por debajo de lo ya pagado
+            if nueva_senia < turno_obj.senia_pagada:
+                nueva_senia = turno_obj.senia_pagada
+            # Limitar a la seña requerida (no importa si MP cobró de más)
+            turno_obj.senia_pagada = nueva_senia if nueva_senia <= turno_obj.senia_requerida else turno_obj.senia_requerida
+            turno_obj.expira_en = None
+            turno_obj.save(update_fields=[
+                'senia_pagada',
+                'mp_payment_id',
+                'mp_status',
+                'mp_status_detail',
+                'mp_preference_id',
+                'mp_amount',
+                'mp_updated_at',
+                'expira_en',
+                'updated_at',
+            ])
+        elif status_lower in {"pending", "in_process", "in_mediation"}:
+            # Mantener el turno pendiente; opcionalmente extender expiración unos minutos
+            try:
+                minutos_expiracion = int(turno_obj.cancha.complejo.preferencias.minutos_expiracion_pago)
+            except Exception:
+                minutos_expiracion = 10
+            turno_obj.expira_en = timezone.now() + timedelta(minutes=minutos_expiracion)
+            turno_obj.save(update_fields=[
+                'mp_payment_id',
+                'mp_status',
+                'mp_status_detail',
+                'mp_preference_id',
+                'mp_amount',
+                'mp_updated_at',
+                'expira_en',
+                'updated_at',
+            ])
+        elif status_lower in {"rejected", "cancelled", "refunded", "charged_back"}:
+            _devolver_creditos_turno(turno_obj, "Seña devuelta: pago rechazado/cancelado en MP")
+            turno_obj.estado = Turno.Estado.EXPIRADO
+            turno_obj.cancelacion_origen = Turno.CancelacionOrigen.SISTEMA
+            turno_obj.cancelacion_motivo = "Pago de seña rechazado/cancelado en MP"
+            turno_obj.cancelado_por = None
+            turno_obj.cancelado_en = timezone.now()
+            turno_obj.expira_en = None
+            turno_obj.save(update_fields=[
+                'estado',
+                'cancelacion_origen',
+                'cancelacion_motivo',
+                'cancelado_por',
+                'cancelado_en',
+                'mp_payment_id',
+                'mp_status',
+                'mp_status_detail',
+                'mp_preference_id',
+                'mp_amount',
+                'mp_updated_at',
+                'expira_en',
+                'updated_at',
+            ])
+            TurnoService.invalidar_cache_slots(turno_obj.cancha.complejo.id, turno_obj.fecha)
 
     return JsonResponse({"ok": True})
 @login_required

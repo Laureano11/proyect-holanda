@@ -27,6 +27,7 @@ urlpatterns = [
     # Reservas
     path('reservar/modal/<int:cancha_id>/', views.modal_reservar, name='modal_reservar'),
     path('reservar/', views.reservar_turno, name='reservar_turno'),
+    path('pagar-senia/<int:turno_id>/', views.pagar_senia_turno, name='pagar_senia_turno'),
     
     # Cancelar turno
     path('cancelar/<int:turno_id>/', views.cancelar_turno, name='cancelar_turno'),
