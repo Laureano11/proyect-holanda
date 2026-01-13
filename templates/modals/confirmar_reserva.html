@@ -33,16 +33,6 @@
                 <span class="text-cyan-400 font-semibold">${{ senia|floatformat:0 }}</span>
             </div>
             
-            <div class="flex items-center justify-between py-2 border-b border-slate-700/50">
-                <span class="text-slate-400 text-sm">Créditos disponibles</span>
-                <span class="text-emerald-400 font-semibold text-sm">${{ creditos_disponibles|floatformat:0 }}</span>
-            </div>
-
-            <div class="flex items-center justify-between py-2 border-b border-slate-700/50">
-                <span class="text-slate-400 text-sm">Créditos a usar</span>
-                <span class="text-emerald-300 font-semibold text-sm">${{ creditos_a_usar|floatformat:0 }}</span>
-            </div>
-
             <div class="flex items-center justify-between py-2">
                 <span class="text-slate-400 text-sm">A pagar con Mercado Pago</span>
                 <span class="{% if monto_mp > 0 %}text-cyan-300{% else %}text-emerald-300{% endif %} font-semibold text-sm">
@@ -52,10 +42,8 @@
 
             {% if monto_mp > 0 %}
             <p class="text-xs text-slate-400 mt-1">
-                Te vamos a redirigir a Mercado Pago para completar la seña. Tenés {{ minutos_expiracion_pago }} min para pagar antes de que el turno se libere.
+                Te redirigiremos a Mercado Pago. Tenés {{ minutos_expiracion_pago }} min para pagar antes de que el turno se libere.
             </p>
-            {% else %}
-            <p class="text-xs text-emerald-400 mt-1">La seña se cubre completamente con tus créditos.</p>
             {% endif %}
         </div>
         
