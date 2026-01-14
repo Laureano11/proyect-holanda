@@ -440,9 +440,12 @@ def dashboard(request):
         creditos_disponibles = user.get_creditos_disponibles(complejo)
         
         # Obtener turnos del cliente (optimizado con select_related para evitar N+1)
+        # Importante: limitamos a últimos 60 días + futuros para que este query no crezca indefinidamente.
+        turnos_desde = hoy - timedelta(days=60)
         turnos_cliente = Turno.objects.filter(
             cliente=user,
-            cancha__complejo=complejo
+            cancha__complejo=complejo,
+            fecha__gte=turnos_desde,
         ).select_related(
             'cancha',
             'cancha__complejo',

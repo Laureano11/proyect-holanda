@@ -20,6 +20,9 @@ class TurnoService:
     
     # Tiempo de caché para slots disponibles (en segundos)
     CACHE_TIMEOUT = 300  # 5 minutos
+    # Para "hoy" usamos un TTL corto porque es lo más consultado y cambia seguido.
+    # Con invalidación explícita al reservar/cancelar, esto reduce carga sin mostrar datos stale mucho tiempo.
+    CACHE_TODAY_TIMEOUT = 15  # segundos
     
     @staticmethod
     def get_cache_key(complejo_id, fecha):
@@ -255,9 +258,13 @@ class TurnoService:
             'es_fecha_pasada': es_fecha_pasada
         }
         
-        # Guardar en caché (solo si no es fecha pasada ni hoy)
-        if use_cache and fecha > hoy_actual:
-            cache.set(cache_key, result, cls.CACHE_TIMEOUT)
+        # Guardar en caché:
+        # - Fechas futuras: CACHE_TIMEOUT
+        # - Hoy: TTL corto para aliviar el dashboard del cliente (suele consultarse mucho)
+        # - Fechas pasadas: no cachear
+        if use_cache and fecha >= hoy_actual:
+            ttl = cls.CACHE_TODAY_TIMEOUT if fecha == hoy_actual else cls.CACHE_TIMEOUT
+            cache.set(cache_key, result, ttl)
         
         return result
     
