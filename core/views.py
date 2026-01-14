@@ -452,7 +452,9 @@ def dashboard(request):
             'cliente'
         ).order_by('fecha', 'hora_inicio')
 
+        # Mis turnos: solo hoy en adelante. Lo ya jugado/pasado va al historial.
         turnos_activos = turnos_cliente.filter(
+            fecha__gte=hoy,
             estado__in=[Turno.Estado.CONFIRMADO, Turno.Estado.PENDIENTE_PAGO]
         )
         turnos_historial = turnos_cliente.exclude(
@@ -528,8 +530,16 @@ def dashboard(request):
         
         # Aplicar filtro según la pestaña
         if vista_tab == 'historial':
-            # Mostrar solo turnos del pasado (fecha anterior a hoy)
-            turnos_complejo_qs = turnos_complejo_qs.filter(fecha__lt=hoy)
+            # Historial staff:
+            # - Turnos del pasado
+            # - Y también turnos cancelados/expirados aunque sean futuros (para que "no desaparezcan")
+            turnos_complejo_qs = turnos_complejo_qs.filter(
+                Q(fecha__lt=hoy) | Q(estado__in=[
+                    Turno.Estado.CANCELADO_USUARIO,
+                    Turno.Estado.CANCELADO_ADMIN,
+                    Turno.Estado.EXPIRADO,
+                ])
+            )
         else:
             # Mostrar solo turnos activos (fecha de hoy o futura)
             turnos_complejo_qs = turnos_complejo_qs.filter(fecha__gte=hoy)
@@ -611,9 +621,10 @@ def dashboard(request):
         slots_por_hora_staff = TurnoService.generar_slots_staff(complejo, hoy)
         slots_ordenados_staff = sorted(slots_por_hora_staff.items(), key=lambda x: x[0])
         
-        # Generar lista de próximos 7 días para el selector rápido
+        # Generar lista de próximos 14 días para el selector rápido
         dias_semana_selector = []
-        for i in range(7):
+        selector_dias_ahead = 7
+        for i in range(selector_dias_ahead):
             fecha = hoy + timedelta(days=i)
             dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
             if i == 0:
@@ -629,6 +640,8 @@ def dashboard(request):
                 'activo': dia_filtro == fecha.strftime('%Y-%m-%d')
             })
         
+        # Limitar rango máximo para el filtro manual de fechas (90 días en el futuro)
+        fecha_maxima_rango = hoy + timedelta(days=90)
         context.update({
             'complejo': complejo,
             'hoy': hoy,
@@ -651,6 +664,7 @@ def dashboard(request):
             'vista_tab': vista_tab,
             'dia_filtro': dia_filtro or '',
             'dias_semana_selector': dias_semana_selector,
+            'fecha_maxima_rango': fecha_maxima_rango,
         })
     
     # Estado de integración Mercado Pago para admin/staff
@@ -1534,7 +1548,9 @@ def crear_bloqueo(request):
             continue
         turno.estado = Turno.Estado.CANCELADO_ADMIN
         turno.cancelacion_origen = Turno.CancelacionOrigen.BLOQUEO
-        turno.cancelacion_motivo = motivo
+        # Requisito: que en el historial staff figure con el motivo exacto:
+        # "Cancelado por bloqueo"
+        turno.cancelacion_motivo = "Cancelado por bloqueo"
         turno.cancelado_por = request.user
         turno.cancelado_en = timezone.now()
         turno.save(update_fields=['estado', 'cancelacion_origen', 'cancelacion_motivo', 'cancelado_por', 'cancelado_en', 'updated_at'])
@@ -1661,6 +1677,7 @@ def crear_turno_fijo(request):
     # Obtener datos del formulario
     cancha_id = request.POST.get('cancha_id')
     nombre_cliente = request.POST.get('nombre_cliente', '').strip()
+    celular_cliente = request.POST.get('celular_cliente', '').strip()
     hora_inicio = request.POST.get('hora_inicio')
     dias_semana = request.POST.getlist('dias_semana')  # Múltiples días
     fecha_inicio = request.POST.get('fecha_inicio')
@@ -1668,7 +1685,7 @@ def crear_turno_fijo(request):
     notas = request.POST.get('notas', '').strip()
     
     # Validaciones
-    if not all([cancha_id, nombre_cliente, hora_inicio, dias_semana, fecha_inicio]):
+    if not all([cancha_id, nombre_cliente, celular_cliente, hora_inicio, dias_semana, fecha_inicio]):
         messages.error(request, 'Faltan datos requeridos')
         return redirect('turnos_fijos')
     
@@ -1703,12 +1720,15 @@ def crear_turno_fijo(request):
             'first_name': nombre_cliente,
             'rol': Usuario.Rol.CLIENTE,
             'complejo': complejo,
+            'celular': celular_cliente,
         }
     )
     
     if not created:
         cliente.first_name = nombre_cliente
         cliente.complejo = complejo
+        if celular_cliente:
+            cliente.celular = celular_cliente
         cliente.save()
     
     # Detectar conflictos con turnos existentes
@@ -1759,6 +1779,7 @@ def crear_turno_fijo(request):
             request.session['turno_fijo_pendiente'] = {
                 'cancha_id': cancha_id,
                 'nombre_cliente': nombre_cliente,
+                'celular_cliente': celular_cliente,
                 'hora_inicio': hora_inicio,
                 'dias_semana': dias_semana,
                 'fecha_inicio': fecha_inicio,
@@ -2046,7 +2067,8 @@ def turnos_actuales(request):
     # Optimizado con select_related para evitar N+1 queries
     turnos_activos = Turno.objects.filter(
         cliente=request.user,
-        cancha__complejo=complejo
+        cancha__complejo=complejo,
+        fecha__gte=hoy,  # Solo hoy y futuro; lo pasado se ve en historial
     ).exclude(
         estado__in=[
             Turno.Estado.CANCELADO_USUARIO,
@@ -2184,7 +2206,8 @@ def mi_perfil(request):
 def turnos_en_vivo(request):
     """
     Dashboard estilo aeropuerto con turnos en tiempo real.
-    Muestra 3 columnas (una por cancha) con turnos clasificados por estado temporal.
+    Muestra una columna por cancha (todas las canchas activas del complejo),
+    con turnos clasificados por estado temporal.
     """
     if not request.user.puede_gestionar_turnos:
         messages.error(request, 'No autorizado')
@@ -2195,11 +2218,11 @@ def turnos_en_vivo(request):
         messages.error(request, 'No tenés un complejo asignado')
         return redirect('dashboard')
     
-    # Obtener las primeras 3 canchas activas del complejo
+    # Obtener todas las canchas activas del complejo
     canchas = Cancha.objects.filter(
         complejo=complejo,
         activa=True
-    ).order_by('nombre')[:3]
+    ).order_by('nombre')
     
     hoy = timezone.now().date()
     ahora = timezone.now()
@@ -2243,13 +2266,6 @@ def turnos_en_vivo(request):
         canchas_con_turnos.append({
             'cancha': cancha,
             'turnos': turnos_clasificados,
-        })
-    
-    # Si hay menos de 3 canchas, agregar columnas vacías
-    while len(canchas_con_turnos) < 3:
-        canchas_con_turnos.append({
-            'cancha': None,
-            'turnos': [],
         })
     
     context = {

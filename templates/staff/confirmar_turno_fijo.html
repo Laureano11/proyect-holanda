@@ -21,6 +21,10 @@
                 <span class="text-white ml-2 font-medium">{{ turno_pendiente.nombre_cliente }}</span>
             </div>
             <div>
+                <span class="text-slate-400">Celular:</span>
+                <span class="text-white ml-2 font-medium">{{ turno_pendiente.celular_cliente }}</span>
+            </div>
+            <div>
                 <span class="text-slate-400">Cancha:</span>
                 <span class="text-white ml-2 font-medium">{{ cancha.nombre }}</span>
             </div>
@@ -79,6 +83,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="cancha_id" value="{{ turno_pendiente.cancha_id }}">
                 <input type="hidden" name="nombre_cliente" value="{{ turno_pendiente.nombre_cliente }}">
+                <input type="hidden" name="celular_cliente" value="{{ turno_pendiente.celular_cliente }}">
                 <input type="hidden" name="hora_inicio" value="{{ turno_pendiente.hora_inicio }}">
                 {% for dia in turno_pendiente.dias_semana %}
                 <input type="hidden" name="dias_semana" value="{{ dia }}">

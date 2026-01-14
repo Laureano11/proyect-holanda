@@ -115,9 +115,7 @@
                     <option value="">Todos</option>
                     <option value="confirmado" {% if estado_filtro == 'confirmado' %}selected{% endif %}>Confirmado</option>
                     <option value="pendiente_pago" {% if estado_filtro == 'pendiente_pago' %}selected{% endif %}>Pendiente de pago</option>
-                    <option value="bloqueado" {% if estado_filtro == 'bloqueado' %}selected{% endif %}>Bloqueado</option>
                     <option value="cancelados" {% if estado_filtro == 'cancelados' %}selected{% endif %}>Cancelados</option>
-                    <option value="expirado" {% if estado_filtro == 'expirado' %}selected{% endif %}>Expirado</option>
                 </select>
             </div>
             
@@ -139,9 +137,10 @@
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-slate-400">Rango de fechas</label>
                 <div class="flex gap-2">
-                    <input type="date" name="desde" value="{{ desde }}" class="w-1/2 px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
-                    <input type="date" name="hasta" value="{{ hasta }}" class="w-1/2 px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                    <input type="date" name="desde" value="{{ desde }}" max="{{ fecha_maxima_rango|date:'Y-m-d' }}" class="w-1/2 px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                    <input type="date" name="hasta" value="{{ hasta }}" max="{{ fecha_maxima_rango|date:'Y-m-d' }}" class="w-1/2 px-3 py-2 rounded bg-slate-900/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
                 </div>
+             
             </div>
             
             <div class="flex flex-col gap-1">
@@ -216,6 +215,11 @@
                                     {{ turno.estado_visual }}
                                 </span>
                                 <p class="text-xs text-slate-500 mt-1">${{ turno.precio_total|floatformat:0 }}</p>
+                                {% if turno.fue_cancelado and turno.cancelacion_motivo %}
+                                <p class="text-[11px] text-slate-400 mt-1">
+                                    Motivo: <span class="text-slate-200">{{ turno.cancelacion_motivo }}</span>
+                                </p>
+                                {% endif %}
                                 {% if turno.senia_completa_pagada %}
                                 <p class="text-[11px] text-emerald-400 mt-1">Seña abonada</p>
                                 {% elif turno.senia_pagada > 0 %}
