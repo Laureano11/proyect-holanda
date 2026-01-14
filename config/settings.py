@@ -454,6 +454,15 @@ if ENABLE_RESEND:
     EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
     EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
     EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() == 'true'
+    # TLS y SSL son mutuamente excluyentes en Django. Para Resend (587) se usa TLS.
+    if EMAIL_USE_TLS and EMAIL_USE_SSL:
+        EMAIL_USE_SSL = False
+        _agent_log(
+            "H_EMAIL_TLS_SSL",
+            "config/settings.py:email",
+            "EMAIL_USE_TLS y EMAIL_USE_SSL estaban ambos en True; forzando TLS y desactivando SSL",
+            {"EMAIL_PORT": EMAIL_PORT},
+        )
     EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'resend')
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
     EMAIL_TIMEOUT = 10  # Timeout de 10 segundos para SMTP (falla rápido si hay problemas)
