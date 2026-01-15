@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ complejo_actual.nombre|default:"Complejo Deportivo" }} · Reservá tu turno{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        background: #0f172a;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% with nombre=complejo_actual.nombre|default:"Tu complejo" %}
+<div class="min-h-screen text-white bg-slate-950">
+    <header class="relative bg-slate-950">
+        <div class="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-6 items-center text-center">
+            <p class="text-xs font-semibold uppercase tracking-[0.4em] text-slate-400">Experiencia sin fricciones</p>
+            <h1 class="text-4xl md:text-5xl font-black tracking-tight">
+                Reservá tu turno en <span class="text-orange-400">{{ nombre }}</span>
+            </h1>
+            <p class="text-lg text-slate-300 max-w-3xl">
+                Accedé a todas las canchas disponibles, confirmá tu pago y recibí recordatorios automáticos. Más simple que enviar WhatsApp.
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-4 mt-4 w-full justify-center">
+                <a href="{% url 'turnos_publicos' %}" class="flex-1 px-6 py-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-2xl text-center">
+                    Ver turnos disponibles
+                </a>
+                <a href="{% url 'login' %}" class="flex-1 px-6 py-4 border border-white/20 rounded-2xl text-white hover:border-white text-center">
+                    Iniciar sesión
+                </a>
+                <a href="{% url 'register' %}" class="flex-1 px-6 py-4 bg-white text-slate-900 font-semibold rounded-2xl text-center hover:bg-slate-100">
+                    Crear cuenta
+                </a>
+            </div>
+            <p class="text-sm text-slate-400">Reservas simples, contacto directo y acceso rápido.</p>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-12 space-y-12">
+        <section class="bg-slate-900/60 border border-white/10 rounded-[2.5rem] p-8 md:p-10">
+            <div class="text-center space-y-3 mb-10">
+                <p class="text-xs text-slate-400 uppercase tracking-[0.4em]">Contacto principal</p>
+                <h2 class="text-3xl md:text-4xl font-black">Encontranos rápido</h2>
+                <p class="text-slate-300">Dirección, celular, Instagram y mail con acceso directo.</p>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-6">
+                <div class="bg-slate-950/60 border border-white/10 rounded-3xl p-6 space-y-3">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <span class="text-2xl">📍</span>
+                        <p class="text-sm uppercase tracking-[0.3em]">Dirección</p>
+                    </div>
+                    {% if complejo_actual.direccion %}
+                    <p class="text-lg font-semibold text-white">{{ complejo_actual.direccion }}</p>
+                    <p class="text-sm text-slate-400">Llegás fácil, con estacionamiento y acceso seguro.</p>
+                    {% else %}
+                    <p class="text-slate-500 italic">La dirección se completa en el panel del complejo.</p>
+                    {% endif %}
+                </div>
+
+                <div class="bg-slate-950/60 border border-white/10 rounded-3xl p-6 space-y-3">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <span class="text-2xl">📱</span>
+                        <p class="text-sm uppercase tracking-[0.3em]">Celular</p>
+                    </div>
+                    {% if complejo_actual.telefono %}
+                    <a class="text-lg font-semibold text-white hover:text-emerald-300" href="https://wa.me/549{{ complejo_actual.telefono }}" target="_blank">
+                        {{ complejo_actual.telefono }}
+                    </a>
+                    <p class="text-sm text-slate-400">Respondemos por WhatsApp en minutos.</p>
+                    {% else %}
+                    <p class="text-slate-500 italic">El celular se configura en el panel.</p>
+                    {% endif %}
+                </div>
+
+                <div class="bg-slate-950/60 border border-white/10 rounded-3xl p-6 space-y-3">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-6 h-6 text-orange-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"></path></svg>
+                        <p class="text-sm uppercase tracking-[0.3em]">Instagram</p>
+                    </div>
+                    {% if complejo_actual.instagram %}
+                    <a class="text-lg font-semibold text-orange-400 hover:text-orange-300" href="https://instagram.com/{{ complejo_actual.instagram }}" target="_blank" rel="noopener noreferrer">
+                        @{{ complejo_actual.instagram }}
+                    </a>
+                    <p class="text-sm text-slate-400">Novedades, fotos y promos semanales.</p>
+                    {% else %}
+                    <p class="text-slate-500 italic">El Instagram se configura en el panel.</p>
+                    {% endif %}
+                </div>
+
+                <div class="bg-slate-950/60 border border-white/10 rounded-3xl p-6 space-y-3">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <span class="text-2xl">✉️</span>
+                        <p class="text-sm uppercase tracking-[0.3em]">Mail</p>
+                    </div>
+                    {% if complejo_actual.email %}
+                    <a class="text-lg font-semibold text-white hover:text-blue-200" href="mailto:{{ complejo_actual.email }}">
+                        {{ complejo_actual.email }}
+                    </a>
+                    <p class="text-sm text-slate-400">Consultas y solicitudes especiales.</p>
+                    {% else %}
+                    <p class="text-slate-500 italic">El email se configura en el panel.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-white/5 py-6 text-center text-slate-500 text-sm">
+        © {{ complejo_actual.nombre|default:"pdl33" }} {{ now|date:"Y" }} · Reservas con turnos digitales.
+    </footer>
+</div>
+{% endwith %}
+{% endblock %}

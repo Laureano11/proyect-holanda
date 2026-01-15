@@ -48,6 +48,24 @@ import mercadopago
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_HOME_GALLERY_IMAGES = [
+    {
+        "image": "img/landing/screen1.png",
+        "alt": "Panel de turnos en vivo mostrando disponibilidad",
+        "caption": "Panel de turnos",
+    },
+    {
+        "image": "img/landing/screen2.png",
+        "alt": "Checkout y pagos integrados",
+        "caption": "Pagos y señas",
+    },
+    {
+        "image": "img/landing/screen3.png",
+        "alt": "Gestión de staff y bloqueos manuales",
+        "caption": "Gestión de staff",
+    },
+]
+
 
 def _build_canonical_absolute_uri(request, path: str) -> str:
     """
@@ -60,6 +78,33 @@ def _build_canonical_absolute_uri(request, path: str) -> str:
         host = host[4:]
     scheme = "https" if request.is_secure() else "http"
     return f"{scheme}://{host}{path}"
+
+
+def _get_home_gallery_items():
+    """Load gallery images from the configured folder (or fallback)."""
+    gallery_dir = getattr(settings, "HOME_GALLERY_FOLDER", os.path.join(settings.BASE_DIR, "static", "img", "landing", "galeria"))
+    supported_ext = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"}
+    images = []
+
+    if not os.path.isdir(gallery_dir):
+        return images
+
+    for entry in sorted(os.listdir(gallery_dir)):
+        entry_path = os.path.join(gallery_dir, entry)
+        name, ext = os.path.splitext(entry)
+        if ext.lower() not in supported_ext or not os.path.isfile(entry_path):
+            continue
+
+        caption = name.replace("-", " ").replace("_", " ").strip().capitalize()
+        images.append(
+            {
+                "image": f"img/landing/galeria/{entry}",
+                "alt": f"Galería · {caption or 'Imagen'}",
+                "caption": caption or "Galería del sistema",
+            }
+        )
+
+    return images
 
 
 def _crear_preferencia_mp_para_turno(request, integration, turno, monto_mp):
@@ -138,8 +183,17 @@ def _devolver_creditos_turno(turno, motivo: str):
 
 
 def home(request):
-    """Vista principal del sistema."""
-    return render(request, 'home.html')
+    """Vista principal del sistema para jugadores/clientes."""
+    gallery_items = _get_home_gallery_items() or DEFAULT_HOME_GALLERY_IMAGES
+    context = {"gallery_items": gallery_items}
+    return render(request, 'home_cliente.html', context)
+
+
+def landing(request):
+    """Landing para dueños del complejo."""
+    gallery_items = _get_home_gallery_items() or DEFAULT_HOME_GALLERY_IMAGES
+    context = {"gallery_items": gallery_items}
+    return render(request, 'home.html', context)
 
 
 def turnos_publicos(request):
