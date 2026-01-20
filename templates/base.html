@@ -61,6 +61,55 @@
         }, 5000);
     </script>
     {% endif %}
+
+    {% if show_terms_modal %}
+    <div id="terms-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur">
+        <div class="w-full max-w-2xl mx-4 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 md:p-8">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-semibold text-white">Actualización de Términos y Condiciones</h2>
+                    <p class="mt-2 text-slate-300">
+                        Actualizamos nuestros términos. Para continuar usando la plataforma necesitás aceptar la versión
+                        {{ terms_version_current }}.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-4 rounded-lg bg-slate-800/60 border border-slate-700/60 p-4 text-sm text-slate-300">
+                Podés revisar los términos completos antes de aceptar.
+                <a href="{% url 'terminos' %}" target="_blank" rel="noopener" class="text-cyan-400 hover:text-cyan-300 underline ml-1">
+                    Ver Términos y Condiciones
+                </a>
+            </div>
+
+            <form method="post" action="{% url 'aceptar_terminos' %}" class="mt-6 space-y-5">
+                {% csrf_token %}
+                <input type="hidden" name="terms_version" value="{{ terms_version_current }}">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+                <label class="flex items-start gap-3 text-sm text-slate-200">
+                    <input
+                        id="terms_accept"
+                        name="terms_accept"
+                        type="checkbox"
+                        required
+                        class="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-400 focus:ring-cyan-400"
+                    >
+                    <span>Leí y acepto los Términos y Condiciones, y entiendo que esta aceptación queda registrada.</span>
+                </label>
+
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
+                    <a href="{% url 'privacidad' %}" target="_blank" rel="noopener" class="text-sm text-slate-300 hover:text-white">
+                        Ver políticas de privacidad
+                    </a>
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-cyan-500 px-5 py-2 text-sm font-semibold text-slate-900 hover:bg-cyan-400 transition">
+                        Acepto y continuar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
     
     {% block content %}{% endblock %}
     

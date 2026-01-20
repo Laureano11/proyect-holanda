@@ -214,6 +214,8 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 # Multi-tenant: expone complejo_actual en todos los templates
                 'core.middleware.complejo_context_processor',
+                # Términos y condiciones (popup obligatorio)
+                'core.context_processors.terms_context_processor',
             ],
         },
     },
@@ -477,6 +479,10 @@ PASSWORD_RESET_TIMEOUT = 86400  # 24 horas (en segundos)
 
 # Django Sites Framework (necesario para password reset emails)
 SITE_ID = 1
+
+# Versionado de Términos y Condiciones
+# Incrementar este número para forzar la aceptación de una nueva versión.
+TERMS_VERSION = int(os.getenv("TERMS_VERSION", "1"))
 
 
 # Backups automatizados (django-dbbackup)

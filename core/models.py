@@ -72,6 +72,17 @@ class Usuario(AbstractUser):
         null=True,
         verbose_name='Dirección'
     )
+
+    # Términos y condiciones
+    terms_version_accepted = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Versión de términos aceptada'
+    )
+    terms_accepted_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='Aceptó términos en'
+    )
     
     class Meta:
         verbose_name = 'Usuario'

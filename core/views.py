@@ -19,7 +19,7 @@ from django.db import transaction, IntegrityError
 from django.db.models import Sum, Q
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.core.paginator import Paginator
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -282,6 +282,28 @@ def politica_privacidad(request):
     Vista de Políticas de Privacidad.
     """
     return render(request, 'privacidad.html')
+
+
+@login_required
+@require_POST
+def aceptar_terminos(request):
+    """
+    Guarda la aceptación de la versión actual de términos para el usuario.
+    """
+    current_version = getattr(settings, "TERMS_VERSION", 1)
+
+    request.user.terms_version_accepted = current_version
+    request.user.terms_accepted_at = timezone.now()
+    request.user.save(update_fields=["terms_version_accepted", "terms_accepted_at"])
+
+    next_url = request.POST.get("next") or request.GET.get("next")
+    if not next_url or not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect("home")
+    return redirect(next_url)
 
 
 @ensure_csrf_cookie

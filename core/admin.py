@@ -82,11 +82,17 @@ class UsuarioAdmin(ComplejoFilterMixin, UserAdmin):
         ('Información adicional', {
             'fields': ('rol', 'complejo', 'dni', 'celular', 'direccion')
         }),
+        ('Términos y condiciones', {
+            'fields': ('terms_version_accepted', 'terms_accepted_at')
+        }),
     )
     
     add_fieldsets = UserAdmin.add_fieldsets + (
         ('Información adicional', {
             'fields': ('rol', 'complejo', 'dni', 'celular', 'direccion')
+        }),
+        ('Términos y condiciones', {
+            'fields': ('terms_version_accepted', 'terms_accepted_at')
         }),
     )
     

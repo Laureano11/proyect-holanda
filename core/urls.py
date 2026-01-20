@@ -11,6 +11,7 @@ urlpatterns = [
     path('turnos-publicos/', views.turnos_publicos, name='turnos_publicos'),
     path('terminos-y-condiciones/', views.terminos_y_condiciones, name='terminos'),
     path('politicas-de-privacidad/', views.politica_privacidad, name='privacidad'),
+    path('terminos/aceptar/', views.aceptar_terminos, name='aceptar_terminos'),
 
     # Ops / diagnóstico (solo superadmin + token)
     path('_ops/health/', views.ops_health, name='ops_health'),
