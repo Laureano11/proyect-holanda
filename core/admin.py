@@ -142,7 +142,15 @@ class CanchaInline(admin.TabularInline):
     """Inline para canchas dentro del complejo."""
     model = Cancha
     extra = 0
-    fields = ['nombre', 'precio_hora', 'capacidad', 'duracion_turno_minutos', 'activa']
+    fields = [
+        'nombre',
+        'precio_hora',
+        'monto_senia',
+        'monto_comision',
+        'capacidad',
+        'duracion_turno_minutos',
+        'activa',
+    ]
 
 
 @admin.register(Complejo)
@@ -203,8 +211,15 @@ class PreferenciasComplejoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Features', {
-            'fields': ('sistema_ranking', 'pago_senia', 'turnos_fijos_habilitados', 
-                      'cancelacion_online', 'notificaciones_whatsapp', 'notificaciones_email')
+            'fields': (
+                'sistema_ranking',
+                'pago_senia',
+                'maneja_comisiones',
+                'turnos_fijos_habilitados',
+                'cancelacion_online',
+                'notificaciones_whatsapp',
+                'notificaciones_email'
+            )
         }),
         ('Configuración de Reservas', {
             'fields': ('duracion_turno_minutos', 'tiempo_minimo_cancelacion', 
@@ -225,7 +240,16 @@ class CaracteristicaCanchaAdmin(admin.ModelAdmin):
 class CanchaAdmin(ComplejoFilterMixin, admin.ModelAdmin):
     """Admin para Cancha con filtrado por complejo."""
     
-    list_display = ['nombre', 'complejo', 'precio_hora', 'capacidad', 'duracion_turno_minutos', 'activa']
+    list_display = [
+        'nombre',
+        'complejo',
+        'precio_hora',
+        'monto_senia',
+        'monto_comision',
+        'capacidad',
+        'duracion_turno_minutos',
+        'activa',
+    ]
     list_filter = ['complejo', 'activa', 'caracteristicas']
     search_fields = ['nombre', 'complejo__nombre']
     filter_horizontal = ['caracteristicas']
@@ -254,7 +278,17 @@ class TurnoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
     # Campo FK es a través de cancha
     complejo_field = 'cancha__complejo'
     
-    list_display = ['cancha', 'cliente', 'fecha', 'hora_inicio', 'duracion_minutos', 'estado', 'precio_total', 'senia_pagada']
+    list_display = [
+        'cancha',
+        'cliente',
+        'fecha',
+        'hora_inicio',
+        'duracion_minutos',
+        'estado',
+        'precio_total',
+        'senia_pagada',
+        'monto_comision',
+    ]
     list_filter = ['estado', 'cancha__complejo', 'fecha']
     search_fields = ['cliente__username', 'cliente__first_name', 'cliente__last_name', 'cancha__nombre']
     date_hierarchy = 'fecha'
@@ -266,7 +300,14 @@ class TurnoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
             'fields': ('cancha', 'cliente', 'fecha', 'hora_inicio', 'duracion_minutos', 'estado')
         }),
         ('Pago', {
-            'fields': ('precio_total', 'senia_requerida', 'senia_pagada', 'creditos_usados', 'pago_referencia')
+            'fields': (
+                'precio_total',
+                'senia_requerida',
+                'senia_pagada',
+                'creditos_usados',
+                'monto_comision',
+                'pago_referencia'
+            )
         }),
         ('Expiración', {
             'fields': ('expira_en',),

@@ -41,7 +41,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-slate-900 min-h-screen text-white flex flex-col">
-    <!-- Messages (auto-hide after 3 seconds) -->
+    <!-- Messages (auto-hide after 5 seconds) -->
     {% if messages %}
     <div id="messages-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 space-y-2">
         {% for message in messages %}
@@ -58,7 +58,7 @@
                 container.style.transform = 'translate(-50%, -20px)';
                 setTimeout(() => container.remove(), 300);
             }
-        }, 3000);
+        }, 5000);
     </script>
     {% endif %}
     

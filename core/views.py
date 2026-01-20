@@ -135,6 +135,14 @@ def _crear_preferencia_mp_para_turno(request, integration, turno, monto_mp):
         "external_reference": external_reference,
     }
 
+    try:
+        if turno.cancha.complejo.preferencias.maneja_comisiones:
+            fee = min(Decimal(monto_mp), turno.monto_comision or Decimal("0.00"))
+            if fee > 0:
+                preference["marketplace_fee"] = float(fee)
+    except Exception:
+        pass
+
     if feedback_url.startswith("https://"):
         preference["auto_return"] = "approved"
     if webhook_url.startswith("https://"):
@@ -777,6 +785,12 @@ def modal_reservar(request, cancha_id):
     # Calcular créditos disponibles y desglose de pago de seña
     creditos_disponibles = request.user.get_creditos_disponibles(cancha.complejo)
     senia_requerida = cancha.precio_senia
+    monto_comision = Decimal('0.00')
+    try:
+        if cancha.complejo.preferencias.maneja_comisiones:
+            monto_comision = cancha.monto_comision or Decimal('0.00')
+    except Exception:
+        monto_comision = Decimal('0.00')
     creditos_a_usar = min(creditos_disponibles, senia_requerida)
     monto_mp = senia_requerida - creditos_a_usar
     minutos_expiracion_pago = 10
@@ -791,6 +805,7 @@ def modal_reservar(request, cancha_id):
         'hora': hora_obj,
         'precio': cancha.precio_hora,
         'senia': senia_requerida,
+        'monto_comision': monto_comision,
         'creditos_disponibles': creditos_disponibles,
         'creditos_a_usar': creditos_a_usar,
         'monto_mp': monto_mp,
@@ -843,6 +858,12 @@ def reservar_turno(request):
     # Calcular créditos disponibles (método optimizado del modelo)
     creditos_disponibles = request.user.get_creditos_disponibles(cancha.complejo)
     senia_requerida = cancha.precio_senia
+    monto_comision = Decimal('0.00')
+    try:
+        if cancha.complejo.preferencias.maneja_comisiones:
+            monto_comision = cancha.monto_comision or Decimal('0.00')
+    except Exception:
+        monto_comision = Decimal('0.00')
     creditos_a_usar = min(creditos_disponibles, senia_requerida)
     creditos_aplicados = CreditoService.aplicar_creditos(
         request.user,
@@ -870,6 +891,7 @@ def reservar_turno(request):
             senia_requerida=senia_requerida,
             senia_pagada=creditos_aplicados,
             creditos_usados=creditos_aplicados,
+            monto_comision=monto_comision,
             expira_en=expira_en,
         )
     except IntegrityError:
@@ -1488,6 +1510,7 @@ def crear_turno_rapido(request):
         senia_requerida=cancha.precio_senia,
         senia_pagada=Decimal('0.00'),
         creditos_usados=Decimal('0.00'),
+        monto_comision=cancha.monto_comision if getattr(cancha.complejo, 'preferencias', None) and cancha.complejo.preferencias.maneja_comisiones else Decimal('0.00'),
         notas=f'Turno creado por staff: {request.user.username}',
     )
     

@@ -281,6 +281,11 @@ class PreferenciasComplejo(models.Model):
         default=True,
         verbose_name='Requiere seña para reservar'
     )
+    maneja_comisiones = models.BooleanField(
+        default=False,
+        verbose_name='Maneja comisiones',
+        help_text='Si está activo, se suma la comisión configurada en cada cancha a la seña'
+    )
     turnos_fijos_habilitados = models.BooleanField(
         default=True,
         verbose_name='Turnos fijos habilitados'
@@ -378,6 +383,20 @@ class Cancha(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name='Precio por hora'
     )
+    monto_senia = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name='Monto seña'
+    )
+    monto_comision = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name='Monto comisión'
+    )
     capacidad = models.PositiveIntegerField(
         default=4,
         verbose_name='Capacidad de jugadores'
@@ -430,8 +449,23 @@ class Cancha(models.Model):
     
     @property
     def precio_senia(self):
-        """La seña es el precio dividido 4."""
-        return self.precio_hora / 4
+        """
+        Monto de seña configurable por cancha.
+        Si el complejo maneja comisiones, se suma la comisión de la cancha.
+        Para compatibilidad, si no hay seña configurada se usa precio_hora / 4.
+        """
+        monto_senia = self.monto_senia or Decimal('0.00')
+        if monto_senia <= 0:
+            try:
+                monto_senia = self.precio_hora / 4
+            except Exception:
+                monto_senia = Decimal('0.00')
+        try:
+            if self.complejo.preferencias.maneja_comisiones:
+                return monto_senia + (self.monto_comision or Decimal('0.00'))
+        except PreferenciasComplejo.DoesNotExist:
+            pass
+        return monto_senia
     
     def get_duracion_turno(self):
         """Retorna la duración del turno (propia o del complejo)."""
@@ -627,6 +661,12 @@ class Turno(models.Model):
         decimal_places=2,
         default=Decimal('0.00'),
         verbose_name='Créditos usados'
+    )
+    monto_comision = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name='Monto comisión'
     )
     
     # Referencia de pago (Mercado Pago)
@@ -884,6 +924,14 @@ class Turno(models.Model):
             self.precio_total = self.cancha.precio_hora
         if not self.senia_requerida:
             self.senia_requerida = self.cancha.precio_senia
+        if not self.monto_comision:
+            try:
+                if self.cancha.complejo.preferencias.maneja_comisiones:
+                    self.monto_comision = self.cancha.monto_comision or Decimal('0.00')
+                else:
+                    self.monto_comision = Decimal('0.00')
+            except PreferenciasComplejo.DoesNotExist:
+                self.monto_comision = Decimal('0.00')
         if not self.duracion_minutos:
             self.duracion_minutos = self.cancha.get_duracion_turno()
         super().save(*args, **kwargs)
