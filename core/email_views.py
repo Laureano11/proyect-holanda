@@ -68,11 +68,7 @@ class CustomPasswordResetView(PasswordResetView):
             # Preparar contexto del email
             current_site = get_current_site(self.request)
             site_name = current_site.name
-            # Usar el host real de la request para soportar subdominios por tenant.
-            domain = (self.request.get_host() or current_site.domain or "").split(":")[0]
-            if domain.lower().startswith("www."):
-                domain = domain[4:]
-            domain = domain or current_site.domain
+            domain = current_site.domain
             
             context = {
                 'email': email,
