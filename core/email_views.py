@@ -60,8 +60,8 @@ class CustomPasswordResetView(PasswordResetView):
             'extra_email_context': self.extra_email_context,
         }
         
-        # Obtener usuarios con ese email
-        email = form.cleaned_data["email"]{{ site_name }}
+        # Obtener email ingresado en el formulario
+        email = form.cleaned_data["email"]
         active_users = form.get_users(email)
         
         for user in active_users:
