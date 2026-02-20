@@ -36,6 +36,18 @@ class TurnoService:
         cache.delete(cache_key)
 
     @staticmethod
+    def obtener_ventana_horaria(complejo, fecha):
+        """
+        Retorna la ventana horaria efectiva (apertura, cierre) como datetimes.
+        Si el cierre es menor o igual a la apertura, se interpreta como cierre al día siguiente.
+        """
+        apertura_dt = datetime.combine(fecha, complejo.hora_apertura)
+        cierre_dt = datetime.combine(fecha, complejo.hora_cierre)
+        if cierre_dt <= apertura_dt:
+            cierre_dt += timedelta(days=1)
+        return apertura_dt, cierre_dt
+
+    @staticmethod
     def expirar_turnos_pendientes(complejo, fecha, ahora=None):
         """
         Marca como expirados los turnos pendientes cuyo expira_en ya pasó.
@@ -185,19 +197,15 @@ class TurnoService:
         
         # Generar slots
         slots_por_hora = {}
-        hora_apertura = complejo.hora_apertura
-        hora_cierre = complejo.hora_cierre
-        hora_actual = hora_apertura
+        apertura_dt, cierre_dt = cls.obtener_ventana_horaria(complejo, fecha)
+        inicio_dt = apertura_dt
         total_disponibles = 0
-        
-        # Convertir hora_cierre a datetime para comparaciones precisas
-        cierre_dt = datetime.combine(datetime.today(), hora_cierre)
-        
-        while hora_actual < hora_cierre:
+
+        while inicio_dt < cierre_dt:
             # Calcular hora de fin del turno basado en duración configurada
-            inicio_dt = datetime.combine(datetime.today(), hora_actual)
             fin_dt = inicio_dt + timedelta(minutes=duracion_turno)
             hora_fin = fin_dt.time()
+            hora_actual = inicio_dt.time()
             
             # IMPORTANTE: El turno debe TERMINAR antes o exactamente a la hora de cierre
             # Si el turno terminaría después del cierre, no lo generamos
@@ -206,9 +214,9 @@ class TurnoService:
             
             # Si es hoy, verificar que el turno no haya empezado
             if fecha == hoy_actual:
-                inicio_turno = timezone.make_aware(datetime.combine(fecha, hora_actual))
+                inicio_turno = timezone.make_aware(datetime.combine(inicio_dt.date(), hora_actual))
                 if ahora > inicio_turno:
-                    hora_actual = (inicio_dt + timedelta(minutes=duracion_turno)).time()
+                    inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
                     continue
             
             canchas_disponibles = []
@@ -250,7 +258,7 @@ class TurnoService:
             }
             
             # Avanzar según la duración del turno configurada
-            hora_actual = (inicio_dt + timedelta(minutes=duracion_turno)).time()
+            inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
         
         result = {
             'slots_por_hora': slots_por_hora,
@@ -317,18 +325,14 @@ class TurnoService:
         
         # Generar slots
         slots_por_hora = {}
-        hora_apertura = complejo.hora_apertura
-        hora_cierre = complejo.hora_cierre
-        hora_actual = hora_apertura
+        apertura_dt, cierre_dt = cls.obtener_ventana_horaria(complejo, fecha)
+        inicio_dt = apertura_dt
         
-        # Convertir hora_cierre a datetime para comparaciones precisas
-        cierre_dt = datetime.combine(datetime.today(), hora_cierre)
-        
-        while hora_actual < hora_cierre:
+        while inicio_dt < cierre_dt:
             # Calcular hora de fin del turno basado en duración configurada
-            inicio_dt = datetime.combine(datetime.today(), hora_actual)
             fin_dt = inicio_dt + timedelta(minutes=duracion_turno)
             hora_fin = fin_dt.time()
+            hora_actual = inicio_dt.time()
             
             # IMPORTANTE: El turno debe TERMINAR antes o exactamente a la hora de cierre
             if fin_dt > cierre_dt:
@@ -336,9 +340,9 @@ class TurnoService:
             
             # Si es hoy, verificar que el turno no haya empezado
             if fecha == hoy_actual:
-                inicio_turno = timezone.make_aware(datetime.combine(fecha, hora_actual))
+                inicio_turno = timezone.make_aware(datetime.combine(inicio_dt.date(), hora_actual))
                 if ahora > inicio_turno:
-                    hora_actual = (inicio_dt + timedelta(minutes=duracion_turno)).time()
+                    inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
                     continue
             
             canchas_disponibles = []
@@ -364,7 +368,7 @@ class TurnoService:
                 }
             
             # Avanzar según la duración del turno configurada
-            hora_actual = (inicio_dt + timedelta(minutes=duracion_turno)).time()
+            inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
         
         return slots_por_hora
     
@@ -379,7 +383,11 @@ class TurnoService:
         from .models import Turno, Bloqueo, TurnoFijo
         
         ahora = timezone.now()
-        fecha_hora_turno = timezone.make_aware(datetime.combine(fecha, hora))
+        apertura_dt, cierre_dt = TurnoService.obtener_ventana_horaria(cancha.complejo, fecha)
+        fecha_hora_turno = datetime.combine(fecha, hora)
+        if cierre_dt <= apertura_dt and fecha_hora_turno < apertura_dt:
+            fecha_hora_turno = fecha_hora_turno + timedelta(days=1)
+        fecha_hora_turno = timezone.make_aware(fecha_hora_turno)
         
         # Expirar pendientes vencidos antes de validar
         TurnoService.expirar_turnos_pendientes(cancha.complejo, fecha, ahora=ahora)
@@ -387,6 +395,10 @@ class TurnoService:
         # Verificar que no sea en el pasado
         if fecha_hora_turno < ahora:
             return False, 'No se puede reservar un turno en el pasado'
+
+        # Verificar que esté dentro del horario operativo del complejo
+        if not (apertura_dt <= fecha_hora_turno < cierre_dt):
+            return False, 'Este horario está fuera del horario de apertura'
         
         # Verificar turno existente
         turno_existente = Turno.objects.filter(
