@@ -93,7 +93,7 @@ class TenantMiddleware:
                         activo=True
                     )
                     # Cachear por 1 hora (3600 segundos)
-                    cache.set(cache_key, complejo, 3600)
+                    cache.set(cache_key, complejo, 900)
                 except Complejo.DoesNotExist:
                     # Si no existe el subdominio, usar fallback
                     complejo = self._get_complejo_default()
