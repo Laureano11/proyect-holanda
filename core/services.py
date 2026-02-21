@@ -395,6 +395,10 @@ class TurnoService:
         fecha_hora_turno = datetime.combine(fecha, hora)
         if cierre_dt <= apertura_dt and fecha_hora_turno < apertura_dt:
             fecha_hora_turno = fecha_hora_turno + timedelta(days=1)
+        if timezone.is_naive(apertura_dt):
+            apertura_dt = timezone.make_aware(apertura_dt)
+        if timezone.is_naive(cierre_dt):
+            cierre_dt = timezone.make_aware(cierre_dt)
         fecha_hora_turno = timezone.make_aware(fecha_hora_turno)
         
         # Expirar pendientes vencidos antes de validar
