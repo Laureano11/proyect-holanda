@@ -301,6 +301,10 @@ class PreferenciasComplejo(models.Model):
         default=True,
         verbose_name='Turnos fijos habilitados'
     )
+    turnos_en_vivo_habilitados = models.BooleanField(
+        default=True,
+        verbose_name='Turnos en vivo habilitados'
+    )
     cancelacion_online = models.BooleanField(
         default=True,
         verbose_name='Cancelación online permitida'

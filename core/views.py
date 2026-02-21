@@ -488,6 +488,7 @@ def dashboard(request):
         'fecha_maxima': fecha_maxima_default,
         'es_fecha_pasada': False,
         'staff_layout': staff_layout,
+        'turnos_en_vivo_habilitados': True,
     }
     
     # Si es cliente, calcular turnos disponibles del día
@@ -750,6 +751,10 @@ def dashboard(request):
             'dias_semana_selector': dias_semana_selector,
             'fecha_maxima_rango': fecha_maxima_rango,
         })
+        try:
+            context['turnos_en_vivo_habilitados'] = complejo.preferencias.turnos_en_vivo_habilitados
+        except Exception:
+            context['turnos_en_vivo_habilitados'] = True
     
     # Estado de integración Mercado Pago para admin/staff
     mp_integration = None
@@ -2317,6 +2322,12 @@ def turnos_en_vivo(request):
     if not complejo:
         messages.error(request, 'No tenés un complejo asignado')
         return redirect('dashboard')
+    try:
+        if not complejo.preferencias.turnos_en_vivo_habilitados:
+            messages.error(request, 'Los turnos en vivo están deshabilitados en este complejo')
+            return redirect('dashboard')
+    except Exception:
+        pass
     
     # Obtener todas las canchas activas del complejo
     canchas = Cancha.objects.filter(

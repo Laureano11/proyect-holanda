@@ -205,8 +205,20 @@ class ComplejoAdmin(admin.ModelAdmin):
 class PreferenciasComplejoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
     """Admin para PreferenciasComplejo."""
     
-    list_display = ['complejo', 'duracion_turno_minutos', 'sistema_ranking', 'pago_senia', 'turnos_fijos_habilitados']
-    list_filter = ['sistema_ranking', 'pago_senia', 'turnos_fijos_habilitados']
+    list_display = [
+        'complejo',
+        'duracion_turno_minutos',
+        'sistema_ranking',
+        'pago_senia',
+        'turnos_fijos_habilitados',
+        'turnos_en_vivo_habilitados',
+    ]
+    list_filter = [
+        'sistema_ranking',
+        'pago_senia',
+        'turnos_fijos_habilitados',
+        'turnos_en_vivo_habilitados',
+    ]
     
     fieldsets = (
         ('Complejo', {
@@ -222,6 +234,7 @@ class PreferenciasComplejoAdmin(ComplejoFilterMixin, admin.ModelAdmin):
                 'pago_senia',
                 'maneja_comisiones',
                 'turnos_fijos_habilitados',
+                'turnos_en_vivo_habilitados',
                 'cancelacion_online',
                 'notificaciones_whatsapp',
                 'notificaciones_email'
