@@ -98,7 +98,11 @@
                             {{ slot_data.hora_inicio|time:"H:i" }}
                         </span>
                         <span class="text-xs text-slate-500 font-medium uppercase">
-                            a {{ slot_data.hora_fin|time:"H:i" }}
+                            {% if slot_data.hora_fin %}
+                                a {{ slot_data.hora_fin|time:"H:i" }}
+                            {% else %}
+                                duración variable
+                            {% endif %}
                         </span>
                         <span class="ml-2 text-[10px] text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded-md border border-slate-700">
                             {{ slot_data.canchas_disponibles_count }} disp.
@@ -118,6 +122,10 @@
                                 {% elif cancha_data.estado == 'reservado' %}bg-amber-500
                                 {% else %}bg-slate-600{% endif %}">
                             </span>
+                        </div>
+                        <div class="flex items-baseline justify-between mb-1">
+                            <span class="text-[9px] text-slate-500 uppercase font-bold">Hasta</span>
+                            <span class="text-[11px] text-slate-300 font-semibold">{{ cancha_data.hora_fin|time:"H:i" }}</span>
                         </div>
                         
                     {% if cancha_data.estado == 'disponible' and not es_fecha_pasada %}

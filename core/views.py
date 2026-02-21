@@ -1493,6 +1493,7 @@ def crear_turno_rapido(request):
             turno.fecha = fecha_obj
             turno.hora_inicio = hora_obj
             turno.estado = Turno.Estado.PENDIENTE_PAGO
+            turno.duracion_minutos = cancha.get_duracion_turno()
             turno.precio_total = cancha.precio_hora
             turno.senia_requerida = cancha.precio_senia
             turno.senia_pagada = Decimal('0.00')

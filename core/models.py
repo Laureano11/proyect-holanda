@@ -1027,9 +1027,10 @@ class TurnoFijo(models.Model):
     
     @property
     def hora_fin(self):
-        """Calcula la hora de fin del turno (1 hora después del inicio)."""
+        """Calcula la hora de fin del turno según duración de la cancha."""
         from datetime import datetime, timedelta
-        hora_fin = (datetime.combine(datetime.today(), self.hora_inicio) + timedelta(hours=1)).time()
+        duracion_minutos = self.cancha.get_duracion_turno()
+        hora_fin = (datetime.combine(datetime.today(), self.hora_inicio) + timedelta(minutes=duracion_minutos)).time()
         return hora_fin
     
     def __str__(self):

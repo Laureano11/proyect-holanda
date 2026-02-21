@@ -83,7 +83,11 @@
             {{ slot.hora_inicio|time:"H:i" }}
           </div>
           <div class="text-xs text-slate-500 font-medium uppercase">
-            a {{ slot.hora_fin|time:"H:i" }}
+            {% if slot.hora_fin %}
+              a {{ slot.hora_fin|time:"H:i" }}
+            {% else %}
+              duración variable
+            {% endif %}
           </div>
           <div class="ml-auto text-[10px] text-slate-400 font-medium bg-slate-900/50 px-2 py-0.5 rounded border border-slate-700/50">
             {{ slot.canchas_disponibles_count }} canchas disp.
@@ -106,6 +110,10 @@
             <div class="flex items-baseline justify-between mt-auto">
               <span class="text-[9px] text-slate-500 font-bold uppercase">Seña</span>
               <span class="text-xs font-bold {% if item.estado == 'disponible' %}text-emerald-400{% else %}text-slate-500{% endif %}">${{ item.senia|floatformat:0 }}</span>
+            </div>
+            <div class="flex items-baseline justify-between mt-1">
+              <span class="text-[9px] text-slate-500 font-bold uppercase">Hasta</span>
+              <span class="text-xs font-bold text-slate-300">{{ item.hora_fin|time:"H:i" }}</span>
             </div>
           </div>
           {% endfor %}

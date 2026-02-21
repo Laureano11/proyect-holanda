@@ -63,7 +63,12 @@
             <!-- Header de la hora -->
             <div class="flex items-center justify-between mb-3">
                 <span class="text-sm font-medium text-slate-300">
-                    {{ slot_data.hora_inicio|time:"H:i" }} - {{ slot_data.hora_fin|time:"H:i" }}
+                    {{ slot_data.hora_inicio|time:"H:i" }}
+                    {% if slot_data.hora_fin %}
+                        - {{ slot_data.hora_fin|time:"H:i" }}
+                    {% else %}
+                        - duración variable
+                    {% endif %}
                 </span>
                 <span class="text-xs text-slate-500">
                     {{ slot_data.canchas|length }} disponible{{ slot_data.canchas|length|pluralize }}
@@ -79,6 +84,10 @@
                         <div class="flex items-center justify-between text-xs mt-1">
                             <span class="text-slate-400">Precio</span>
                             <span class="text-white font-medium">${{ cancha_data.precio|floatformat:0 }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] mt-1">
+                            <span class="text-slate-400">Hasta</span>
+                            <span class="text-slate-200 font-medium">{{ cancha_data.hora_fin|time:"H:i" }}</span>
                         </div>
                     </div>
                     

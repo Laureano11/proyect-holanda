@@ -143,12 +143,6 @@ class TurnoService:
         hoy_actual = ahora.date()
         es_fecha_pasada = fecha < hoy_actual
         
-        # Obtener duración del turno del complejo (default 60 minutos)
-        try:
-            duracion_turno = complejo.preferencias.duracion_turno_minutos
-        except PreferenciasComplejo.DoesNotExist:
-            duracion_turno = 60
-        
         # Obtener canchas activas (single query)
         canchas = list(Cancha.objects.filter(
             complejo=complejo, 
@@ -198,30 +192,30 @@ class TurnoService:
         # Generar slots
         slots_por_hora = {}
         apertura_dt, cierre_dt = cls.obtener_ventana_horaria(complejo, fecha)
-        inicio_dt = apertura_dt
         total_disponibles = 0
+        
+        for cancha in canchas:
+            duracion_turno = cancha.get_duracion_turno()
+            inicio_dt = apertura_dt
 
-        while inicio_dt < cierre_dt:
-            # Calcular hora de fin del turno basado en duración configurada
-            fin_dt = inicio_dt + timedelta(minutes=duracion_turno)
-            hora_fin = fin_dt.time()
-            hora_actual = inicio_dt.time()
-            
-            # IMPORTANTE: El turno debe TERMINAR antes o exactamente a la hora de cierre
-            # Si el turno terminaría después del cierre, no lo generamos
-            if fin_dt > cierre_dt:
-                break
-            
-            # Si es hoy, verificar que el turno no haya empezado
-            if fecha == hoy_actual:
-                inicio_turno = timezone.make_aware(datetime.combine(inicio_dt.date(), hora_actual))
-                if ahora > inicio_turno:
-                    inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
-                    continue
-            
-            canchas_disponibles = []
-            
-            for cancha in canchas:
+            while inicio_dt < cierre_dt:
+                # Calcular hora de fin del turno basado en duración de la cancha
+                fin_dt = inicio_dt + timedelta(minutes=duracion_turno)
+                hora_fin = fin_dt.time()
+                hora_actual = inicio_dt.time()
+                
+                # IMPORTANTE: El turno debe TERMINAR antes o exactamente a la hora de cierre
+                # Si el turno terminaría después del cierre, no lo generamos
+                if fin_dt > cierre_dt:
+                    break
+                
+                # Si es hoy, verificar que el turno no haya empezado
+                if fecha == hoy_actual:
+                    inicio_turno = timezone.make_aware(datetime.combine(inicio_dt.date(), hora_actual))
+                    if ahora > inicio_turno:
+                        inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
+                        continue
+                
                 # Obtener bloqueos relevantes (O(1) lookup)
                 bloqueos_relevantes = bloqueos_globales + bloqueos_por_cancha.get(cancha.id, [])
                 
@@ -240,25 +234,36 @@ class TurnoService:
                     if not es_fecha_pasada:
                         total_disponibles += 1
                 
-                canchas_disponibles.append({
+                slot = slots_por_hora.setdefault(hora_actual, {
+                    'hora_inicio': hora_actual,
+                    'hora_fin': None,
+                    'hora_fin_set': set(),
+                    'canchas': [],
+                    'canchas_disponibles_count': 0,
+                })
+                
+                slot['canchas'].append({
                     'cancha': cancha,
                     'precio': cancha.precio_hora,
                     'senia': cancha.precio_senia,
                     'estado': estado,
                     'hora': hora_actual,
+                    'hora_fin': hora_fin,
+                    'duracion_minutos': duracion_turno,
                 })
-            
-            canchas_disponibles_count = len([c for c in canchas_disponibles if c['estado'] == 'disponible'])
-            
-            slots_por_hora[hora_actual] = {
-                'hora_inicio': hora_actual,
-                'hora_fin': hora_fin,
-                'canchas': canchas_disponibles,
-                'canchas_disponibles_count': canchas_disponibles_count,
-            }
-            
-            # Avanzar según la duración del turno configurada
-            inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
+                slot['hora_fin_set'].add(hora_fin)
+                if estado == 'disponible' and not es_fecha_pasada:
+                    slot['canchas_disponibles_count'] += 1
+                
+                # Avanzar según la duración del turno de la cancha
+                inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
+        
+        for slot in slots_por_hora.values():
+            if len(slot['hora_fin_set']) == 1:
+                slot['hora_fin'] = next(iter(slot['hora_fin_set']))
+            else:
+                slot['hora_fin'] = None
+            del slot['hora_fin_set']
         
         result = {
             'slots_por_hora': slots_por_hora,
@@ -292,12 +297,6 @@ class TurnoService:
         ahora = timezone.now()
         hoy_actual = ahora.date()
         
-        # Obtener duración del turno del complejo (default 60 minutos)
-        try:
-            duracion_turno = complejo.preferencias.duracion_turno_minutos
-        except PreferenciasComplejo.DoesNotExist:
-            duracion_turno = 60
-        
         # Obtener canchas activas
         canchas = list(Cancha.objects.filter(
             complejo=complejo, 
@@ -326,49 +325,58 @@ class TurnoService:
         # Generar slots
         slots_por_hora = {}
         apertura_dt, cierre_dt = cls.obtener_ventana_horaria(complejo, fecha)
-        inicio_dt = apertura_dt
         
-        while inicio_dt < cierre_dt:
-            # Calcular hora de fin del turno basado en duración configurada
-            fin_dt = inicio_dt + timedelta(minutes=duracion_turno)
-            hora_fin = fin_dt.time()
-            hora_actual = inicio_dt.time()
+        for cancha in canchas:
+            duracion_turno = cancha.get_duracion_turno()
+            inicio_dt = apertura_dt
             
-            # IMPORTANTE: El turno debe TERMINAR antes o exactamente a la hora de cierre
-            if fin_dt > cierre_dt:
-                break
-            
-            # Si es hoy, verificar que el turno no haya empezado
-            if fecha == hoy_actual:
-                inicio_turno = timezone.make_aware(datetime.combine(inicio_dt.date(), hora_actual))
-                if ahora > inicio_turno:
-                    inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
-                    continue
-            
-            canchas_disponibles = []
-            
-            for cancha in canchas:
+            while inicio_dt < cierre_dt:
+                # Calcular hora de fin del turno basado en duración de la cancha
+                fin_dt = inicio_dt + timedelta(minutes=duracion_turno)
+                hora_fin = fin_dt.time()
+                hora_actual = inicio_dt.time()
+                
+                # IMPORTANTE: El turno debe TERMINAR antes o exactamente a la hora de cierre
+                if fin_dt > cierre_dt:
+                    break
+                
+                # Si es hoy, verificar que el turno no haya empezado
+                if fecha == hoy_actual:
+                    inicio_turno = timezone.make_aware(datetime.combine(inicio_dt.date(), hora_actual))
+                    if ahora > inicio_turno:
+                        inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
+                        continue
+                
                 bloqueos_relevantes = bloqueos_globales + bloqueos_por_cancha.get(cancha.id, [])
                 esta_bloqueada = cls.hora_esta_bloqueada(hora_actual, bloqueos_relevantes)
                 esta_ocupada = (cancha.id, hora_actual) in turnos_ocupados
                 
                 if not esta_bloqueada and not esta_ocupada:
-                    canchas_disponibles.append({
+                    slot = slots_por_hora.setdefault(hora_actual, {
+                        'hora_inicio': hora_actual,
+                        'hora_fin': None,
+                        'hora_fin_set': set(),
+                        'canchas': [],
+                    })
+                    slot['canchas'].append({
                         'cancha': cancha,
                         'precio': cancha.precio_hora,
                         'senia': cancha.precio_senia,
                         'hora': hora_actual,
+                        'hora_fin': hora_fin,
+                        'duracion_minutos': duracion_turno,
                     })
-            
-            if canchas_disponibles:
-                slots_por_hora[hora_actual] = {
-                    'hora_inicio': hora_actual,
-                    'hora_fin': hora_fin,
-                    'canchas': canchas_disponibles,
-                }
-            
-            # Avanzar según la duración del turno configurada
-            inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
+                    slot['hora_fin_set'].add(hora_fin)
+                
+                # Avanzar según la duración del turno de la cancha
+                inicio_dt = inicio_dt + timedelta(minutes=duracion_turno)
+        
+        for slot in slots_por_hora.values():
+            if len(slot['hora_fin_set']) == 1:
+                slot['hora_fin'] = next(iter(slot['hora_fin_set']))
+            else:
+                slot['hora_fin'] = None
+            del slot['hora_fin_set']
         
         return slots_por_hora
     
