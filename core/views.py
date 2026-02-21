@@ -1245,12 +1245,6 @@ def editar_turno(request, turno_id):
         id=turno_id
     )
     
-    # Bloquear edición si el turno ya empezó (para no “romper” el turno).
-    # En ese caso, el staff solo puede marcar como pagado o cancelar.
-    if turno.estado == Turno.Estado.JUGADO or turno.ya_empezo:
-        messages.error(request, 'Este turno ya empezó. Solo podés marcarlo como pagado o cancelarlo.')
-        return redirect('dashboard')
-    
     # Verificar que el staff pertenece al mismo complejo (o es superadmin)
     if not request.user.es_superadmin:
         if not request.user.complejo or request.user.complejo != turno.cancha.complejo:
@@ -1265,6 +1259,7 @@ def editar_turno(request, turno_id):
         'turno': turno,
         'canchas': canchas,
         'complejo': complejo,
+        'bloquear_edicion_horario': turno.estado == Turno.Estado.JUGADO or turno.ya_empezo,
     }
     
     return render(request, 'staff/editar_turno.html', context)
@@ -1286,12 +1281,6 @@ def actualizar_turno(request, turno_id):
         Turno.objects.select_related('cancha', 'cancha__complejo'), 
         id=turno_id
     )
-    
-    # Bloquear edición si el turno ya empezó (para no “romper” el turno).
-    # En ese caso, el staff solo puede marcar como pagado o cancelar.
-    if turno.estado == Turno.Estado.JUGADO or turno.ya_empezo:
-        messages.error(request, 'Este turno ya empezó. Solo podés marcarlo como pagado o cancelarlo.')
-        return redirect('dashboard')
     
     # Verificar que el staff pertenece al mismo complejo (o es superadmin)
     if not request.user.es_superadmin:
@@ -1319,13 +1308,25 @@ def actualizar_turno(request, turno_id):
         messages.error(request, 'Estado inválido')
         return redirect('editar_turno', turno_id=turno.id)
     
-    try:
-        cancha = Cancha.objects.get(id=cancha_id, activa=True, complejo=turno.cancha.complejo)
-        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
-        hora_obj = datetime.strptime(hora_inicio, '%H:%M').time()
-    except (ValueError, Cancha.DoesNotExist):
-        messages.error(request, 'Datos inválidos')
-        return redirect('editar_turno', turno_id=turno.id)
+    # Si el turno ya empezó o ya fue jugado, no permitimos moverlo de horario/cancha.
+    bloquear_horario = turno.estado == Turno.Estado.JUGADO or turno.ya_empezo
+    if bloquear_horario:
+        if (str(turno.cancha_id) != str(cancha_id) or
+                str(turno.fecha) != str(fecha) or
+                turno.hora_inicio.strftime('%H:%M') != str(hora_inicio)):
+            messages.error(request, 'No se puede cambiar cancha/fecha/hora en un turno ya iniciado o jugado')
+            return redirect('editar_turno', turno_id=turno.id)
+        cancha = turno.cancha
+        fecha_obj = turno.fecha
+        hora_obj = turno.hora_inicio
+    else:
+        try:
+            cancha = Cancha.objects.get(id=cancha_id, activa=True, complejo=turno.cancha.complejo)
+            fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+            hora_obj = datetime.strptime(hora_inicio, '%H:%M').time()
+        except (ValueError, Cancha.DoesNotExist):
+            messages.error(request, 'Datos inválidos')
+            return redirect('editar_turno', turno_id=turno.id)
     
     # Guardar fecha original para invalidar caché
     fecha_original = turno.fecha
