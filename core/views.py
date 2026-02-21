@@ -112,7 +112,10 @@ def _crear_preferencia_mp_para_turno(request, integration, turno, monto_mp):
     Crea una preferencia de MP para cobrar el monto pendiente de seña.
     Devuelve (checkout_url, preference_id, external_reference).
     """
-    sdk = mercadopago.SDK(integration.access_token_plain)
+    access_token = integration.access_token_plain
+    if not access_token:
+        raise ValueError("Token de Mercado Pago inválido o sin clave de cifrado (FIELD_ENCRYPTION_KEY).")
+    sdk = mercadopago.SDK(access_token)
     feedback_url = _build_canonical_absolute_uri(request, reverse("mercadopago_feedback"))
     webhook_url = _build_canonical_absolute_uri(request, reverse("mercadopago_webhook"))
     external_reference = f"turno:{turno.id}"

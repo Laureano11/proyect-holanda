@@ -19,6 +19,9 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
 from django.utils.text import slugify
 from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Usuario(AbstractUser):
@@ -1320,14 +1323,22 @@ class IntegracionMercadoPago(models.Model):
     @property
     def access_token_plain(self):
         """Devuelve el access token descifrado (o None)."""
-        from core.utils.crypto import decrypt_string
-        return decrypt_string(self.access_token)
+        from core.utils.crypto import decrypt_string, EncryptionKeyMissing
+        try:
+            return decrypt_string(self.access_token)
+        except EncryptionKeyMissing as exc:
+            logger.error("No se pudo descifrar access_token de MP (id=%s): %s", self.pk, exc)
+            return None
 
     @property
     def refresh_token_plain(self):
         """Devuelve el refresh token descifrado (o None)."""
-        from core.utils.crypto import decrypt_string
-        return decrypt_string(self.refresh_token)
+        from core.utils.crypto import decrypt_string, EncryptionKeyMissing
+        try:
+            return decrypt_string(self.refresh_token)
+        except EncryptionKeyMissing as exc:
+            logger.error("No se pudo descifrar refresh_token de MP (id=%s): %s", self.pk, exc)
+            return None
 
     def access_token_masked(self):
         """Token enmascarado para mostrar en admin."""
