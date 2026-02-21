@@ -3,6 +3,7 @@ Views de la aplicación core.
 """
 
 import os
+import re
 from hmac import compare_digest
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -13,6 +14,8 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
 from django.core import signing
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 from django.db import transaction, IntegrityError
@@ -47,6 +50,70 @@ from .services import TurnoService, CreditoService
 import mercadopago
 
 logger = logging.getLogger(__name__)
+
+MAX_EMAIL_LEN = 254
+MAX_USERNAME_LEN = 150
+MAX_PASSWORD_LEN = 128
+MAX_NAME_LEN = 150
+MAX_PHONE_LEN = 20
+MAX_DNI_LEN = 20
+
+USERNAME_RE = re.compile(r"^[A-Za-z0-9._@+-]+$")
+NAME_RE = re.compile(r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' -]+$")
+PHONE_RE = re.compile(r"^[0-9+() \\-]{6,20}$")
+NUMERIC_RE = re.compile(r"^[0-9]+$")
+
+
+def _es_email_valido(email: str) -> bool:
+    if not email or len(email) > MAX_EMAIL_LEN:
+        return False
+    try:
+        validate_email(email)
+    except ValidationError:
+        return False
+    return True
+
+
+def _es_username_valido(username: str) -> bool:
+    if not username or len(username) > MAX_USERNAME_LEN:
+        return False
+    return bool(USERNAME_RE.fullmatch(username))
+
+
+def _es_nombre_valido(nombre: str) -> bool:
+    if not nombre or len(nombre) > MAX_NAME_LEN:
+        return False
+    return bool(NAME_RE.fullmatch(nombre))
+
+
+def _es_password_valida(password: str) -> bool:
+    return bool(password) and 8 <= len(password) <= MAX_PASSWORD_LEN
+
+
+def _es_celular_valido(celular: str) -> bool:
+    if not celular:
+        return True
+    if len(celular) > MAX_PHONE_LEN:
+        return False
+    return bool(PHONE_RE.fullmatch(celular))
+
+
+def _es_dni_valido(dni: str) -> bool:
+    if not dni:
+        return True
+    if len(dni) > MAX_DNI_LEN:
+        return False
+    if not NUMERIC_RE.fullmatch(dni):
+        return False
+    return 7 <= len(dni) <= 10
+
+
+def _generar_username_desde_email(email: str) -> str:
+    local_part = (email.split("@")[0] or "").lower()
+    base = re.sub(r"[^A-Za-z0-9._+-]", "", local_part)[:MAX_USERNAME_LEN]
+    if not base:
+        base = "user"
+    return base
 
 DEFAULT_HOME_GALLERY_IMAGES = [
     {
@@ -351,14 +418,29 @@ def login_view(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
-        username_or_email = request.POST.get('username')
-        password = request.POST.get('password')
+        username_or_email = (request.POST.get('username') or '').strip()
+        password = request.POST.get('password') or ''
+
+        if not username_or_email or not password:
+            messages.error(request, 'Usuario y contraseña son obligatorios')
+            return render(request, 'auth/login.html')
+
+        if len(username_or_email) > MAX_EMAIL_LEN:
+            messages.error(request, 'El usuario/email es demasiado largo')
+            return render(request, 'auth/login.html')
+
+        if not _es_password_valida(password):
+            messages.error(request, 'La contraseña tiene un formato inválido')
+            return render(request, 'auth/login.html')
         
         # Intentar autenticar con username o email
         user = None
         
         # Si contiene @, asumir que es email
         if '@' in username_or_email:
+            if not _es_email_valido(username_or_email):
+                messages.error(request, 'Ingresá un email válido')
+                return render(request, 'auth/login.html')
             try:
                 usuario_obj = Usuario.objects.get(email__iexact=username_or_email)
                 user = authenticate(request, username=usuario_obj.username, password=password)
@@ -366,6 +448,9 @@ def login_view(request):
                 pass
         else:
             # Intentar con username directamente
+            if not _es_username_valido(username_or_email):
+                messages.error(request, 'Ingresá un usuario válido')
+                return render(request, 'auth/login.html')
             user = authenticate(request, username=username_or_email, password=password)
         
         if user is not None:
@@ -433,15 +518,30 @@ def register_view(request):
         if not email or not password or not first_name or not last_name:
             messages.error(request, 'Email, nombre, apellido y contraseña son obligatorios')
             return render(request, 'auth/register.html')
+
+        if not _es_email_valido(email):
+            messages.error(request, 'Ingresá un email válido')
+            return render(request, 'auth/register.html')
+
+        if not _es_nombre_valido(first_name) or not _es_nombre_valido(last_name):
+            messages.error(request, 'Ingresá nombre y apellido válidos')
+            return render(request, 'auth/register.html')
+
+        if not _es_password_valida(password):
+            messages.error(request, 'La contraseña debe tener entre 8 y 128 caracteres')
+            return render(request, 'auth/register.html')
         
         # Validar que las contraseñas coincidan
         if password != password_confirm:
             messages.error(request, 'Las contraseñas no coinciden')
             return render(request, 'auth/register.html')
         
-        # Validar formato de email
-        if '@' not in email or '.' not in email:
-            messages.error(request, 'Ingresá un email válido')
+        if not _es_celular_valido(celular):
+            messages.error(request, 'Ingresá un celular válido')
+            return render(request, 'auth/register.html')
+
+        if not _es_dni_valido(dni):
+            messages.error(request, 'Ingresá un DNI válido')
             return render(request, 'auth/register.html')
         
         # Verificar si el email ya existe
@@ -450,11 +550,13 @@ def register_view(request):
             return render(request, 'auth/register.html')
         
         # Generar username único basado en el email
-        username = email.split('@')[0].lower()
-        base_username = username
+        base_username = _generar_username_desde_email(email)
+        username = base_username
         counter = 1
         while Usuario.objects.filter(username=username).exists():
-            username = f"{base_username}{counter}"
+            suffix = str(counter)
+            max_base_len = MAX_USERNAME_LEN - len(suffix)
+            username = f"{base_username[:max_base_len]}{suffix}"
             counter += 1
         
         try:
