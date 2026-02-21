@@ -29,9 +29,9 @@
     <!-- Lista de turnos fijos -->
     {% if turnos_fijos %}
     <div class="space-y-4">
-        {% for dia, turnos in turnos_por_dia.items %}
+        {% for cliente, turnos in turnos_por_cliente.items %}
         <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
-            <h3 class="text-lg font-semibold text-white mb-3">{{ dia }}</h3>
+            <h3 class="text-lg font-semibold text-white mb-3">{{ cliente }}</h3>
             <div class="space-y-2">
                 {% for turno in turnos %}
                 <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
@@ -39,14 +39,14 @@
                         <div class="flex-1">
                             <div class="flex flex-wrap items-start gap-4">
                                 <div>
-                                    <p class="text-sm font-medium text-white">{{ turno.cancha.nombre }}</p>
+                                    <p class="text-sm font-medium text-white">{{ turno.get_dia_semana_display }}</p>
                                     <p class="text-xs text-slate-400">
                                         {{ turno.hora_inicio|time:"H:i" }} - {{ turno.hora_fin|time:"H:i" }}
                                     </p>
                                 </div>
                                 <div>
-                                    <span class="text-xs text-slate-400">Cliente:</span>
-                                    <span class="text-sm text-white">{{ turno.cliente.first_name|default:turno.cliente.username }}</span>
+                                    <span class="text-xs text-slate-400">Cancha:</span>
+                                    <span class="text-sm text-white">{{ turno.cancha.nombre }}</span>
                                 </div>
                                 <div>
                                     <span class="text-xs text-slate-400">Desde:</span>

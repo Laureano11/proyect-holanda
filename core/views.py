@@ -1741,20 +1741,24 @@ def turnos_fijos(request):
         cancha__complejo=complejo,
         activo=True
     ).select_related('cancha', 'cliente').order_by('dia_semana', 'hora_inicio')
-    
-    # Agrupar por día de la semana para mejor visualización
-    turnos_por_dia = {}
-    for turno in turnos_fijos:
-        dia = turno.get_dia_semana_display()
-        if dia not in turnos_por_dia:
-            turnos_por_dia[dia] = []
-        turnos_por_dia[dia].append(turno)
+
+    # Agrupar por cliente para mejor visualización
+    def _cliente_nombre(turno_fijo):
+        nombre = (turno_fijo.cliente.first_name or '').strip()
+        return nombre or turno_fijo.cliente.username
+
+    turnos_por_cliente = {}
+    for turno in sorted(turnos_fijos, key=_cliente_nombre):
+        cliente_nombre = _cliente_nombre(turno)
+        if cliente_nombre not in turnos_por_cliente:
+            turnos_por_cliente[cliente_nombre] = []
+        turnos_por_cliente[cliente_nombre].append(turno)
     
     context = {
         'complejo': complejo,
         'canchas': canchas,
         'turnos_fijos': turnos_fijos,
-        'turnos_por_dia': turnos_por_dia,
+        'turnos_por_cliente': turnos_por_cliente,
         'dias_semana': TurnoFijo.DiaSemana.choices,
     }
     
