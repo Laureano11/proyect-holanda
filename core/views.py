@@ -151,14 +151,43 @@ def _crear_preferencia_mp_para_turno(request, integration, turno, monto_mp):
     if webhook_url.startswith("https://"):
         preference["notification_url"] = webhook_url
 
-    preference_response = sdk.preference().create(preference)
+    try:
+        preference_response = sdk.preference().create(preference)
+    except Exception as exc:
+        logger.exception(
+            "MP error creando preferencia (turno_id=%s, complejo_id=%s)",
+            turno.id,
+            turno.cancha.complejo_id,
+        )
+        raise
+
     body = preference_response.get("response") or {}
+    status_code = preference_response.get("status")
+    mp_message = body.get("message") or body.get("error") or body.get("status")
+    mp_cause = body.get("cause") or body.get("causes") or body.get("details")
+    if status_code and int(status_code) >= 400:
+        logger.error(
+            "MP respuesta error (status=%s, message=%s, cause=%s, turno_id=%s, complejo_id=%s, body=%s)",
+            status_code,
+            mp_message,
+            mp_cause,
+            turno.id,
+            turno.cancha.complejo_id,
+            body,
+        )
     checkout_url = body.get("init_point") or body.get("sandbox_init_point")
     preference_id = body.get("id") or body.get("preference_id")
 
     if not checkout_url or not preference_id:
-        mp_message = body.get("message") or body.get("error") or body.get("status")
-        mp_cause = body.get("cause") or body.get("causes") or body.get("details")
+        logger.error(
+            "MP sin checkout/preference_id (status=%s, message=%s, cause=%s, turno_id=%s, complejo_id=%s, body=%s)",
+            status_code,
+            mp_message,
+            mp_cause,
+            turno.id,
+            turno.cancha.complejo_id,
+            body,
+        )
         raise ValueError(f"MP no devolvió checkout/preference_id (message={mp_message}, cause={mp_cause}).")
 
     return checkout_url, preference_id, external_reference
