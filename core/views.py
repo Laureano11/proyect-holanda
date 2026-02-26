@@ -1676,6 +1676,8 @@ def crear_turno_rapido(request):
         monto_comision=cancha.monto_comision if getattr(cancha.complejo, 'preferencias', None) and cancha.complejo.preferencias.maneja_comisiones else Decimal('0.00'),
         notas=f'Turno creado por staff: {request.user.username}',
     )
+    # Sin esta invalidación, la grilla pública/cliente puede quedar stale por TTL.
+    TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_obj)
     
     messages.success(request, f'Turno creado para {nombre_cliente} - {cancha.nombre} - {fecha_obj.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
     return redirect('dashboard')
@@ -2065,6 +2067,18 @@ def crear_turno_fijo(request):
                 notas=notas or f'Turno fijo creado por staff: {request.user.username}',
             )
             turnos_creados.append(turno_fijo)
+
+            # Invalidar fechas potencialmente afectadas por el patrón fijo
+            # para reflejar disponibilidad inmediata en la grilla.
+            hoy = timezone.now().date()
+            fecha_desde_inval = max(fecha_inicio_obj, hoy)
+            fecha_hasta_inval = fecha_fin_obj or (hoy + timedelta(days=60))
+            fecha_hasta_inval = min(fecha_hasta_inval, hoy + timedelta(days=60))
+            fecha_cursor = fecha_desde_inval
+            while fecha_cursor <= fecha_hasta_inval:
+                if fecha_cursor.weekday() == dia_semana:
+                    TurnoService.invalidar_cache_slots(complejo.id, fecha_cursor)
+                fecha_cursor += timedelta(days=1)
         except (ValueError, KeyError):
             continue
     
