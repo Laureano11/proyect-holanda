@@ -48,6 +48,16 @@ class TurnoService:
         return apertura_dt, cierre_dt
 
     @staticmethod
+    def obtener_fecha_real_turno(complejo, fecha_base, hora_turno):
+        """
+        Convierte una fecha operativa (día de la grilla) a fecha real de juego.
+        Si el complejo cruza medianoche, las horas menores a apertura pertenecen al día siguiente.
+        """
+        if complejo.hora_cierre <= complejo.hora_apertura and hora_turno < complejo.hora_apertura:
+            return fecha_base + timedelta(days=1)
+        return fecha_base
+
+    @staticmethod
     def expirar_turnos_pendientes(complejo, fecha, ahora=None):
         """
         Marca como expirados los turnos pendientes cuyo expira_en ya pasó.
@@ -156,11 +166,20 @@ class TurnoService:
                 'es_fecha_pasada': es_fecha_pasada
             }
         
-        # Obtener turnos ocupados del día (single query, optimizada)
-        turnos_ocupados = set(Turno.objects.filter(
-            cancha__complejo=complejo,
-            fecha=fecha
-        ).exclude(
+        # Obtener turnos ocupados considerando fecha real cuando cruza medianoche
+        turnos_ocupados_qs = Turno.objects.filter(cancha__complejo=complejo)
+        if complejo.hora_cierre <= complejo.hora_apertura:
+            turnos_ocupados_qs = turnos_ocupados_qs.filter(
+                fecha=fecha
+            ) | Turno.objects.filter(
+                cancha__complejo=complejo,
+                fecha=fecha + timedelta(days=1),
+                hora_inicio__lt=complejo.hora_apertura,
+            )
+        else:
+            turnos_ocupados_qs = turnos_ocupados_qs.filter(fecha=fecha)
+
+        turnos_ocupados = set(turnos_ocupados_qs.exclude(
             estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
         ).values_list('cancha_id', 'hora_inicio'))
         
@@ -306,11 +325,20 @@ class TurnoService:
         if not canchas:
             return {}
         
-        # Obtener turnos ocupados
-        turnos_ocupados = set(Turno.objects.filter(
-            cancha__complejo=complejo,
-            fecha=fecha
-        ).exclude(
+        # Obtener turnos ocupados considerando fecha real cuando cruza medianoche
+        turnos_ocupados_qs = Turno.objects.filter(cancha__complejo=complejo)
+        if complejo.hora_cierre <= complejo.hora_apertura:
+            turnos_ocupados_qs = turnos_ocupados_qs.filter(
+                fecha=fecha
+            ) | Turno.objects.filter(
+                cancha__complejo=complejo,
+                fecha=fecha + timedelta(days=1),
+                hora_inicio__lt=complejo.hora_apertura,
+            )
+        else:
+            turnos_ocupados_qs = turnos_ocupados_qs.filter(fecha=fecha)
+
+        turnos_ocupados = set(turnos_ocupados_qs.exclude(
             estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
         ).values_list('cancha_id', 'hora_inicio'))
         
@@ -393,7 +421,9 @@ class TurnoService:
         ahora = timezone.now()
         apertura_dt, cierre_dt = TurnoService.obtener_ventana_horaria(cancha.complejo, fecha)
         fecha_hora_turno = datetime.combine(fecha, hora)
-        if cierre_dt <= apertura_dt and fecha_hora_turno < apertura_dt:
+        # Si el complejo cruza medianoche (ej: 15:00 a 01:00), los horarios de
+        # madrugada pertenecen operativamente al mismo día base pero ocurren al día siguiente.
+        if cancha.complejo.hora_cierre <= cancha.complejo.hora_apertura and hora < cancha.complejo.hora_apertura:
             fecha_hora_turno = fecha_hora_turno + timedelta(days=1)
         if timezone.is_naive(apertura_dt):
             apertura_dt = timezone.make_aware(apertura_dt)
@@ -413,9 +443,10 @@ class TurnoService:
             return False, 'Este horario está fuera del horario de apertura'
         
         # Verificar turno existente
+        fecha_real_turno = TurnoService.obtener_fecha_real_turno(cancha.complejo, fecha, hora)
         turno_existente = Turno.objects.filter(
             cancha=cancha,
-            fecha=fecha,
+            fecha=fecha_real_turno,
             hora_inicio=hora
         ).exclude(
             estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]

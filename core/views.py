@@ -147,6 +147,23 @@ def _build_canonical_absolute_uri(request, path: str) -> str:
     return f"{scheme}://{host}{path}"
 
 
+def _ordenar_slots_operativos(slots_por_hora, complejo):
+    """
+    Ordena slots por día operativo.
+    Si el complejo cierra de madrugada (hasta las 03:00), los horarios 00:xx..cierre
+    se muestran al final de la misma grilla del día base.
+    """
+    items = list(slots_por_hora.items())
+    cierre_madrugada_max = dt_time(3, 0)
+    cierre_cruza_medianoche = complejo.hora_cierre <= complejo.hora_apertura
+    usa_orden_operativo = cierre_cruza_medianoche and complejo.hora_cierre <= cierre_madrugada_max
+    if not usa_orden_operativo:
+        return sorted(items, key=lambda x: x[0])
+
+    apertura = complejo.hora_apertura
+    return sorted(items, key=lambda x: (x[0] < apertura, x[0]))
+
+
 def _get_home_gallery_items():
     """Load gallery images from the configured folder (or fallback)."""
     gallery_dir = getattr(settings, "HOME_GALLERY_FOLDER", os.path.join(settings.BASE_DIR, "static", "img", "landing", "galeria"))
@@ -336,7 +353,7 @@ def turnos_publicos(request):
     slots_por_hora = slots_result['slots_por_hora']
     total_disponibles = slots_result['total_disponibles']
 
-    slots_ordenados = sorted(slots_por_hora.items(), key=lambda x: x[0])
+    slots_ordenados = _ordenar_slots_operativos(slots_por_hora, complejo)
 
     # Selector rápido: próximos 7 días (desde hoy)
     dias_semana_selector = []
@@ -653,7 +670,7 @@ def dashboard(request):
         es_fecha_pasada = slots_result['es_fecha_pasada']
         
         # Convertir a lista ordenada por hora para el template
-        slots_ordenados = sorted(slots_por_hora.items(), key=lambda x: x[0])
+        slots_ordenados = _ordenar_slots_operativos(slots_por_hora, complejo)
         
         # Calcular créditos disponibles del cliente (método optimizado del modelo)
         creditos_disponibles = user.get_creditos_disponibles(complejo)
@@ -838,7 +855,7 @@ def dashboard(request):
         
         # Usar servicio optimizado para generar slots disponibles del staff
         slots_por_hora_staff = TurnoService.generar_slots_staff(complejo, hoy)
-        slots_ordenados_staff = sorted(slots_por_hora_staff.items(), key=lambda x: x[0])
+        slots_ordenados_staff = _ordenar_slots_operativos(slots_por_hora_staff, complejo)
         
         # Generar lista de próximos 14 días para el selector rápido
         dias_semana_selector = []
@@ -1010,6 +1027,8 @@ def reservar_turno(request):
         messages.error(request, 'Formato de fecha/hora inválido')
         return redirect('dashboard')
     
+    fecha_real_turno = TurnoService.obtener_fecha_real_turno(cancha.complejo, fecha_obj, hora_obj)
+
     # Usar servicio de validación centralizado
     disponible, error_msg = TurnoService.validar_disponibilidad(cancha, fecha_obj, hora_obj)
     if not disponible:
@@ -1045,7 +1064,7 @@ def reservar_turno(request):
         turno = Turno.objects.create(
             cancha=cancha,
             cliente=request.user,
-            fecha=fecha_obj,
+            fecha=fecha_real_turno,
             hora_inicio=hora_obj,
             estado=Turno.Estado.PENDIENTE_PAGO,
             precio_total=cancha.precio_hora,
@@ -1058,11 +1077,15 @@ def reservar_turno(request):
     except IntegrityError:
         # Otro usuario tomó el turno en paralelo o existe un turno activo igual
         TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_obj)
+        if fecha_real_turno != fecha_obj:
+            TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_real_turno)
         messages.error(request, 'Ese horario acaba de reservarse. Elegí otro turno disponible.')
         return redirect('dashboard')
     
     # Invalidar caché de slots para esta fecha
     TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_obj)
+    if fecha_real_turno != fecha_obj:
+        TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_real_turno)
     
     # Si queda saldo por pagar vía MP, crear preferencia y redirigir al checkout
     if monto_mp > 0:
@@ -1109,7 +1132,7 @@ def reservar_turno(request):
         messages.info(request, 'Redirigiéndote a Mercado Pago para completar la seña.')
         return redirect(checkout_url)
 
-    messages.success(request, f'¡Turno reservado con seña cubierta por créditos! {cancha.nombre} - {fecha_obj.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
+    messages.success(request, f'¡Turno reservado con seña cubierta por créditos! {cancha.nombre} - {fecha_real_turno.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
 
     # Redirigir a la misma fecha para que el cliente pueda seguir viendo turnos disponibles
     return redirect(f'{reverse("dashboard")}?fecha={fecha_obj.strftime("%Y-%m-%d")}')
@@ -1547,7 +1570,7 @@ def nuevo_turno_rapido(request):
     
     # Usar el servicio optimizado para generar slots disponibles
     slots_por_hora_staff = TurnoService.generar_slots_staff(complejo, fecha_base)
-    slots_ordenados = sorted(slots_por_hora_staff.items(), key=lambda x: x[0])
+    slots_ordenados = _ordenar_slots_operativos(slots_por_hora_staff, complejo)
     
     # Calcular fechas para navegación
     fecha_anterior = fecha_base - timedelta(days=1)
@@ -1601,12 +1624,14 @@ def crear_turno_rapido(request):
     except ValueError:
         messages.error(request, 'Formato de fecha/hora inválido')
         return redirect('nuevo_turno_rapido')
+    fecha_real_turno = TurnoService.obtener_fecha_real_turno(cancha.complejo, fecha_obj, hora_obj)
     
     # Verificar que el turno no sea en el pasado
     # timezone.now() ya usa el timezone configurado en settings (America/Argentina/Buenos_Aires)
     ahora = timezone.now()
     # make_aware usa el timezone activo de Django (configurado en TIME_ZONE)
-    fecha_hora_turno = timezone.make_aware(datetime.combine(fecha_obj, hora_obj))
+    fecha_hora_turno_naive = datetime.combine(fecha_real_turno, hora_obj)
+    fecha_hora_turno = timezone.make_aware(fecha_hora_turno_naive)
     if fecha_hora_turno < ahora:
         messages.error(request, 'No se puede reservar un turno en el pasado')
         return redirect('nuevo_turno_rapido')
@@ -1614,7 +1639,7 @@ def crear_turno_rapido(request):
     # Verificar si ya existe un turno en ese horario (incluye cancelados/expirados)
     turno_existente = Turno.objects.filter(
         cancha=cancha,
-        fecha=fecha_obj,
+        fecha=fecha_real_turno,
         hora_inicio=hora_obj
     ).first()
     
@@ -1624,7 +1649,7 @@ def crear_turno_rapido(request):
             turno = turno_existente
             turno.cliente = turno_existente.cliente if turno_existente.cliente else request.user
             turno.cancha = cancha
-            turno.fecha = fecha_obj
+            turno.fecha = fecha_real_turno
             turno.hora_inicio = hora_obj
             turno.estado = Turno.Estado.PENDIENTE_PAGO
             turno.duracion_minutos = cancha.get_duracion_turno()
@@ -1636,7 +1661,9 @@ def crear_turno_rapido(request):
             turno.save()
             # Invalidar cache de slots
             TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_obj)
-            messages.success(request, f'Turno reactivado: {cancha.nombre} - {fecha_obj.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
+            if fecha_real_turno != fecha_obj:
+                TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_real_turno)
+            messages.success(request, f'Turno reactivado: {cancha.nombre} - {fecha_real_turno.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
             return redirect('dashboard')
         else:
             messages.error(request, 'Este turno ya está reservado')
@@ -1666,7 +1693,7 @@ def crear_turno_rapido(request):
     turno = Turno.objects.create(
         cancha=cancha,
         cliente=cliente,
-        fecha=fecha_obj,
+        fecha=fecha_real_turno,
         hora_inicio=hora_obj,
         estado=Turno.Estado.PENDIENTE_PAGO,
         precio_total=cancha.precio_hora,
@@ -1678,8 +1705,10 @@ def crear_turno_rapido(request):
     )
     # Sin esta invalidación, la grilla pública/cliente puede quedar stale por TTL.
     TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_obj)
+    if fecha_real_turno != fecha_obj:
+        TurnoService.invalidar_cache_slots(cancha.complejo.id, fecha_real_turno)
     
-    messages.success(request, f'Turno creado para {nombre_cliente} - {cancha.nombre} - {fecha_obj.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
+    messages.success(request, f'Turno creado para {nombre_cliente} - {cancha.nombre} - {fecha_real_turno.strftime("%d/%m/%Y")} {hora_obj.strftime("%H:%M")}')
     return redirect('dashboard')
 
 
