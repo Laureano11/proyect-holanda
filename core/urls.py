@@ -38,6 +38,7 @@ urlpatterns = [
     # Turno rápido (Staff)
     path('nuevo-turno-rapido/', views.nuevo_turno_rapido, name='nuevo_turno_rapido'),
     path('crear-turno-rapido/', views.crear_turno_rapido, name='crear_turno_rapido'),
+    path('buscar-clientes/', views.buscar_clientes, name='buscar_clientes'),
     
     # Turnos fijos (Staff)
     path('turnos-fijos/', views.turnos_fijos, name='turnos_fijos'),

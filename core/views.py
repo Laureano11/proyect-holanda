@@ -115,6 +115,49 @@ def _generar_username_desde_email(email: str) -> str:
         base = "user"
     return base
 
+
+@login_required
+def buscar_clientes(request):
+    """
+    Autocompletar clientes existentes del complejo para uso del staff.
+    Devuelve hasta 5 coincidencias por nombre, apellido o celular.
+    """
+    if not getattr(request.user, "puede_gestionar_turnos", False):
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+
+    query = (request.GET.get('q') or '').strip()
+    if len(query) < 2:
+        return JsonResponse({'clientes': []})
+
+    complejo = getattr(request.user, "complejo", None)
+    if not complejo:
+        return JsonResponse({'clientes': []})
+
+    clientes = (
+        Usuario.objects.filter(
+            complejo=complejo,
+            rol=Usuario.Rol.CLIENTE,
+        )
+        .filter(
+            Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(celular__icontains=query)
+        )
+        .select_related('complejo')[:5]
+    )
+
+    resultados = [
+        {
+            'id': cliente.id,
+            'nombre_completo': cliente.get_full_name() or cliente.first_name or cliente.username,
+            'celular': cliente.celular or '',
+            'email': cliente.email or '',
+        }
+        for cliente in clientes
+    ]
+
+    return JsonResponse({'clientes': resultados})
+
 DEFAULT_HOME_GALLERY_IMAGES = [
     {
         "image": "img/landing/screen1.png",
@@ -518,7 +561,7 @@ def register_view(request):
     
     if request.method == 'POST':
         # Campos obligatorios
-        email = (request.POST.get('email', '') or '').strip()
+        email = (request.POST.get('email', '') or '').strip().lower()
         password = request.POST.get('password') or ''
         password_confirm = request.POST.get('password_confirm') or ''
         first_name = (request.POST.get('first_name', '') or '').strip()
@@ -570,7 +613,7 @@ def register_view(request):
         base_username = _generar_username_desde_email(email)
         username = base_username
         counter = 1
-        while Usuario.objects.filter(username=username).exists():
+        while Usuario.objects.filter(username__iexact=username).exists():
             suffix = str(counter)
             max_base_len = MAX_USERNAME_LEN - len(suffix)
             username = f"{base_username[:max_base_len]}{suffix}"
@@ -1605,6 +1648,7 @@ def crear_turno_rapido(request):
     hora = request.POST.get('hora')
     nombre_cliente = request.POST.get('nombre_cliente', '').strip()
     celular_cliente = request.POST.get('celular_cliente', '').strip()
+    cliente_id = request.POST.get('cliente_id')
     
     if not all([cancha_id, fecha, hora, nombre_cliente, celular_cliente]):
         messages.error(request, 'Faltan datos requeridos')
@@ -1669,25 +1713,41 @@ def crear_turno_rapido(request):
             messages.error(request, 'Este turno ya está reservado')
             return redirect('nuevo_turno_rapido')
     
-    # Buscar o crear cliente por nombre
-    # Si no existe, crear un usuario cliente temporal
-    cliente, created = Usuario.objects.get_or_create(
-        username=f"cliente_{nombre_cliente.lower().replace(' ', '_')}_{fecha_obj}",
-        defaults={
-            'first_name': nombre_cliente,
-            'rol': Usuario.Rol.CLIENTE,
-            'complejo': cancha.complejo,
-            'celular': celular_cliente,
-        }
-    )
-    
-    if not created:
-        # Si ya existe, actualizar el nombre por si cambió
-        cliente.first_name = nombre_cliente
-        cliente.complejo = cancha.complejo
-        if celular_cliente:
-            cliente.celular = celular_cliente
-        cliente.save()
+    # Seleccionar cliente existente si se eligió desde el autocomplete
+    cliente = None
+    if cliente_id:
+        try:
+            cliente = Usuario.objects.get(
+                id=cliente_id,
+                complejo=cancha.complejo,
+                rol=Usuario.Rol.CLIENTE,
+            )
+            if celular_cliente and celular_cliente != (cliente.celular or ''):
+                cliente.celular = celular_cliente
+                cliente.save()
+        except Usuario.DoesNotExist:
+            messages.error(request, 'Cliente no encontrado en este complejo')
+            return redirect('nuevo_turno_rapido')
+
+    if not cliente:
+        # Buscar o crear cliente por nombre (cliente temporal/descartable)
+        cliente, created = Usuario.objects.get_or_create(
+            username=f"cliente_{nombre_cliente.lower().replace(' ', '_')}_{fecha_obj}",
+            defaults={
+                'first_name': nombre_cliente,
+                'rol': Usuario.Rol.CLIENTE,
+                'complejo': cancha.complejo,
+                'celular': celular_cliente,
+            }
+        )
+        
+        if not created:
+            # Si ya existe, actualizar el nombre por si cambió
+            cliente.first_name = nombre_cliente
+            cliente.complejo = cancha.complejo
+            if celular_cliente:
+                cliente.celular = celular_cliente
+            cliente.save()
     
     # Crear el turno como PENDIENTE_PAGO
     turno = Turno.objects.create(
@@ -1953,6 +2013,7 @@ def crear_turno_fijo(request):
     cancha_id = request.POST.get('cancha_id')
     nombre_cliente = request.POST.get('nombre_cliente', '').strip()
     celular_cliente = request.POST.get('celular_cliente', '').strip()
+    cliente_id = request.POST.get('cliente_id')
     hora_inicio = request.POST.get('hora_inicio')
     dias_semana = request.POST.getlist('dias_semana')  # Múltiples días
     fecha_inicio = request.POST.get('fecha_inicio')
@@ -1988,23 +2049,40 @@ def crear_turno_fijo(request):
     # Verificar si se forzó la creación (ignorar conflictos)
     forzar_creacion = request.POST.get('forzar_creacion') == 'true'
     
-    # Buscar o crear cliente por nombre
-    cliente, created = Usuario.objects.get_or_create(
-        username=f"cliente_{nombre_cliente.lower().replace(' ', '_')}_{complejo.id}",
-        defaults={
-            'first_name': nombre_cliente,
-            'rol': Usuario.Rol.CLIENTE,
-            'complejo': complejo,
-            'celular': celular_cliente,
-        }
-    )
-    
-    if not created:
-        cliente.first_name = nombre_cliente
-        cliente.complejo = complejo
-        if celular_cliente:
-            cliente.celular = celular_cliente
-        cliente.save()
+    # Seleccionar cliente existente si se eligió desde el autocomplete
+    cliente = None
+    if cliente_id:
+        try:
+            cliente = Usuario.objects.get(
+                id=cliente_id,
+                complejo=complejo,
+                rol=Usuario.Rol.CLIENTE,
+            )
+            if celular_cliente and celular_cliente != (cliente.celular or ''):
+                cliente.celular = celular_cliente
+                cliente.save()
+        except Usuario.DoesNotExist:
+            messages.error(request, 'Cliente no encontrado en este complejo')
+            return redirect('turnos_fijos')
+
+    if not cliente:
+        # Buscar o crear cliente por nombre
+        cliente, created = Usuario.objects.get_or_create(
+            username=f"cliente_{nombre_cliente.lower().replace(' ', '_')}_{complejo.id}",
+            defaults={
+                'first_name': nombre_cliente,
+                'rol': Usuario.Rol.CLIENTE,
+                'complejo': complejo,
+                'celular': celular_cliente,
+            }
+        )
+        
+        if not created:
+            cliente.first_name = nombre_cliente
+            cliente.complejo = complejo
+            if celular_cliente:
+                cliente.celular = celular_cliente
+            cliente.save()
     
     # Detectar conflictos con turnos existentes
     if not forzar_creacion:

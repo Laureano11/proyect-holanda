@@ -98,13 +98,18 @@
                         <input type="hidden" name="fecha" value="{{ fecha_seleccionada|date:'Y-m-d' }}">
                         <input type="hidden" name="hora" value="{{ cancha_data.hora|time:'H:i:s' }}">
                         
-                        <input 
-                            type="text" 
-                            name="nombre_cliente" 
-                            placeholder="Nombre del cliente"
-                            required
-                            class="w-full px-2 py-1.5 text-xs rounded bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                        >
+                        <div class="relative cliente-autocomplete">
+                            <input 
+                                type="text" 
+                                name="nombre_cliente" 
+                                placeholder="Nombre del cliente"
+                                autocomplete="off"
+                                required
+                                class="input-nombre w-full px-2 py-1.5 text-xs rounded bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                            >
+                            <input type="hidden" name="cliente_id" class="input-cliente-id">
+                            <div class="autocomplete-dropdown hidden absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto"></div>
+                        </div>
                         <input 
                             type="tel" 
                             name="celular_cliente" 
@@ -133,5 +138,129 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+    const forms = document.querySelectorAll('form[action*="crear_turno_rapido"]');
+    forms.forEach(initClienteAutocomplete);
+
+    function initClienteAutocomplete(form) {
+        const root = form.querySelector('.cliente-autocomplete');
+        if (!root) return;
+
+        const nombreInput = root.querySelector('.input-nombre');
+        const clienteIdInput = root.querySelector('.input-cliente-id');
+        const celularInput = form.querySelector('input[name="celular_cliente"]');
+        const dropdown = root.querySelector('.autocomplete-dropdown');
+        let debounceTimer = null;
+        let resultados = [];
+        let selectedIndex = -1;
+
+        const hideDropdown = () => {
+            dropdown.classList.add('hidden');
+            selectedIndex = -1;
+        };
+
+        const renderResultados = (clientes) => {
+            dropdown.innerHTML = '';
+            selectedIndex = -1;
+
+            clientes.forEach((cliente, index) => {
+                const item = document.createElement('div');
+                item.className = 'px-3 py-2 cursor-pointer hover:bg-slate-700 transition text-xs';
+                item.dataset.index = index;
+                item.innerHTML = `
+                    <div class="font-medium text-white">${cliente.nombre_completo}</div>
+                    ${cliente.celular ? `<div class="text-slate-400 text-[10px]">${cliente.celular}</div>` : ''}
+                `;
+                item.addEventListener('click', () => seleccionarCliente(cliente));
+                dropdown.appendChild(item);
+            });
+
+            dropdown.classList.remove('hidden');
+        };
+
+        const buscarClientes = async (query) => {
+            try {
+                const response = await fetch(`/buscar-clientes/?q=${encodeURIComponent(query)}`);
+                if (!response.ok) {
+                    hideDropdown();
+                    return;
+                }
+                const data = await response.json();
+                resultados = data.clientes || [];
+                if (resultados.length > 0) {
+                    renderResultados(resultados);
+                } else {
+                    hideDropdown();
+                }
+            } catch (error) {
+                console.error('Error al buscar clientes:', error);
+                hideDropdown();
+            }
+        };
+
+        const seleccionarCliente = (cliente) => {
+            nombreInput.value = cliente.nombre_completo;
+            clienteIdInput.value = cliente.id;
+            if (cliente.celular && celularInput) {
+                celularInput.value = cliente.celular;
+            }
+            hideDropdown();
+        };
+
+        const actualizarSeleccion = (items) => {
+            items.forEach((el, idx) => {
+                if (idx === selectedIndex) {
+                    el.classList.add('bg-slate-700');
+                } else {
+                    el.classList.remove('bg-slate-700');
+                }
+            });
+        };
+
+        nombreInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            clienteIdInput.value = '';
+            clearTimeout(debounceTimer);
+            if (query.length < 2) {
+                hideDropdown();
+                return;
+            }
+            debounceTimer = setTimeout(() => buscarClientes(query), 400);
+        });
+
+        nombreInput.addEventListener('keydown', (e) => {
+            const items = dropdown.querySelectorAll('[data-index]');
+            if (!items.length) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                actualizarSeleccion(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                actualizarSeleccion(items);
+            } else if (e.key === 'Enter') {
+                if (selectedIndex >= 0 && selectedIndex < items.length) {
+                    e.preventDefault();
+                    seleccionarCliente(resultados[selectedIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                hideDropdown();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!root.contains(e.target)) {
+                hideDropdown();
+            }
+        });
+    }
+})();
+</script>
 {% endblock %}
 
