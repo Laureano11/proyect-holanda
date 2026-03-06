@@ -580,6 +580,7 @@ class Turno(models.Model):
         CANCELADO_ADMIN = 'cancelado_admin', 'Cancelado por Admin'
         EXPIRADO = 'expirado', 'Expirado'
         JUGADO = 'jugado', 'Jugado'
+        NO_ASISTIO = 'no_asistio', 'No Asistió'
 
     class CancelacionOrigen(models.TextChoices):
         USUARIO = 'usuario', 'Usuario'
@@ -858,9 +859,12 @@ class Turno(models.Model):
         4. Reservado: Staff lo crea sin seña
         5. Bloqueado: Staff bloquea el turno
         6. Cancelado: Turno cancelado
+        7. No asistió: Cliente no se presentó
         """
         # Estados normalizados
-        if self.estado == self.Estado.JUGADO:
+        if self.estado == self.Estado.NO_ASISTIO:
+            return 'No asistió'
+        elif self.estado == self.Estado.JUGADO:
             return 'Jugado'
         elif self.estado == self.Estado.BLOQUEADO:
             return 'Bloqueado'

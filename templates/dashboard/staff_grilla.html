@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel Staff — Vista Grilla</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg-base:      #0b0f1a;
+    --bg-panel:     #111827;
+    --bg-card:      #1a2235;
+    --border:       #1f2d45;
+    --border-light: #263347;
+
+    --cyan:         #06b6d4;
+    --cyan-dim:     rgba(6,182,212,.15);
+    --cyan-glow:    rgba(6,182,212,.35);
+
+    --free:         #10b981;
+    --free-dim:     rgba(16,185,129,.15);
+    --busy:         #3b82f6;
+    --busy-dim:     rgba(59,130,246,.15);
+    --pending:      #f59e0b;
+    --pending-dim:  rgba(245,158,11,.15);
+    --blocked:      #8b5cf6;
+    --blocked-dim:  rgba(139,92,246,.15);
+    --cancelled:    #ef4444;
+    --cancelled-dim:rgba(239,68,68,.12);
+
+    --text-1: #f1f5f9;
+    --text-2: #94a3b8;
+    --text-3: #475569;
+
+    --cell-h:  68px;
+    --cell-w:  190px;
+    --time-w:  64px;
+    --radius:  10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+  html { background: var(--bg-base); }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-1);
+    background: var(--bg-base);
+    min-height: 100vh;
+    padding: 28px 24px;
+  }
+
+  /* ─── HEADER ─── */
+  .sg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .sg-header h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -.3px; }
+  .sg-header p  { font-size: .8rem; color: var(--text-2); margin-top:3px; }
+  .sg-header-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* ─── TABS ─── */
+  .sg-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+  .sg-tab {
+    padding: 7px 18px;
+    border-radius: 8px;
+    font-size: .82rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border-light);
+    background: rgba(255,255,255,.04);
+    color: var(--text-2);
+    transition: all .15s;
+    text-decoration: none;
+  }
+  .sg-tab:hover { color:var(--text-1); border-color:var(--cyan); }
+  .sg-tab.active { background:var(--cyan); border-color:var(--cyan); color:#fff; }
+
+  /* ─── FILTROS ─── */
+  .sg-filters {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .sg-filters select,
+  .sg-filters input[type=date],
+  .sg-filters input[type=text] {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    color: var(--text-1);
+    font-size: .8rem;
+    font-family: 'DM Sans', sans-serif;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: border-color .15s;
+    outline: none;
+  }
+  .sg-filters select:hover,
+  .sg-filters input:focus { border-color:var(--cyan); }
+  .sg-btn {
+    padding: 7px 18px;
+    border-radius: 8px;
+    font-size: .82rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all .15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .sg-btn-primary { background:var(--cyan); color:#fff; }
+  .sg-btn-primary:hover { background:#0891b2; box-shadow:0 0 12px var(--cyan-glow); }
+  .sg-btn-ghost { background:transparent; border:1px solid var(--border-light); color:var(--text-2); }
+  .sg-btn-ghost:hover { border-color:var(--border); color:var(--text-1); }
+
+  /* ─── STATS ─── */
+  .sg-stats { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+  .sg-stat {
+    display:flex; align-items:center; gap:7px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+  .sg-stat-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .sg-stat.free    { background:var(--free-dim);    border-color:rgba(16,185,129,.3); color:#6ee7b7; }
+  .sg-stat.busy    { background:var(--busy-dim);    border-color:rgba(59,130,246,.3); color:#93c5fd; }
+  .sg-stat.pending { background:var(--pending-dim); border-color:rgba(245,158,11,.3); color:#fcd34d; }
+  .sg-stat.blocked { background:var(--blocked-dim); border-color:rgba(139,92,246,.3); color:#c4b5fd; }
+
+  /* ─── GRID WRAPPER ─── */
+  .sg-grid-wrapper {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  /* ─── DATE NAV ─── */
+  .sg-date-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sg-date-nav > span { font-size:.9rem; font-weight:600; letter-spacing:-.2px; }
+  .sg-nav-btn {
+    width:32px; height:32px;
+    border-radius: 7px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-light);
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex; align-items:center; justify-content:center;
+    transition: all .15s;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .sg-nav-btn:hover { border-color:var(--cyan); color:var(--cyan); }
+
+  /* ─── SCROLL ─── */
+  .sg-scroll { overflow-x:auto; }
+
+  .sg-grid {
+    display: grid;
+    grid-template-columns: var(--time-w) repeat(var(--ncols), var(--cell-w));
+    min-width: calc(var(--time-w) + var(--ncols) * var(--cell-w));
+  }
+
+  /* ─── HEADER ROW ─── */
+  .sg-col-header {
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    padding: 12px 10px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .sg-col-header:first-child {
+    background: var(--bg-panel);
+    z-index: 11;
+    position: sticky;
+    left: 0;
+    top: 0;
+  }
+  .sg-col-header-name { font-size:.82rem; font-weight:600; color:var(--text-1); }
+  .sg-col-header-sub  { font-size:.7rem;  color:var(--text-2); margin-top:2px; }
+
+  /* ─── TIME CELL ─── */
+  .sg-time-cell {
+    height: var(--cell-h);
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    color: var(--text-3);
+    position: sticky;
+    left: 0;
+    z-index: 5;
+  }
+
+  /* ─── SLOT ─── */
+  .sg-slot {
+    height: var(--cell-h);
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    padding: 6px 8px;
+    position: relative;
+    cursor: pointer;
+    transition: filter .12s;
+  }
+  .sg-slot:hover { filter: brightness(1.18); }
+
+  .sg-slot.free {
+    background: linear-gradient(135deg, var(--free-dim) 0%, transparent 80%);
+  }
+  .sg-slot.free::before {
+    content:''; position:absolute; inset:0;
+    border-left: 3px solid var(--free); opacity:.7;
+  }
+  .sg-slot.free .sg-slot-badge { background:var(--free-dim); color:#6ee7b7; border:1px solid rgba(16,185,129,.4); }
+
+  .sg-slot.busy { background: linear-gradient(135deg, var(--busy-dim) 0%, transparent 80%); }
+  .sg-slot.busy::before { content:''; position:absolute; inset:0; border-left:3px solid var(--busy); opacity:.7; }
+  .sg-slot.busy .sg-slot-badge { background:var(--busy-dim); color:#93c5fd; border:1px solid rgba(59,130,246,.4); }
+
+  .sg-slot.pending { background: linear-gradient(135deg, var(--pending-dim) 0%, transparent 80%); }
+  .sg-slot.pending::before { content:''; position:absolute; inset:0; border-left:3px solid var(--pending); opacity:.7; }
+  .sg-slot.pending .sg-slot-badge { background:var(--pending-dim); color:#fcd34d; border:1px solid rgba(245,158,11,.4); }
+
+  .sg-slot.blocked {
+    background: repeating-linear-gradient(
+      -45deg,
+      rgba(139,92,246,.07), rgba(139,92,246,.07) 4px,
+      transparent 4px, transparent 10px
+    );
+    cursor: default;
+  }
+  .sg-slot.blocked::before { content:''; position:absolute; inset:0; border-left:3px solid var(--blocked); opacity:.7; }
+  .sg-slot.blocked .sg-slot-badge { background:var(--blocked-dim); color:#c4b5fd; border:1px solid rgba(139,92,246,.4); }
+
+  .sg-slot.cancelled { background:var(--cancelled-dim); opacity:.5; cursor:default; }
+  .sg-slot.cancelled::before { content:''; position:absolute; inset:0; border-left:3px solid var(--cancelled); opacity:.4; }
+
+  .sg-slot.empty { background:transparent; cursor:default; }
+  .sg-slot.empty:hover { filter:none; background:rgba(255,255,255,.02); }
+
+  /* Badge */
+  .sg-slot-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: .63rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-bottom: 4px;
+  }
+  .sg-slot-client { font-size:.75rem; font-weight:500; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .sg-slot-sub    { font-size:.67rem; color:var(--text-2); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sg-slot-empty-label { font-size:.72rem; color:var(--text-3); font-weight:500; }
+  .sg-slot.free .sg-slot-empty-label { color:rgba(16,185,129,.55); }
+
+  /* Línea de ahora */
+  .sg-now-indicator {
+    position:absolute; left:0; right:0; height:2px;
+    background:var(--cyan);
+    z-index:8;
+    box-shadow:0 0 8px var(--cyan-glow);
+    pointer-events:none;
+  }
+  .sg-now-dot {
+    width:8px; height:8px;
+    background:var(--cyan);
+    border-radius:50%;
+    position:absolute;
+    left:-4px; top:-3px;
+    box-shadow:0 0 6px var(--cyan);
+  }
+
+  /* ─── LEYENDA ─── */
+  .sg-legend {
+    display:flex; flex-wrap:wrap; gap:8px;
+    padding:12px 20px;
+    border-top:1px solid var(--border);
+    align-items:center;
+  }
+  .sg-legend-label { font-size:.72rem; color:var(--text-2); margin-right:4px; }
+  .sg-legend-item  { display:flex; align-items:center; gap:5px; font-size:.72rem; color:var(--text-2); }
+  .sg-legend-dot   { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+  /* ─── TOOLTIP ─── */
+  .sg-tooltip {
+    position: fixed;
+    z-index: 9999;
+    background: #0d1b2e;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    padding: 14px 16px;
+    min-width: 230px;
+    max-width: 270px;
+    box-shadow: 0 16px 48px rgba(0,0,0,.6);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .12s;
+    font-size: .78rem;
+  }
+  .sg-tooltip.visible { opacity:1; pointer-events:all; }
+  .sg-tooltip-title { font-weight:700; color:var(--text-1); margin-bottom:10px; font-size:.86rem; }
+  .sg-tooltip-row { display:flex; justify-content:space-between; color:var(--text-2); margin-bottom:5px; gap:14px; }
+  .sg-tooltip-row span:last-child { color:var(--text-1); font-weight:500; text-align:right; }
+  .sg-tooltip-divider { height:1px; background:var(--border); margin:10px 0; }
+  .sg-tooltip-actions { display:flex; gap:6px; }
+  .sg-tt-btn {
+    flex:1; padding:6px 8px;
+    border-radius:7px; font-size:.7rem; font-weight:600;
+    text-align:center; cursor:pointer; border:none;
+    font-family:'DM Sans',sans-serif;
+  }
+  .sg-tt-btn-pay    { background:rgba(16,185,129,.2); color:#6ee7b7; }
+  .sg-tt-btn-pay:hover { background:rgba(16,185,129,.35); }
+  .sg-tt-btn-edit   { background:var(--cyan-dim); color:var(--cyan); }
+  .sg-tt-btn-edit:hover { background:rgba(6,182,212,.25); }
+  .sg-tt-btn-cancel { background:rgba(239,68,68,.15); color:#fca5a5; }
+  .sg-tt-btn-cancel:hover { background:rgba(239,68,68,.28); }
+
+  @media(max-width:640px){
+    :root{ --cell-w:140px; --cell-h:60px; }
+    .sg-stats { display:none; }
+    body { padding:16px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sg-header">
+  <div>
+    <h1>Panel Staff <span style="color:var(--text-2);font-weight:400;font-size:.95rem"> · Complejo Los Pinos</span></h1>
+    <p>Vista grilla de turnos · <span id="sg-today-str"></span></p>
+  </div>
+  <div class="sg-header-actions">
+    <button class="sg-btn sg-btn-ghost">☰ Lista</button>
+    <button class="sg-btn sg-btn-primary">⊞ Grilla</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="sg-tabs">
+  <div style="display:flex;gap:8px">
+    <a class="sg-tab active">Turnos Activos</a>
+    <a class="sg-tab">Historial</a>
+  </div>
+  <span style="font-size:.75rem;color:var(--text-2)">Total: <strong id="sg-total">—</strong></span>
+</div>
+
+<!-- FILTROS -->
+<div class="sg-filters">
+  <input type="date" id="f-desde" title="Desde">
+  <input type="date" id="f-hasta" title="Hasta">
+  <select>
+    <option>Todos los estados</option>
+    <option>Confirmado</option>
+    <option>Pendiente pago</option>
+    <option>Bloqueado</option>
+    <option>Cancelado</option>
+  </select>
+  <select id="f-cancha">
+    <option value="">Todas las canchas</option>
+  </select>
+  <input type="text" placeholder="Buscar cliente…" style="flex:1;min-width:160px">
+  <button class="sg-btn sg-btn-primary">Aplicar</button>
+  <button class="sg-btn sg-btn-ghost">Limpiar</button>
+</div>
+
+<!-- STATS -->
+<div class="sg-stats" id="sg-stats"></div>
+
+<!-- GRILLA -->
+<div class="sg-grid-wrapper">
+  <div class="sg-date-nav">
+    <button class="sg-nav-btn" id="sg-prev">&#8249;</button>
+    <span id="sg-date-label">—</span>
+    <button class="sg-nav-btn" id="sg-next">&#8250;</button>
+  </div>
+  <div class="sg-scroll">
+    <div class="sg-grid" id="sg-grid" style="--ncols:4"></div>
+  </div>
+  <div class="sg-legend">
+    <span class="sg-legend-label">Referencias:</span>
+    <span class="sg-legend-item"><span class="sg-legend-dot" style="background:var(--free)"></span>Libre</span>
+    <span class="sg-legend-item"><span class="sg-legend-dot" style="background:var(--busy)"></span>Confirmado / Jugado</span>
+    <span class="sg-legend-item"><span class="sg-legend-dot" style="background:var(--pending)"></span>Pendiente pago</span>
+    <span class="sg-legend-item"><span class="sg-legend-dot" style="background:var(--blocked)"></span>Bloqueado</span>
+    <span class="sg-legend-item"><span class="sg-legend-dot" style="background:var(--cancelled)"></span>Cancelado</span>
+    <span class="sg-legend-item"><span class="sg-legend-dot" style="background:var(--cyan)"></span>Hora actual</span>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div class="sg-tooltip" id="sg-tooltip">
+  <div class="sg-tooltip-title" id="sg-tt-title"></div>
+  <div id="sg-tt-body"></div>
+  <div class="sg-tooltip-divider" id="sg-tt-div"></div>
+  <div class="sg-tooltip-actions" id="sg-tt-actions"></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   DATOS DE EJEMPLO — sustituir por JSON real del servidor
+══════════════════════════════════════════════════════════ */
+const CANCHAS = [
+  { id:1, nombre:"Cancha 1 · Fútbol 5", tipo:"Fútbol 5" },
+  { id:2, nombre:"Cancha 2 · Fútbol 7", tipo:"Fútbol 7" },
+  { id:3, nombre:"Cancha 3 · Pádel",    tipo:"Pádel" },
+  { id:4, nombre:"Cancha 4 · Tenis",    tipo:"Tenis" },
+];
+const HORARIOS = ["08:00","09:00","10:00","11:00","12:00","13:00",
+                  "14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"];
+
+// Turnos base (se regeneran con offset al cambiar de día)
+const TURNOS_BASE = [
+  { id:10, cancha_id:1, hora:"09:00", hora_fin:"10:00", estado:"confirmado",  cliente:"Martín García",   senia:3000, mp_status:"approved" },
+  { id:11, cancha_id:1, hora:"11:00", hora_fin:"12:00", estado:"pendiente",   cliente:"Laura Pérez",     senia:0,    mp_status:null },
+  { id:12, cancha_id:1, hora:"14:00", hora_fin:"15:00", estado:"confirmado",  cliente:"Carlos Vidal",    senia:3000, mp_status:"approved" },
+  { id:13, cancha_id:1, hora:"18:00", hora_fin:"19:00", estado:"bloqueado",   cliente:"—",               senia:0,    mp_status:null },
+  { id:14, cancha_id:1, hora:"20:00", hora_fin:"21:00", estado:"confirmado",  cliente:"Marcos Díaz",     senia:3000, mp_status:"approved" },
+
+  { id:15, cancha_id:2, hora:"10:00", hora_fin:"11:00", estado:"confirmado",  cliente:"Diego Suárez",    senia:4000, mp_status:"approved" },
+  { id:16, cancha_id:2, hora:"12:00", hora_fin:"13:00", estado:"cancelado",   cliente:"Ana Medina",      senia:2000, mp_status:null },
+  { id:17, cancha_id:2, hora:"15:00", hora_fin:"16:00", estado:"pendiente",   cliente:"Romina Torres",   senia:0,    mp_status:null },
+  { id:18, cancha_id:2, hora:"16:00", hora_fin:"17:00", estado:"pendiente",   cliente:"Gustavo Ramos",   senia:0,    mp_status:null },
+  { id:19, cancha_id:2, hora:"20:00", hora_fin:"21:00", estado:"confirmado",  cliente:"Pablo Nieto",     senia:4000, mp_status:"approved" },
+
+  { id:20, cancha_id:3, hora:"08:00", hora_fin:"09:00", estado:"confirmado",  cliente:"Sofía Ruiz",      senia:2500, mp_status:"approved" },
+  { id:21, cancha_id:3, hora:"11:00", hora_fin:"12:00", estado:"confirmado",  cliente:"Lucía Ferraro",   senia:2500, mp_status:"approved" },
+  { id:22, cancha_id:3, hora:"14:00", hora_fin:"15:00", estado:"confirmado",  cliente:"Tomás Agüero",    senia:2500, mp_status:"approved" },
+  { id:23, cancha_id:3, hora:"17:00", hora_fin:"18:00", estado:"pendiente",   cliente:"Fernanda Lagos",  senia:0,    mp_status:null },
+  { id:24, cancha_id:3, hora:"21:00", hora_fin:"22:00", estado:"bloqueado",   cliente:"—",               senia:0,    mp_status:null },
+
+  { id:25, cancha_id:4, hora:"09:00", hora_fin:"10:00", estado:"jugado",      cliente:"Jorge Báez",      senia:3500, mp_status:"approved" },
+  { id:26, cancha_id:4, hora:"10:00", hora_fin:"11:00", estado:"jugado",      cliente:"Silvia Ríos",     senia:3500, mp_status:"approved" },
+  { id:27, cancha_id:4, hora:"13:00", hora_fin:"14:00", estado:"confirmado",  cliente:"Valeria Campos",  senia:3500, mp_status:"approved" },
+  { id:28, cancha_id:4, hora:"19:00", hora_fin:"20:00", estado:"confirmado",  cliente:"Nicolás Ferreyra",senia:3500, mp_status:"approved" },
+  { id:29, cancha_id:4, hora:"21:00", hora_fin:"22:00", estado:"pendiente",   cliente:"Rebeca López",    senia:0,    mp_status:null },
+];
+
+const ESTADO_MAP = {
+  libre:      { cls:"free",      label:"Libre" },
+  confirmado: { cls:"busy",      label:"Confirmado" },
+  jugado:     { cls:"busy",      label:"Jugado" },
+  pendiente:  { cls:"pending",   label:"Pendiente" },
+  bloqueado:  { cls:"blocked",   label:"Bloqueado" },
+  cancelado:  { cls:"cancelled", label:"Cancelado" },
+};
+
+/* ── Estado ─────────────────────────────────── */
+let currentDate = new Date();
+currentDate.setHours(0,0,0,0);
+
+/* ── Utils ──────────────────────────────────── */
+const padZ = n => String(n).padStart(2,'0');
+const timeToMin = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
+const nowMin    = () => { const n=new Date(); return n.getHours()*60+n.getMinutes(); };
+const isToday   = d => {
+  const now = new Date(); now.setHours(0,0,0,0);
+  return d.getTime() === now.getTime();
+};
+function fmtDate(d){
+  return d.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+
+/* ── Populate cancha filter ──────────────────── */
+const sel = document.getElementById('f-cancha');
+CANCHAS.forEach(c=>{
+  const o=document.createElement('option');
+  o.value=c.id; o.textContent=c.nombre;
+  sel.appendChild(o);
+});
+
+/* Simulate tomorrow having fewer bookings */
+function getTurnos(date) {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const diff = Math.round((date - now)/(1000*60*60*24));
+  if (diff === 0) return TURNOS_BASE;
+  if (diff === 1) return TURNOS_BASE.filter((_,i)=>i%2===0);
+  if (diff === -1) return TURNOS_BASE.map(t=>({...t,estado:t.estado==='pendiente'?'confirmado':t.estado}));
+  return TURNOS_BASE.slice(0, Math.max(4, TURNOS_BASE.length - Math.abs(diff)*2));
+}
+
+/* ── Build grid ─────────────────────────────── */
+function buildGrid(){
+  const grid = document.getElementById('sg-grid');
+  grid.innerHTML = '';
+  grid.style.setProperty('--ncols', CANCHAS.length);
+
+  const turnos = getTurnos(currentDate);
+  const lookup = {};
+  turnos.forEach(t=>{ if(!lookup[t.cancha_id]) lookup[t.cancha_id]={}; lookup[t.cancha_id][t.hora]=t; });
+
+  document.getElementById('sg-total').textContent = turnos.filter(t=>t.estado!=='cancelado').length;
+
+  /* Header */
+  const corner = document.createElement('div');
+  corner.className='sg-col-header';
+  corner.style='position:sticky;left:0;top:0;z-index:12;';
+  corner.innerHTML='<div class="sg-col-header-name" style="color:var(--text-3);font-size:.7rem">HORA</div>';
+  grid.appendChild(corner);
+
+  CANCHAS.forEach(c=>{
+    const th=document.createElement('div');
+    th.className='sg-col-header';
+    th.innerHTML=`<div class="sg-col-header-name">${c.nombre}</div><div class="sg-col-header-sub">${c.tipo}</div>`;
+    grid.appendChild(th);
+  });
+
+  /* Rows */
+  const nm = nowMin();
+  HORARIOS.forEach((hora, ri) => {
+    const hMin   = timeToMin(hora);
+    const nxtH   = HORARIOS[ri+1] || `${padZ(parseInt(hora)+1)}:00`;
+    const nxtMin = timeToMin(nxtH);
+    const isPast = isToday(currentDate) && hMin+60 < nm;
+    const isCurr = isToday(currentDate) && nm >= hMin && nm < nxtMin;
+
+    /* Time cell */
+    const tc=document.createElement('div');
+    tc.className='sg-time-cell';
+    if(isPast) tc.style.opacity='.4';
+    tc.textContent=hora;
+    grid.appendChild(tc);
+
+    CANCHAS.forEach(c=>{
+      const turno = lookup[c.id]?.[hora];
+      const estado = turno ? turno.estado : 'libre';
+      const meta   = ESTADO_MAP[estado] || ESTADO_MAP.libre;
+
+      const cell=document.createElement('div');
+      cell.className=`sg-slot ${meta.cls}`;
+      if(isPast && !['confirmado','jugado'].includes(estado)) cell.style.opacity='.38';
+
+      /* Now line */
+      if(isCurr){
+        const pct=((nm - hMin)/(nxtMin - hMin))*100;
+        const line=document.createElement('div');
+        line.className='sg-now-indicator';
+        line.style.top=pct+'%';
+        const dot=document.createElement('div');
+        dot.className='sg-now-dot';
+        line.appendChild(dot);
+        cell.appendChild(line);
+      }
+
+      if(turno && estado !== 'libre'){
+        const seña = turno.senia > 0 ? ` · $${turno.senia.toLocaleString('es-AR')}` : '';
+        cell.innerHTML += `
+          <div class="sg-slot-badge">${meta.label}</div>
+          <div class="sg-slot-client">${turno.cliente}</div>
+          <div class="sg-slot-sub">${hora}–${turno.hora_fin}${seña}</div>
+        `;
+        cell.dataset.turno=JSON.stringify(turno);
+        cell.dataset.canchaName=c.nombre;
+        cell.addEventListener('mouseenter', showTT);
+        cell.addEventListener('mouseleave', hideTT);
+        cell.addEventListener('mousemove', moveTT);
+      } else {
+        cell.innerHTML += `<div class="sg-slot-empty-label">${estado==='libre'?'+ Disponible':''}</div>`;
+      }
+      grid.appendChild(cell);
+    });
+  });
+
+  updateStats(lookup);
+}
+
+function updateStats(lookup){
+  let libres=0,conf=0,pend=0,bloq=0;
+  const tot=HORARIOS.length*CANCHAS.length;
+  HORARIOS.forEach(h=>{
+    CANCHAS.forEach(c=>{
+      const e=(lookup[c.id]?.[h]?.estado)||'libre';
+      if(e==='libre')libres++;
+      else if(e==='confirmado'||e==='jugado')conf++;
+      else if(e==='pendiente')pend++;
+      else if(e==='bloqueado')bloq++;
+    });
+  });
+  const pct=Math.round(libres/tot*100);
+  document.getElementById('sg-stats').innerHTML=`
+    <div class="sg-stat free"><span class="sg-stat-dot" style="background:var(--free)"></span>${libres} libres (${pct}%)</div>
+    <div class="sg-stat busy"><span class="sg-stat-dot" style="background:var(--busy)"></span>${conf} confirmados</div>
+    <div class="sg-stat pending"><span class="sg-stat-dot" style="background:var(--pending)"></span>${pend} pendientes</div>
+    <div class="sg-stat blocked"><span class="sg-stat-dot" style="background:var(--blocked)"></span>${bloq} bloqueados</div>
+  `;
+}
+
+/* ── Tooltip ─────────────────────────────────── */
+const tooltip=document.getElementById('sg-tooltip');
+function showTT(e){
+  const turno=JSON.parse(e.currentTarget.dataset.turno);
+  const cname=e.currentTarget.dataset.canchaName;
+  const meta=ESTADO_MAP[turno.estado]||ESTADO_MAP.libre;
+
+  document.getElementById('sg-tt-title').textContent=cname;
+  document.getElementById('sg-tt-body').innerHTML=`
+    <div class="sg-tooltip-row"><span>Horario</span><span>${turno.hora} – ${turno.hora_fin}</span></div>
+    <div class="sg-tooltip-row"><span>Estado</span><span>${meta.label}</span></div>
+    <div class="sg-tooltip-row"><span>Cliente</span><span>${turno.cliente}</span></div>
+    ${turno.senia>0?`<div class="sg-tooltip-row"><span>Seña</span><span>$${turno.senia.toLocaleString('es-AR')}</span></div>`:''}
+    ${turno.mp_status?`<div class="sg-tooltip-row"><span>MercadoPago</span><span style="color:#6ee7b7">${turno.mp_status}</span></div>`:''}
+  `;
+
+  const acts=document.getElementById('sg-tt-actions');
+  const div=document.getElementById('sg-tt-div');
+  if(['confirmado','pendiente'].includes(turno.estado)){
+    div.style.display='block';
+    acts.style.display='flex';
+    acts.innerHTML=`
+      <button class="sg-tt-btn sg-tt-btn-pay"    onclick="alert('✓ Turno #${turno.id} marcado como pagado')">✓ Pagado</button>
+      <button class="sg-tt-btn sg-tt-btn-edit"   onclick="alert('✎ Editar turno #${turno.id}')">✎ Editar</button>
+      <button class="sg-tt-btn sg-tt-btn-cancel" onclick="alert('✕ Cancelar turno #${turno.id}')">✕ Cancelar</button>
+    `;
+  } else { div.style.display='none'; acts.style.display='none'; }
+
+  tooltip.classList.add('visible');
+  posTT(e);
+}
+function moveTT(e){ posTT(e); }
+function hideTT(){ tooltip.classList.remove('visible'); }
+function posTT(e){
+  const pad=14, tw=tooltip.offsetWidth||240, th=tooltip.offsetHeight||170;
+  let x=e.clientX+pad, y=e.clientY+pad;
+  if(x+tw>window.innerWidth-8)  x=e.clientX-tw-pad;
+  if(y+th>window.innerHeight-8) y=e.clientY-th-pad;
+  tooltip.style.left=x+'px';
+  tooltip.style.top=y+'px';
+}
+
+/* ── Date nav ────────────────────────────────── */
+function updateLabel(){ document.getElementById('sg-date-label').textContent=fmtDate(currentDate); }
+document.getElementById('sg-prev').onclick=()=>{ currentDate.setDate(currentDate.getDate()-1); updateLabel(); buildGrid(); };
+document.getElementById('sg-next').onclick=()=>{ currentDate.setDate(currentDate.getDate()+1); updateLabel(); buildGrid(); };
+
+/* ── Init ────────────────────────────────────── */
+const todayStr=new Date().toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'});
+document.getElementById('sg-today-str').textContent=todayStr;
+updateLabel();
+buildGrid();
+setInterval(buildGrid, 60_000);
+</script>
+</body>
+</html>
+
+

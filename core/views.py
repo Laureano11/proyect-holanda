@@ -666,14 +666,6 @@ def dashboard(request):
     rango_selector_dias = 365
     fecha_minima_default = hoy - timedelta(days=rango_selector_dias)
     fecha_maxima_default = hoy + timedelta(days=rango_selector_dias)
-    
-    # Layouts compactos para staff/admin (persisten en sesión)
-    staff_layout = request.session.get("staff_layout", "classic")
-    layout_param = request.GET.get("layout")
-    if layout_param in ["classic", "compact"]:
-        staff_layout = layout_param
-        request.session["staff_layout"] = staff_layout
-
     context = {
         'user': user,
         'hoy': hoy,
@@ -681,7 +673,6 @@ def dashboard(request):
         'fecha_minima': fecha_minima_default,
         'fecha_maxima': fecha_maxima_default,
         'es_fecha_pasada': False,
-        'staff_layout': staff_layout,
         'turnos_en_vivo_habilitados': True,
     }
     
@@ -776,18 +767,13 @@ def dashboard(request):
         
         # Filtros y paginación
         estado_filtro = request.GET.get('estado')
-        cancha_filtro = request.GET.get('cancha')
+        canchas_filtro = request.GET.getlist('canchas')  # Ahora es una lista para múltiples canchas
         cliente_filtro = request.GET.get('cliente', '').strip()
         desde = request.GET.get('desde')
         hasta = request.GET.get('hasta')
         dia_filtro = request.GET.get('dia')  # Filtro por día específico
         page = request.GET.get('page', 1)
-        try:
-            por_pagina = int(request.GET.get('por_pagina', 50))
-        except (TypeError, ValueError):
-            por_pagina = 50
-        if por_pagina not in [25, 50, 100]:
-            por_pagina = 50
+        por_pagina = 50  # Siempre fijo en 50
         query_params = request.GET.copy()
         if 'page' in query_params:
             query_params.pop('page')
@@ -798,7 +784,7 @@ def dashboard(request):
         turnos_base_qs = Turno.objects.filter(
             cancha__complejo=complejo
         ).exclude(
-            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO, Turno.Estado.NO_ASISTIO]
         ).select_related('cancha', 'cancha__complejo', 'cliente', 'cliente__complejo')
         
         # Query de listado - depende de la pestaña activa
@@ -809,24 +795,11 @@ def dashboard(request):
         
         # Aplicar filtro según la pestaña
         if vista_tab == 'historial':
-            # Historial staff:
-            # - Turnos del pasado
-            # - Y también turnos cancelados/expirados aunque sean futuros (para que "no desaparezcan")
-            turnos_complejo_qs = turnos_complejo_qs.filter(
-                Q(fecha__lt=hoy) | Q(estado__in=[
-                    Turno.Estado.CANCELADO_USUARIO,
-                    Turno.Estado.CANCELADO_ADMIN,
-                    Turno.Estado.EXPIRADO,
-                ])
-            )
+            # Historial staff: todos los turnos del pasado
+            turnos_complejo_qs = turnos_complejo_qs.filter(fecha__lt=hoy)
         else:
-            # Mostrar solo turnos activos (fecha de hoy o futura)
+            # Turnos Activos: todos los turnos de hoy en adelante (incluye cancelados)
             turnos_complejo_qs = turnos_complejo_qs.filter(fecha__gte=hoy)
-            # Por defecto excluir cancelados/expirados en vista activa
-            if not estado_filtro:
-                turnos_complejo_qs = turnos_complejo_qs.exclude(
-                    estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
-                )
         
         # Estadísticas (queries optimizadas)
         turnos_hoy = turnos_base_qs.filter(fecha=hoy).count()
@@ -846,8 +819,8 @@ def dashboard(request):
             elif estado_filtro in Turno.Estado.values:
                 turnos_complejo_qs = turnos_complejo_qs.filter(estado=estado_filtro)
         
-        if cancha_filtro:
-            turnos_complejo_qs = turnos_complejo_qs.filter(cancha_id=cancha_filtro)
+        if canchas_filtro:
+            turnos_complejo_qs = turnos_complejo_qs.filter(cancha_id__in=canchas_filtro)
         
         if cliente_filtro:
             turnos_complejo_qs = turnos_complejo_qs.filter(
@@ -934,7 +907,7 @@ def dashboard(request):
             'paginator': paginator,
             'canchas': complejo.canchas.filter(activa=True),
             'estado_filtro': estado_filtro or '',
-            'cancha_filtro': cancha_filtro or '',
+            'canchas_filtro': canchas_filtro,
             'cliente_filtro': cliente_filtro,
             'desde': desde or '',
             'hasta': hasta or '',
@@ -974,8 +947,7 @@ def dashboard(request):
     elif user.es_admin:
         return render(request, 'dashboard/admin.html', context)
     elif user.es_staff_complejo:
-        staff_template = 'dashboard/staff_compact.html' if staff_layout == 'compact' else 'dashboard/staff.html'
-        return render(request, staff_template, context)
+        return render(request, 'dashboard/staff_compact.html', context)
     else:
         return render(request, 'dashboard/cliente.html', context)
 
@@ -1435,6 +1407,63 @@ def marcar_turno_pagado(request, turno_id):
     turno.save(update_fields=['estado', 'senia_pagada', 'updated_at'])
     
     messages.success(request, f'Turno marcado como pagado: {turno.cancha.nombre} - {turno.fecha.strftime("%d/%m/%Y")} {turno.hora_inicio.strftime("%H:%M")}')
+    return redirect('dashboard')
+
+
+@login_required
+@transaction.atomic
+def marcar_no_asistio(request, turno_id):
+    """
+    Marcar un turno como 'no asistió' (Staff).
+    Funciona similar a cancelar el turno:
+    - Libera el slot inmediatamente para que pueda ser reservado nuevamente
+    - NUNCA hay reembolso, aunque haya pagado seña (el cliente pierde la seña)
+    - Queda registrado para estadísticas y métricas futuras
+    """
+    if not (request.user.es_staff_complejo or request.user.es_admin or request.user.es_superadmin):
+        messages.error(request, 'No autorizado')
+        return redirect('dashboard')
+    
+    if request.method != 'POST':
+        messages.error(request, 'Método no permitido')
+        return redirect('dashboard')
+    
+    turno = get_object_or_404(
+        Turno.objects.select_related('cancha', 'cancha__complejo', 'cliente'), 
+        id=turno_id
+    )
+    
+    # Verificar que el staff pertenece al mismo complejo (o es superadmin)
+    if not request.user.es_superadmin:
+        if not request.user.complejo or request.user.complejo != turno.cancha.complejo:
+            messages.error(request, 'No autorizado')
+            return redirect('dashboard')
+    
+    # Verificar que no esté ya cancelado o marcado como no asistió
+    if turno.fue_cancelado or turno.estado == Turno.Estado.NO_ASISTIO:
+        messages.error(request, 'Este turno ya está cancelado o marcado como no asistió')
+        return redirect('dashboard')
+    
+    # Registrar información para estadísticas
+    senia_perdida = turno.senia_pagada
+    
+    # Marcar como no asistió (similar a cancelación pero sin reembolso)
+    turno.estado = Turno.Estado.NO_ASISTIO
+    turno.cancelacion_origen = Turno.CancelacionOrigen.STAFF
+    turno.cancelacion_motivo = f"Cliente no asistió (seña perdida: ${senia_perdida})"
+    turno.cancelado_por = request.user
+    turno.cancelado_en = timezone.now()
+    turno.save(update_fields=['estado', 'cancelacion_origen', 'cancelacion_motivo', 'cancelado_por', 'cancelado_en', 'updated_at'])
+    
+    # Invalidar caché de slots para liberar el turno inmediatamente
+    TurnoService.invalidar_cache_slots(turno.cancha.complejo.id, turno.fecha)
+    
+    cliente_nombre = turno.cliente.first_name or turno.cliente.username
+    mensaje = f'Turno marcado como NO ASISTIÓ: {cliente_nombre} - {turno.cancha.nombre} - {turno.fecha.strftime("%d/%m/%Y")} {turno.hora_inicio.strftime("%H:%M")}'
+    if senia_perdida > 0:
+        mensaje += f' (Seña perdida: ${senia_perdida})'
+    
+    messages.warning(request, mensaje)
     return redirect('dashboard')
 
 
@@ -2107,7 +2136,7 @@ def crear_turno_fijo(request):
                             fecha=fecha_actual,
                             hora_inicio=hora_obj
                         ).exclude(
-                            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+                            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO, Turno.Estado.NO_ASISTIO]
                         ).first()
                         
                         if turno_existente:
@@ -2440,6 +2469,7 @@ def turnos_actuales(request):
             Turno.Estado.CANCELADO_ADMIN,
             Turno.Estado.EXPIRADO,
             Turno.Estado.JUGADO,  # Jugados se muestran solo en historial
+            Turno.Estado.NO_ASISTIO,
         ]
     ).select_related('cancha', 'cancha__complejo', 'cliente').order_by('fecha', 'hora_inicio')
     
@@ -2536,6 +2566,7 @@ def mi_perfil(request):
             Turno.Estado.CANCELADO_ADMIN,
             Turno.Estado.EXPIRADO,
             Turno.Estado.JUGADO,
+            Turno.Estado.NO_ASISTIO,
         ]
     )
     turnos_reservados = turnos_qs.filter(
@@ -2607,7 +2638,7 @@ def turnos_en_vivo(request):
             cancha=cancha,
             fecha=hoy
         ).exclude(
-            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO, Turno.Estado.NO_ASISTIO]
         ).select_related('cliente').order_by('hora_inicio')
         
         # Clasificar cada turno según su estado temporal

@@ -4,76 +4,181 @@
 
 {% block dashboard_content %}
 <div class="space-y-6">
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <!-- Header con título y acciones -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
         <div>
             <div class="flex items-center gap-3 flex-wrap">
-                <h1 class="text-2xl font-semibold text-white">Turnos (vista compacta)</h1>
+                <h1 class="text-2xl font-semibold text-white">Panel Staff</h1>
                 {% if complejo %}
                 <span class="text-sm text-slate-400">{{ complejo.nombre }} • {{ hoy|date:"d/m/Y" }}</span>
                 {% endif %}
             </div>
-            <p class="text-slate-400 text-sm">Solo columnas clave: Cancha, Hora, Fecha, Usuario, Estado. Detalles expandibles.</p>
+            <p class="text-slate-400 text-sm mt-1">Gestión de turnos y reservas del complejo</p>
         </div>
-        <div class="flex gap-2 flex-wrap">
-            <a href="?layout=classic{% if vista_tab %}&vista={{ vista_tab }}{% endif %}" class="px-4 py-2 bg-slate-800/70 border border-slate-700 text-sm font-medium text-slate-200 rounded-lg hover:border-slate-500 transition">
-                Volver a vista clásica
+        
+        <!-- Menú de acciones rápidas -->
+        {% if complejo %}
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{% url 'nuevo_turno_rapido' %}" 
+               class="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-slate-600 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>Nuevo Turno</span>
             </a>
-            <a href="?layout=compact&vista={{ vista_tab|default:'activos' }}" class="px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded-lg hover:bg-cyan-600 transition">
-                Mantener compacta
+            
+            <a href="{% url 'turnos_fijos' %}" 
+               class="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-slate-600 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span>Turnos Fijos</span>
             </a>
+            
+            <a href="{% url 'bloqueos' %}" 
+               class="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-slate-600 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <span>Bloqueos</span>
+            </a>
+            
+            {% if turnos_en_vivo_habilitados %}
+            <a href="{% url 'turnos_en_vivo' %}" 
+               class="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-slate-600 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <span>En Vivo</span>
+            </a>
+            {% endif %}
         </div>
+        {% endif %}
     </div>
 
     {% if complejo %}
     <!-- Tabs -->
     <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex gap-2">
-            <a href="?vista=activos&layout=compact" class="px-4 py-2 rounded-lg text-sm font-medium transition {% if vista_tab == 'activos' %}bg-cyan-500 text-white{% else %}bg-slate-800/60 text-slate-300 border border-slate-700/60 hover:text-white{% endif %}">
-                Turnos Activos
+            <a href="?vista=activos" class="px-4 py-2 rounded-lg text-sm font-medium transition {% if vista_tab == 'activos' %}bg-cyan-500 text-white{% else %}bg-slate-800/60 text-slate-300 border border-slate-700/60 hover:text-white{% endif %}">
+                Turnos Activos <span class="text-xs opacity-75">(hoy en adelante)</span>
             </a>
-            <a href="?vista=historial&layout=compact" class="px-4 py-2 rounded-lg text-sm font-medium transition {% if vista_tab == 'historial' %}bg-cyan-500 text-white{% else %}bg-slate-800/60 text-slate-300 border border-slate-700/60 hover:text-white{% endif %}">
-                Historial
+            <a href="?vista=historial" class="px-4 py-2 rounded-lg text-sm font-medium transition {% if vista_tab == 'historial' %}bg-cyan-500 text-white{% else %}bg-slate-800/60 text-slate-300 border border-slate-700/60 hover:text-white{% endif %}">
+                Historial <span class="text-xs opacity-75">(pasado)</span>
             </a>
         </div>
         <span class="text-xs text-slate-400">Total: {{ turnos_complejo.paginator.count }}</span>
     </div>
 
-    <!-- Filtros mínimos -->
-    <form method="get" class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+    <!-- Filtros mejorados con dropdowns -->
+    <form method="get" id="filtros-form" class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4">
         <input type="hidden" name="vista" value="{{ vista_tab }}">
-        <input type="hidden" name="layout" value="compact">
-        <div class="flex flex-col gap-1">
-            <label class="text-xs text-slate-400">Estado</label>
-            <select name="estado" class="px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
-                <option value="">Todos</option>
-                <option value="confirmado" {% if estado_filtro == 'confirmado' %}selected{% endif %}>Confirmado</option>
-                <option value="pendiente_pago" {% if estado_filtro == 'pendiente_pago' %}selected{% endif %}>Pendiente</option>
-                <option value="cancelados" {% if estado_filtro == 'cancelados' %}selected{% endif %}>Cancelados</option>
-            </select>
-        </div>
-        <div class="flex flex-col gap-1">
-            <label class="text-xs text-slate-400">Cancha</label>
-            <select name="cancha" class="px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
-                <option value="">Todas</option>
-                {% for cancha in canchas %}
-                <option value="{{ cancha.id }}" {% if cancha_filtro|default_if_none:'' == cancha.id|stringformat:"s" %}selected{% endif %}>{{ cancha.nombre }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="flex flex-col gap-1">
-            <label class="text-xs text-slate-400">Cliente</label>
-            <input type="text" name="cliente" value="{{ cliente_filtro }}" placeholder="Nombre o usuario" class="px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
-        </div>
-        <div class="flex flex-col gap-1">
-            <label class="text-xs text-slate-400">Fecha</label>
-            <div class="flex gap-2">
-                <input type="date" name="desde" value="{{ desde }}" class="w-1/2 px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
-                <input type="date" name="hasta" value="{{ hasta }}" class="w-1/2 px-3 py-2 rounded bg-slate-900/70 border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500">
+        
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Dropdown Estados -->
+            <div class="relative" x-data="{ open: false }">
+                <button type="button" @click="open = !open" @click.away="open = false"
+                        class="flex items-center gap-2 px-4 py-2 bg-slate-900/70 border border-slate-700 rounded-lg text-sm text-white hover:border-cyan-500 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"/>
+                    </svg>
+                    <span>Estados</span>
+                    <span class="text-xs text-cyan-400" id="estados-count">{% if estado_filtro %}(1){% endif %}</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div x-show="open" class="absolute z-50 mt-2 w-56 bg-slate-900 border border-slate-700 rounded-lg shadow-xl">
+                    <div class="p-2">
+                        <label class="flex items-center gap-2 px-3 py-2 text-sm text-white cursor-pointer hover:bg-slate-800 rounded transition">
+                            <input type="radio" name="estado" value="" class="accent-cyan-500" {% if not estado_filtro %}checked{% endif %}>
+                            <span>Todos los estados</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-3 py-2 text-sm text-white cursor-pointer hover:bg-slate-800 rounded transition">
+                            <input type="radio" name="estado" value="confirmado" class="accent-cyan-500" {% if estado_filtro == 'confirmado' %}checked{% endif %}>
+                            <span>Confirmado</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-3 py-2 text-sm text-white cursor-pointer hover:bg-slate-800 rounded transition">
+                            <input type="radio" name="estado" value="pendiente_pago" class="accent-cyan-500" {% if estado_filtro == 'pendiente_pago' %}checked{% endif %}>
+                            <span>Pendiente de pago</span>
+                        </label>
+                        <label class="flex items-center gap-2 px-3 py-2 text-sm text-white cursor-pointer hover:bg-slate-800 rounded transition">
+                            <input type="radio" name="estado" value="cancelados" class="accent-cyan-500" {% if estado_filtro == 'cancelados' %}checked{% endif %}>
+                            <span>Cancelados</span>
+                        </label>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="flex items-end gap-2">
-            <button type="submit" class="px-4 py-2 bg-cyan-500 text-white text-sm font-medium rounded hover:bg-cyan-600 transition">Aplicar</button>
-            <a href="{% url 'dashboard' %}?vista={{ vista_tab }}&layout=compact" class="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-600 rounded hover:bg-slate-700/60 transition">Limpiar</a>
+
+            <!-- Dropdown Canchas -->
+            <div class="relative" x-data="{ open: false }">
+                <button type="button" @click="open = !open" @click.away="open = false"
+                        class="flex items-center gap-2 px-4 py-2 bg-slate-900/70 border border-slate-700 rounded-lg text-sm text-white hover:border-cyan-500 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                    <span>Canchas</span>
+                    <span class="text-xs text-cyan-400" id="canchas-count">{% if canchas_filtro %}({{ canchas_filtro|length }}){% endif %}</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div x-show="open" class="absolute z-50 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl max-h-80 overflow-y-auto">
+                    <div class="p-2">
+                        <label class="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white cursor-pointer hover:bg-slate-800 rounded transition border-b border-slate-700/50 mb-1">
+                            <input type="checkbox" id="select_all_canchas" class="accent-cyan-500" onchange="document.querySelectorAll('input[name=canchas]').forEach(cb => cb.checked = this.checked); updateCanchasCount();">
+                            <span>Todas las canchas</span>
+                        </label>
+                        {% for cancha in canchas %}
+                        <label class="flex items-center gap-2 px-3 py-2 text-sm text-white cursor-pointer hover:bg-slate-800 rounded transition">
+                            <input type="checkbox" name="canchas" value="{{ cancha.id }}" class="accent-cyan-500 cancha-checkbox" {% if cancha.id|stringformat:"s" in canchas_filtro %}checked{% endif %} onchange="updateCanchasCount()">
+                            <span>{{ cancha.nombre }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Cliente -->
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" name="cliente" value="{{ cliente_filtro }}" placeholder="Buscar por cliente..." 
+                       class="w-full px-4 py-2 rounded-lg bg-slate-900/70 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition">
+            </div>
+
+            <!-- Dropdown Fecha -->
+            <div class="relative" x-data="{ open: false }">
+                <button type="button" @click="open = !open" @click.away="open = false"
+                        class="flex items-center gap-2 px-4 py-2 bg-slate-900/70 border border-slate-700 rounded-lg text-sm text-white hover:border-cyan-500 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Rango de fechas</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div x-show="open" class="absolute z-50 mt-2 right-0 w-72 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Desde</label>
+                            <input type="date" name="desde" value="{{ desde }}" class="w-full px-3 py-2 rounded bg-slate-800 border border-slate-600 text-sm text-white focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Hasta</label>
+                            <input type="date" name="hasta" value="{{ hasta }}" class="w-full px-3 py-2 rounded bg-slate-800 border border-slate-600 text-sm text-white focus:outline-none focus:border-cyan-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <button type="submit" class="px-5 py-2 bg-cyan-500 text-white text-sm font-medium rounded-lg hover:bg-cyan-600 transition shadow-lg shadow-cyan-500/20">
+                Aplicar filtros
+            </button>
+            <a href="{% url 'dashboard' %}?vista={{ vista_tab }}" 
+               class="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-600 rounded-lg hover:bg-slate-700/60 hover:border-slate-500 transition">
+                Limpiar
+            </a>
         </div>
     </form>
 
@@ -89,7 +194,7 @@
                         <th class="px-4 py-3 text-left">Fecha</th>
                         <th class="px-4 py-3 text-left">Usuario</th>
                         <th class="px-4 py-3 text-left">Estado</th>
-                        <th class="px-4 py-3 text-left">Detalle</th>
+                        <th class="px-4 py-3 text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/80">
@@ -104,7 +209,8 @@
                         </td>
                         <td class="px-4 py-3">
                             <span class="px-2 py-1 rounded text-xs font-medium
-                                {% if turno.estado_visual == 'Jugado' %}bg-green-600/20 text-green-300
+                                {% if turno.estado_visual == 'No asistió' %}bg-orange-500/20 text-orange-300
+                                {% elif turno.estado_visual == 'Jugado' %}bg-green-600/20 text-green-300
                                 {% elif turno.estado_visual == 'Pagado completo' %}bg-emerald-500/20 text-emerald-300
                                 {% elif turno.estado_visual == 'Reservado con seña' %}bg-amber-500/20 text-amber-300
                                 {% elif turno.estado_visual == 'Reservado' %}bg-blue-500/20 text-blue-300
@@ -124,50 +230,89 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-3">
-                            <button 
-                                type="button"
-                                class="px-3 py-1.5 text-xs bg-slate-800/60 border border-slate-700 rounded text-slate-200 hover:border-cyan-500 transition"
-                                onclick="const row=this.closest('tr'); const d=row.nextElementSibling; d.classList.toggle('hidden');">
-                                Ver detalles
-                            </button>
-                        </td>
-                    </tr>
-                    <tr class="hidden bg-slate-900/70">
-                        <td colspan="6" class="px-4 py-3">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-200">
-                                <div>
-                                    <p class="text-slate-400">Precio</p>
-                                    <p class="text-white font-semibold">${{ turno.precio_total|floatformat:0 }}</p>
-                                    {% if turno.senia_pagada > 0 %}
-                                    <p class="text-amber-400">Seña: ${{ turno.senia_pagada|floatformat:0 }}</p>
-                                    {% endif %}
-                                    {% if turno.fue_cancelado and turno.cancelacion_motivo %}
-                                    <p class="text-slate-400 mt-2">Motivo</p>
-                                    <p class="text-white">{{ turno.cancelacion_motivo }}</p>
-                                    {% endif %}
-                                </div>
-                                <div>
-                                    <p class="text-slate-400">Contacto</p>
-                                    <p>Email: {{ turno.cliente.email|default:"-" }}</p>
-                                    <p>Celular: {{ turno.cliente.celular|default:"-" }}</p>
-                                </div>
-                                <div class="flex gap-2 items-start">
-                                    {% if not turno.fue_cancelado and vista_tab != 'historial' %}
-                                    <form method="post" action="{% url 'cancelar_turno_staff' turno.id %}">
-                                        {% csrf_token %}
-                                        <button type="submit" onclick="return confirm('¿Cancelar turno de {{ turno.cliente.first_name|default:turno.cliente.username }}?')" class="px-3 py-1.5 text-xs bg-red-500/20 text-red-300 rounded hover:bg-red-500/30 transition">Cancelar</button>
-                                    </form>
+                            <div class="flex items-center justify-center gap-1.5">
+                                {% if not turno.fue_cancelado and turno.estado_visual != 'No asistió' and vista_tab != 'historial' %}
+                                    <!-- Botón Check (Marcar como pagado) -->
                                     {% if not turno.esta_pagado_completo %}
-                                    <form method="post" action="{% url 'marcar_turno_pagado' turno.id %}">
+                                    <form method="post" action="{% url 'marcar_turno_pagado' turno.id %}" class="inline">
                                         {% csrf_token %}
-                                        <button type="submit" onclick="return confirm('¿Marcar turno como pagado completamente?')" class="px-3 py-1.5 text-xs bg-emerald-500/20 text-emerald-300 rounded hover:bg-emerald-500/30 transition">Marcar pagado</button>
+                                        <button 
+                                            type="submit"
+                                            onclick="return confirm('¿Marcar turno como pagado completamente?')"
+                                            class="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 border border-emerald-500/40 transition group"
+                                            title="Marcar como pagado">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </button>
                                     </form>
-                                    {% endif %}
-                                    <a href="{% url 'editar_turno' turno.id %}" class="px-3 py-1.5 text-xs bg-cyan-500/20 text-cyan-200 rounded hover:bg-cyan-500/30 transition">Editar</a>
                                     {% else %}
-                                    <span class="text-slate-500">Sin acciones</span>
+                                    <div class="p-2 bg-slate-700/30 text-slate-600 rounded-lg cursor-not-allowed" title="Ya está pagado">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    </div>
                                     {% endif %}
+                                    
+                                    <!-- Botón Cruz (Cancelar turno) -->
+                                    <button 
+                                        type="button"
+                                        onclick="openCancelarTurnoStaffModal({{ turno.id }}, '{{ turno.cliente.first_name|default:turno.cliente.username|escapejs }}', '{{ turno.cancha.nombre|escapejs }}', '{{ turno.fecha|date:'d/m/Y' }}', '{{ turno.hora_inicio|time:'H:i' }}', '{{ turno.senia_pagada|floatformat:0 }}')"
+                                        class="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 border border-red-500/40 transition"
+                                        title="Cancelar turno">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                    
+                                    <!-- Botón Reloj (No asistió) -->
+                                    <button 
+                                        type="button"
+                                        onclick="marcarNoAsistio({{ turno.id }}, '{{ turno.cliente.first_name|default:turno.cliente.username|escapejs }}')"
+                                        class="p-2 bg-orange-500/20 text-orange-400 rounded-lg hover:bg-orange-500/30 border border-orange-500/40 transition"
+                                        title="Marcar como no asistió">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </button>
+                                {% else %}
+                                    <!-- Botones deshabilitados si está cancelado o es historial -->
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="p-2 bg-slate-700/30 text-slate-600 rounded-lg cursor-not-allowed" title="No disponible">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        </div>
+                                        <div class="p-2 bg-slate-700/30 text-slate-600 rounded-lg cursor-not-allowed" title="No disponible">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                                            </svg>
+                                        </div>
+                                        <div class="p-2 bg-slate-700/30 text-slate-600 rounded-lg cursor-not-allowed" title="No disponible">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- Botón Lápiz (Editar) - siempre visible si no empezó -->
+                                {% if not turno.ya_empezo and turno.estado != 'jugado' %}
+                                <a 
+                                    href="{% url 'editar_turno' turno.id %}" 
+                                    class="p-2 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 border border-cyan-500/40 transition"
+                                    title="Editar turno">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                </a>
+                                {% else %}
+                                <div class="p-2 bg-slate-700/30 text-slate-600 rounded-lg cursor-not-allowed" title="El turno ya empezó">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
                                 </div>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -182,13 +327,13 @@
             <div>Página {{ turnos_complejo.number }} de {{ turnos_complejo.paginator.num_pages }}</div>
             <div class="flex items-center gap-2">
                 {% if turnos_complejo.has_previous %}
-                <a href="?vista={{ vista_tab }}&layout=compact&page={{ turnos_complejo.previous_page_number }}{% if querystring and 'vista=' not in querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Anterior</a>
+                <a href="?vista={{ vista_tab }}&page={{ turnos_complejo.previous_page_number }}{% if querystring and 'vista=' not in querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Anterior</a>
                 {% else %}
                 <span class="px-3 py-1 rounded border border-slate-800 text-slate-600">Anterior</span>
                 {% endif %}
 
                 {% if turnos_complejo.has_next %}
-                <a href="?vista={{ vista_tab }}&layout=compact&page={{ turnos_complejo.next_page_number }}{% if querystring and 'vista=' not in querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Siguiente</a>
+                <a href="?vista={{ vista_tab }}&page={{ turnos_complejo.next_page_number }}{% if querystring and 'vista=' not in querystring %}&{{ querystring }}{% endif %}" class="px-3 py-1 rounded border border-slate-700 hover:border-cyan-500 hover:text-cyan-400 transition">Siguiente</a>
                 {% else %}
                 <span class="px-3 py-1 rounded border border-slate-800 text-slate-600">Siguiente</span>
                 {% endif %}
@@ -213,5 +358,130 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Modal: Cancelar turno (staff) con reembolso sí/no -->
+<div id="modal-cancelar-turno-staff" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700/50 shadow-2xl">
+        <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+                <h3 class="text-lg font-semibold text-white">Cancelar turno</h3>
+                <p class="text-xs text-slate-400 mt-1" id="modal-cancelar-subtitulo"></p>
+            </div>
+            <button type="button" class="text-slate-400 hover:text-white transition" onclick="closeCancelarTurnoStaffModal()">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <form method="post" id="modal-cancelar-form">
+            {% csrf_token %}
+            <div class="bg-slate-900/40 border border-slate-700/60 rounded-lg p-3 mb-4">
+                <p class="text-sm text-slate-200" id="modal-cancelar-texto"></p>
+                <p class="text-xs text-slate-400 mt-1" id="modal-cancelar-senia"></p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-300 mb-2">¿Hacer reembolso?</p>
+                    <div class="flex items-center gap-4">
+                        <label class="inline-flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
+                            <input type="radio" name="reembolsar" value="1" class="accent-cyan-500" checked>
+                            <span>Sí, acreditar seña como créditos</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
+                            <input type="radio" name="reembolsar" value="0" class="accent-cyan-500">
+                            <span>No</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Motivo (opcional)</label>
+                    <input
+                        type="text"
+                        name="motivo"
+                        maxlength="255"
+                        placeholder="Ej: lluvia, mantenimiento, error de carga..."
+                        class="w-full px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-600 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    >
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeCancelarTurnoStaffModal()" class="px-4 py-2 bg-slate-700 text-white text-sm font-medium rounded-lg hover:bg-slate-600 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-500/20">
+                        Confirmar cancelación
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+function updateCanchasCount() {
+    const checkboxes = document.querySelectorAll('input[name="canchas"]:checked');
+    const count = checkboxes.length;
+    const countEl = document.getElementById('canchas-count');
+    if (count > 0) {
+        countEl.textContent = `(${count})`;
+    } else {
+        countEl.textContent = '';
+    }
+}
+
+// Actualizar contador al cargar la página
+document.addEventListener('DOMContentLoaded', updateCanchasCount);
+
+// Modal de cancelación
+function openCancelarTurnoStaffModal(turnoId, cliente, cancha, fecha, hora, seniaPagada) {
+    const modal = document.getElementById('modal-cancelar-turno-staff');
+    const form = document.getElementById('modal-cancelar-form');
+    const subtitulo = document.getElementById('modal-cancelar-subtitulo');
+    const texto = document.getElementById('modal-cancelar-texto');
+    const senia = document.getElementById('modal-cancelar-senia');
+
+    form.action = "{% url 'cancelar_turno_staff' 0 %}".replace('/0/', `/${turnoId}/`);
+    subtitulo.textContent = `${cancha} • ${fecha} • ${hora}`;
+    texto.textContent = `Cliente: ${cliente}`;
+    senia.textContent = seniaPagada && seniaPagada !== "0" ? `Seña pagada: $${seniaPagada}` : `Sin seña pagada`;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeCancelarTurnoStaffModal() {
+    const modal = document.getElementById('modal-cancelar-turno-staff');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+// Cerrar al clickear fuera
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('modal-cancelar-turno-staff');
+    if (!modal.classList.contains('hidden') && e.target === modal) {
+        closeCancelarTurnoStaffModal();
+    }
+});
+
+// Función para marcar como no asistió
+function marcarNoAsistio(turnoId, cliente) {
+    if (confirm(`¿Marcar que ${cliente} NO asistió al turno?\n\nEsto registrará la inasistencia del cliente.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{% url 'marcar_no_asistio' 0 %}".replace('/0/', `/${turnoId}/`);
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = 'csrfmiddlewaretoken';
+        csrf.value = '{{ csrf_token }}';
+        form.appendChild(csrf);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
 {% endblock %}
 

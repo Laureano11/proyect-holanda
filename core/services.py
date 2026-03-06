@@ -180,7 +180,7 @@ class TurnoService:
             turnos_ocupados_qs = turnos_ocupados_qs.filter(fecha=fecha)
 
         turnos_ocupados = set(turnos_ocupados_qs.exclude(
-            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO, Turno.Estado.NO_ASISTIO]
         ).values_list('cancha_id', 'hora_inicio'))
         
         # Obtener turnos fijos que aplican (con select_related)
@@ -339,7 +339,7 @@ class TurnoService:
             turnos_ocupados_qs = turnos_ocupados_qs.filter(fecha=fecha)
 
         turnos_ocupados = set(turnos_ocupados_qs.exclude(
-            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO, Turno.Estado.NO_ASISTIO]
         ).values_list('cancha_id', 'hora_inicio'))
         
         # Obtener y preprocesar bloqueos
@@ -449,7 +449,7 @@ class TurnoService:
             fecha=fecha_real_turno,
             hora_inicio=hora
         ).exclude(
-            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO]
+            estado__in=[Turno.Estado.CANCELADO_USUARIO, Turno.Estado.CANCELADO_ADMIN, Turno.Estado.EXPIRADO, Turno.Estado.NO_ASISTIO]
         ).exists()
         
         if turno_existente:

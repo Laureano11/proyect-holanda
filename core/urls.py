@@ -54,6 +54,7 @@ urlpatterns = [
     
     # Gestión de turnos (Staff)
     path('marcar-pagado/<int:turno_id>/', views.marcar_turno_pagado, name='marcar_turno_pagado'),
+    path('marcar-no-asistio/<int:turno_id>/', views.marcar_no_asistio, name='marcar_no_asistio'),
     path('editar-turno/<int:turno_id>/', views.editar_turno, name='editar_turno'),
     path('actualizar-turno/<int:turno_id>/', views.actualizar_turno, name='actualizar_turno'),
     path('turnos-en-vivo/', views.turnos_en_vivo, name='turnos_en_vivo'),
