@@ -19,6 +19,16 @@
         <!-- Menú de acciones rápidas -->
         {% if complejo %}
         <div class="flex flex-wrap items-center gap-2">
+            <a href="{% url 'dashboard' %}?vista={{ vista_tab }}{% if dia_filtro %}&dia={{ dia_filtro }}{% endif %}{% if querystring %}&{{ querystring }}{% endif %}"
+               class="flex items-center gap-2 px-3 py-2 text-sm bg-cyan-500/20 text-cyan-300 rounded-lg border border-cyan-500/40">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                <span>Lista</span>
+            </a>
+            <a href="{% url 'dashboard' %}?vista={{ vista_tab }}&display=grilla{% if dia_filtro %}&dia={{ dia_filtro }}{% endif %}{% if querystring %}&{{ querystring }}{% endif %}"
+               class="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-slate-600 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                <span>Grilla</span>
+            </a>
             <a href="{% url 'nuevo_turno_rapido' %}" 
                class="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg border border-slate-700/50 hover:border-slate-600 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,10 +71,10 @@
     <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex gap-2">
             <a href="?vista=activos" class="px-4 py-2 rounded-lg text-sm font-medium transition {% if vista_tab == 'activos' %}bg-cyan-500 text-white{% else %}bg-slate-800/60 text-slate-300 border border-slate-700/60 hover:text-white{% endif %}">
-                Turnos Activos <span class="text-xs opacity-75">(hoy en adelante)</span>
+                Turnos Activos 
             </a>
             <a href="?vista=historial" class="px-4 py-2 rounded-lg text-sm font-medium transition {% if vista_tab == 'historial' %}bg-cyan-500 text-white{% else %}bg-slate-800/60 text-slate-300 border border-slate-700/60 hover:text-white{% endif %}">
-                Historial <span class="text-xs opacity-75">(pasado)</span>
+                Historial <span class="text-xs opacity-75">
             </a>
         </div>
         <span class="text-xs text-slate-400">Total: {{ turnos_complejo.paginator.count }}</span>

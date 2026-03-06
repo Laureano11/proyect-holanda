@@ -865,7 +865,44 @@ def dashboard(request):
             orden_turnos = 'juego'
             turnos_complejo_qs = turnos_complejo_qs.order_by('fecha', 'hora_inicio')
         
-        # Paginar resultados
+        # Vista grilla: datos para un solo día (sin paginación)
+        display_grilla = request.GET.get('display') == 'grilla'
+        dia_grilla = hoy
+        if dia_filtro:
+            try:
+                dia_grilla = datetime.strptime(dia_filtro, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+        if display_grilla:
+            turnos_grilla_qs = turnos_complejo_qs.filter(fecha=dia_grilla)
+            turnos_grilla = list(turnos_grilla_qs.select_related('cancha', 'cliente'))
+            apertura_dt, cierre_dt = TurnoService.obtener_ventana_horaria(complejo, dia_grilla)
+            horarios_grilla = []
+            t = apertura_dt
+            while t < cierre_dt:
+                if t.date() > dia_grilla:
+                    break
+                horarios_grilla.append(t.strftime('%H:%M'))
+                t += timedelta(minutes=60)
+            lookup = {(turno.cancha_id, turno.hora_inicio.strftime('%H:%M')): turno for turno in turnos_grilla}
+            canchas_list = list(complejo.canchas.filter(activa=True).order_by('nombre'))
+            grid_data = [
+                {
+                    'hora': h,
+                    'cells': [{'cancha': c, 'turno': lookup.get((c.id, h))} for c in canchas_list]
+                }
+                for h in horarios_grilla
+            ]
+            context.update({
+                'turnos_grilla': turnos_grilla,
+                'dia_grilla': dia_grilla,
+                'horarios_grilla': horarios_grilla,
+                'grid_data': grid_data,
+                'display_grilla': True,
+            })
+
+        # Paginar resultados (para vista lista)
         paginator = Paginator(turnos_complejo_qs, por_pagina)
         turnos_complejo = paginator.get_page(page)
         
@@ -917,6 +954,7 @@ def dashboard(request):
             'dia_filtro': dia_filtro or '',
             'dias_semana_selector': dias_semana_selector,
             'fecha_maxima_rango': fecha_maxima_rango,
+            'display_grilla': context.get('display_grilla', False),
         })
         try:
             context['turnos_en_vivo_habilitados'] = complejo.preferencias.turnos_en_vivo_habilitados
@@ -947,6 +985,8 @@ def dashboard(request):
     elif user.es_admin:
         return render(request, 'dashboard/admin.html', context)
     elif user.es_staff_complejo:
+        if context.get('display_grilla'):
+            return render(request, 'dashboard/staff_grilla.html', context)
         return render(request, 'dashboard/staff_compact.html', context)
     else:
         return render(request, 'dashboard/cliente.html', context)
