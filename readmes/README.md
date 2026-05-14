@@ -166,16 +166,7 @@ celery -A config beat -l info
 
 ---
 
-## 🔥 Optimizaciones Implementadas
 
-✅ **Redis** - Caché compartido entre workers (10x más rápido)
-✅ **Queries N+1** - Optimizadas con select_related (90% menos queries)
-✅ **Celery** - Tareas asincrónicas en background
-✅ **Sessions** - En Redis para mejor rendimiento
-✅ **Connection Pooling** - Reutilización de conexiones DB
-✅ **Middleware** - Caché de resolución de complejos
-
-**Resultado:** 10x más rápido, 5x menos CPU, 100+ usuarios concurrentes
 
 Para detalles: [SETUP_PRODUCTION.md](SETUP_PRODUCTION.md)
 
